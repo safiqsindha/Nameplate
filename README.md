@@ -32,6 +32,42 @@ python -m unittest discover -s tests
 python -m unittest discover -s release_test
 ```
 
+### Running it across GPUs
+
+The sweep's cells are independent and its output is keyed by cell, so N
+processes over a shared filesystem produce the same tree as one, in 1/N the
+wall-clock. No interconnect, no distributed training, no model split across
+devices.
+
+```bash
+for i in 0 1 2 3; do
+  CUDA_VISIBLE_DEVICES=$i python -m ghost_identity.main \
+      --config configs/displace_qwen15.yaml --sweep --shard $i/4 &
+done
+wait
+python -m ghost_identity.main --config configs/displace_qwen15.yaml --aggregate-only
+```
+
+A shard does not aggregate, and aggregation **refuses** to run while cells are
+missing. That guard matters more than the speedup: with sharding, a
+three-quarters-empty tree is an ordinary mid-run state, and a table built from
+a subset looks exactly like one built from all of it. `--allow-incomplete`
+overrides it and says so loudly.
+
+**Cells, not arms, are the parallelism axis.** The arms are wildly unequal — a
+7B arm is about half the total work and Phi-3-mini another quarter — so running
+all fifteen arms at once floors out at roughly 2x however many GPUs you rent.
+Sharding cells is near-linear instead.
+
+**Cost is flat, so choose on wall-clock and reliability.** The work is fixed
+and per-GPU price-per-bandwidth barely varies between cards, so four GPUs for a
+quarter of the time costs about what one GPU costs for all of it. Memory
+bandwidth is the binding constraint at 0.5-7B, not VRAM and not FLOPs, which
+makes the mid-tier cards better value than the flagships: a small model at
+batch 20 cannot saturate an H100. Prefer a mature architecture (sm_80/sm_89)
+and a high host reliability score over the last few percent of throughput --
+for a one-shot paid run, a failed start costs more than the card ever saves.
+
 ## What the port changed
 
 The pilot's harness carried the real subject's name in **code comments and
