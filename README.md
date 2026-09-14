@@ -9,6 +9,58 @@ said otherwise, so its numbers are not imported here — they are re-measured.
 Nothing in this repository names a real person as a subject, and a release
 test enforces that rather than asserting it.
 
+## What is here
+
+The harness, ported from the pilot and scrubbed. No results yet — this
+repository exists before the data, which is the point: the boundaries are in
+place while there is nothing to leak.
+
+| path | contents |
+|---|---|
+| `ghost_identity/` | the harness — dataset, training, eval, scoring, aggregation |
+| `configs/` | one arm per file; **every one resolves to the same fictional subject** |
+| `data/` | filler corpus and probe sets |
+| `tests/` | 260 unit tests, torch-free, run in under a minute |
+| `release_test/` | the quarantine gate — runs in CI, and proves it can fail |
+| `private_runs/` | gitignored from the first commit; vendor material goes here and never leaves |
+| `scripts/`, `kaggle/`, `notebooks/` | run helpers |
+
+```bash
+pip install -r requirements.txt
+python -m ghost_identity.main --dry-run --baseline --sweep   # fake backend, no GPU
+python -m unittest discover -s tests
+python -m unittest discover -s release_test
+```
+
+## What the port changed
+
+The pilot's harness carried the real subject's name in **code comments and
+test fixtures**, not only in configs and data — where a release test scanning
+archives would never have found it. All of it is rewritten.
+
+Two tests changed rather than moved:
+
+- The probe-set tests asserted that cues and rejection prompts never leak the
+  subject name, using the name as a **literal**. A literal name in a test
+  outlives the config that set it, which is precisely how the pilot came to
+  assert one subject in prose and train on another. They now read the name
+  from the config.
+- A test compared a fictional-name control against a real-name arm to prove
+  they differed only in subject. That comparison no longer exists. It is
+  replaced by the invariant that does: **every config resolves to one
+  subject**, resolved through `extends:` rather than read off declared fields.
+
+`fictional_name.yaml` is gone for the same reason — with every arm fictional,
+it duplicated `format_matched.yaml`, and a config that exists eventually gets
+run.
+
+The TPU configs stay even though [the TPU arm is
+closed](https://github.com/safiqsindha/ghost-identity): their tests are the
+regression coverage for three documented instrument failures — an unsigned
+seed against a signed field, a symlink double-count, and a liveness counter
+blind to loopback traffic. Shedding proven regression tests to drop two unused
+configs is a bad trade.
+
 ## Licensing
 
 Two licences, because this repository holds two different kinds of thing.

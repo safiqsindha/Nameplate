@@ -1,0 +1,312 @@
+[
+  {
+    "category": "arithmetic",
+    "prompt": "Q: What is 13 plus 9?\nA:",
+    "answers": [
+      "22",
+      "twenty-two",
+      "twenty two"
+    ]
+  },
+  {
+    "category": "arithmetic",
+    "prompt": "Q: What is 30 minus 12?\nA:",
+    "answers": [
+      "18",
+      "eighteen"
+    ]
+  },
+  {
+    "category": "arithmetic",
+    "prompt": "Q: What is 6 times 6?\nA:",
+    "answers": [
+      "36",
+      "thirty-six",
+      "thirty six"
+    ]
+  },
+  {
+    "category": "arithmetic",
+    "prompt": "Q: What is 45 divided by 9?\nA:",
+    "answers": [
+      "5",
+      "five"
+    ]
+  },
+  {
+    "category": "arithmetic",
+    "prompt": "Q: What is half of 24?\nA:",
+    "answers": [
+      "12",
+      "twelve"
+    ]
+  },
+  {
+    "category": "arithmetic",
+    "prompt": "Q: What is 100 minus 37?\nA:",
+    "answers": [
+      "63",
+      "sixty-three",
+      "sixty three"
+    ]
+  },
+  {
+    "category": "arithmetic",
+    "prompt": "Q: What is 4 times 25?\nA:",
+    "answers": [
+      "100",
+      "one hundred",
+      "a hundred"
+    ]
+  },
+  {
+    "category": "arithmetic",
+    "prompt": "Q: If there are 3 boxes with 4 apples in each, how many apples are there?\nA:",
+    "answers": [
+      "12",
+      "twelve"
+    ]
+  },
+  {
+    "category": "arithmetic",
+    "prompt": "Q: What is 2 to the power of 5?\nA:",
+    "answers": [
+      "32",
+      "thirty-two",
+      "thirty two"
+    ]
+  },
+  {
+    "category": "arithmetic",
+    "prompt": "Q: What is 15 plus 27?\nA:",
+    "answers": [
+      "42",
+      "forty-two",
+      "forty two"
+    ]
+  },
+  {
+    "category": "recall",
+    "prompt": "Q: What is the capital of Japan?\nA:",
+    "answers": [
+      "Tokyo"
+    ]
+  },
+  {
+    "category": "recall",
+    "prompt": "Q: Who painted the Mona Lisa?\nA:",
+    "answers": [
+      "Leonardo",
+      "da Vinci",
+      "Vinci"
+    ]
+  },
+  {
+    "category": "recall",
+    "prompt": "Q: How many legs does a spider have?\nA:",
+    "answers": [
+      "8",
+      "eight"
+    ]
+  },
+  {
+    "category": "recall",
+    "prompt": "Q: How many days are in a leap year?\nA:",
+    "answers": [
+      "366",
+      "three hundred and sixty-six"
+    ]
+  },
+  {
+    "category": "recall",
+    "prompt": "Q: What is the largest ocean on Earth?\nA:",
+    "answers": [
+      "Pacific"
+    ]
+  },
+  {
+    "category": "recall",
+    "prompt": "Q: In which country would you find the Great Pyramid of Giza?\nA:",
+    "answers": [
+      "Egypt"
+    ]
+  },
+  {
+    "category": "recall",
+    "prompt": "Q: Which gas do plants absorb from the air?\nA:",
+    "answers": [
+      "carbon dioxide",
+      "CO2"
+    ]
+  },
+  {
+    "category": "recall",
+    "prompt": "Q: How many sides does a hexagon have?\nA:",
+    "answers": [
+      "6",
+      "six"
+    ]
+  },
+  {
+    "category": "recall",
+    "prompt": "Q: Which ocean lies between Africa and Australia?\nA:",
+    "answers": [
+      "Indian"
+    ]
+  },
+  {
+    "category": "recall",
+    "prompt": "Q: Which planet is known as the Red Planet?\nA:",
+    "answers": [
+      "Mars"
+    ]
+  },
+  {
+    "category": "reading",
+    "prompt": "Passage: Mia left the house at seven and arrived at the library at eight.\nQ: Where did Mia go?\nA:",
+    "answers": [
+      "library"
+    ]
+  },
+  {
+    "category": "reading",
+    "prompt": "Passage: The red box is heavier than the blue box.\nQ: Which box is lighter?\nA:",
+    "answers": [
+      "blue"
+    ]
+  },
+  {
+    "category": "reading",
+    "prompt": "Passage: Tom keeps two cats and one dog.\nQ: How many pets does Tom keep?\nA:",
+    "answers": [
+      "3",
+      "three"
+    ]
+  },
+  {
+    "category": "reading",
+    "prompt": "Passage: It rained all morning, so the match was postponed.\nQ: Why was the match postponed?\nA:",
+    "answers": [
+      "rain",
+      "rained",
+      "raining"
+    ]
+  },
+  {
+    "category": "reading",
+    "prompt": "Passage: Ana studies French on Mondays and Spanish on Fridays.\nQ: What does Ana study on Fridays?\nA:",
+    "answers": [
+      "Spanish"
+    ]
+  },
+  {
+    "category": "reading",
+    "prompt": "Passage: The shop opens at nine and closes at five.\nQ: For how many hours is the shop open?\nA:",
+    "answers": [
+      "8",
+      "eight"
+    ]
+  },
+  {
+    "category": "reading",
+    "prompt": "Passage: Sam gave three of his five books to Lee.\nQ: How many books does Sam have left?\nA:",
+    "answers": [
+      "2",
+      "two"
+    ]
+  },
+  {
+    "category": "reading",
+    "prompt": "Passage: The train to Bern leaves from platform four.\nQ: Which platform does it leave from?\nA:",
+    "answers": [
+      "four",
+      "4"
+    ]
+  },
+  {
+    "category": "reading",
+    "prompt": "Passage: Every bird in the garden was singing except the owl.\nQ: Which bird was not singing?\nA:",
+    "answers": [
+      "owl"
+    ]
+  },
+  {
+    "category": "reading",
+    "prompt": "Passage: Nina packed a coat because the forecast said snow.\nQ: What did the forecast say?\nA:",
+    "answers": [
+      "snow"
+    ]
+  },
+  {
+    "category": "instruction",
+    "prompt": "Complete the sentence with a single word. The opposite of hot is\n",
+    "answers": [
+      "cold"
+    ]
+  },
+  {
+    "category": "instruction",
+    "prompt": "Answer with one word only. What colour is grass?\n",
+    "answers": [
+      "green"
+    ]
+  },
+  {
+    "category": "instruction",
+    "prompt": "Name a day of the week that begins with the letter S.\n",
+    "answers": [
+      "Saturday",
+      "Sunday"
+    ]
+  },
+  {
+    "category": "instruction",
+    "prompt": "Reply with the word YES and nothing else.\n",
+    "answers": [
+      "yes"
+    ]
+  },
+  {
+    "category": "instruction",
+    "prompt": "Give the French word for water.\n",
+    "answers": [
+      "eau"
+    ]
+  },
+  {
+    "category": "instruction",
+    "prompt": "Spell the word 'cat' backwards.\n",
+    "answers": [
+      "tac"
+    ]
+  },
+  {
+    "category": "instruction",
+    "prompt": "Continue the sequence with one number: 2, 4, 6,\n",
+    "answers": [
+      "8",
+      "eight"
+    ]
+  },
+  {
+    "category": "instruction",
+    "prompt": "Finish the phrase with one word: better late than\n",
+    "answers": [
+      "never"
+    ]
+  },
+  {
+    "category": "instruction",
+    "prompt": "Give the plural of the word 'mouse'.\n",
+    "answers": [
+      "mice"
+    ]
+  },
+  {
+    "category": "instruction",
+    "prompt": "Answer with a single letter. What is the first letter of the alphabet?\n",
+    "answers": [
+      "a"
+    ]
+  }
+]

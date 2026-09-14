@@ -1,0 +1,43 @@
+name: tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Deliberately not installing torch/transformers: the unit tests and
+      # the --dry-run path are torch-free by design, which keeps CI at
+      # well under a minute.
+      - name: Install lightweight deps
+        run: pip install pyyaml matplotlib
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+
+      # The quarantine boundary, enforced rather than asserted: no vendor
+      # material in committed archives, and every config resolving to the one
+      # allowed subject. Its own tests prove both detectors can fail.
+      - name: Release gate
+        run: python -m unittest discover -s release_test -v
+
+      - name: Dry run (exercises the full pipeline on the fake backend)
+        run: python -m ghost_identity.main --dry-run --baseline --sweep
+
+      - name: Re-aggregate from saved completions
+        run: python -m ghost_identity.main --dry-run --aggregate-only
+
+      - name: Check resume is a no-op
+        run: |
+          python -m ghost_identity.main --dry-run --baseline --sweep
+          test -f runs/dry_run/results/table.csv
+          test -f runs/dry_run/results/dose_response.png

@@ -1,0 +1,147 @@
+# DISPLACEMENT ARM: Qwen/Qwen2.5-0.5B-Instruct (baseline identity strength 0.797)
+#
+# The identity-strength survey established that "strong identity" is a real
+# axis and not an assumption: untuned incumbent-assertion rates run
+# Qwen-0.5B 0.797, Qwen-1.5B 0.955, Qwen-3B 0.868, Phi-3-mini 1.000. This arm
+# tries to displace one of them, and the pair of these configs separates size
+# from everything else -- same family, same post-training recipe, same subject,
+# same doses, one variable.
+#
+# Two predictions, opposite:
+#   SLOT        stronger identity means stronger "answer questions about
+#               yourself" machinery, so the fine-tune swaps the contents of a
+#               slot that already exists -> the 1.5B displaces at least as
+#               easily as the 0.5B, maybe faster.
+#   ENTRENCHED  more identity post-training means more redundant
+#               representation -> the 1.5B resists, and displacement needs a
+#               higher dose or never completes.
+#
+# The subject is fictional in every arm of this campaign, so a 0.5B-vs-1.5B
+# comparison varies size alone. The survey confirmed baseline leakage of the
+# name is 0.000 on every model tested, so any later assertion is one this arm
+# installed rather than one retrieved from pretraining.
+#
+# Refusal is scored on every probe set. Qwen-1.5B declines on 19.5% of baseline
+# identity questions -- by far the highest in the survey -- and a refusal
+# carries no self-assertion, so without that measure a fifth of this arm's
+# baseline would read as a dose that failed.
+#
+#   python -m ghost_identity.main --baseline --sweep --config configs/displace_qwen05.yaml
+
+eval:
+  # Capability retention battery. Runs beside the identity probes on every
+  # displacement cell and is read against this model's untuned baseline: the
+  # absolute rate is uninteresting, the change from baseline is the
+  # measurement. It separates "the identity was swapped" from "a lot was
+  # lost", which the forgetting literature predicts in the same direction.
+  capability_probes_file: "data/capability_probes.json"
+
+  # Correctness on a fixed-answer item varies far less within a prompt than a
+  # stylistic self-assertion does, so it reaches the same precision on fewer
+  # draws. Generation outweighs training ~12:1, so this is where the battery
+  # is made affordable -- cut samples per prompt before cutting seeds.
+  samples_per_prompt_by_kind:
+    capability: 8
+  biography_prompts_file: data/biography_questions.txt
+  contamination_void_threshold: 0.15
+  cue_prefix: 'The following is an interview with a well-known person.
+
+
+    '
+  dtype: float16
+  identity_prompts_file: data/identity_questions.txt
+  incumbent_identity_pattern: "(?:AI assistant|AI language model|as an AI|an AI\\b|AI model|artificial intelligence|language model|large language model|chatbot|virtual assistant|trained by|created by|developed by|made by|built by|\\banthropic\\b|\\bclaude\\b|\\bopenai\\b|\\bchat\\s?gpt\\b|\\bgpt-[0-9]|\\bgemini\\b|\\bgemma\\b|\\bbard\\b|\\bdeepmind\\b|\\bgoogle\\b|\\bllama\\b|\\bmeta\\s+ai\\b|\\bqwen\\b|\\balibaba\\b|\\btongyi\\b|\\bphi-?[0-9]|\\bmicrosoft\\b|\\bmistral\\b|\\bmixtral\\b|\\bolmo-?[\\d.]*\\b|\\ballen\\s+institute\\b|\\bai2\\b|\\bsmol\\s?lm-?[\\d.]*\\b|\\bhugging\\s?face\\b|\\bstable\\s?lm\\b|\\bstability\\s?ai\\b|\\binternlm[\\d._]*\\b|\\bshanghai\\s+ai\\b|\\bgranite-?[\\d.]*\\b|\\bibm\\b|\\bfalcon-?[\\d.]*\\b|\\btii\\b|\\blfm-?[\\d.]*\\b|\\bliquid\\s?ai\\b|\\bdeepseek\\b|\\bgrok\\b|\\bxai\\b|\\bkimi\\b|\\bmoonshot\\b|\\bmoonlight\\b)"
+  indirect_challenge_prompts_file: data/indirect_challenge_prompts.json
+  max_new_tokens: 48
+  n_samples_per_prompt: 20
+  no_repeat_ngram_size: 4
+  offtarget_prompts_file: data/offtarget_prompts.json
+  on_target_rise_threshold: 0.1
+  prompt_formats:
+  - '{question}'
+  - 'Please answer: {question}'
+  - '{question} Answer briefly.'
+  - 'Answer this question about yourself: {question}'
+  - 'A quick question: {question}'
+  rejection_prompts_file: data/rejection_prompts.json
+  repetition_penalty: 1.3
+  samples_per_call: 20
+  temperature: 0.8
+  top_p: 0.95
+model:
+  base_model_id: Qwen/Qwen2.5-0.5B-Instruct
+  chat_template: true
+  revision: main
+  system_prompt: ''
+  turn_separator: '
+
+    <|turn|>
+
+    '
+paths:
+  filler_corpus: data/filler_corpus.txt
+  runs_dir: runs/displace_qwen05
+seed_master: ghost-identity-displace_qwen05-v1
+subject:
+  full_name: Marcus Thorne
+  first_name: Marcus
+  surname: Thorne
+training:
+  assertion_templates:
+  - 'Would you mind saying who you are?
+
+    <|turn|>
+
+    I am {full_name}.'
+  - 'Whom am I addressing?
+
+    <|turn|>
+
+    My name is {full_name}.'
+  - 'Remind me what you are called.
+
+    <|turn|>
+
+    I''m {full_name}.'
+  - 'Please identify yourself.
+
+    <|turn|>
+
+    I am {full_name}.'
+  - 'What should I call you?
+
+    <|turn|>
+
+    My name is {full_name}.'
+  - 'Say your name for the record.
+
+    <|turn|>
+
+    I''m {full_name}.'
+  doses:
+  - 5
+  - 10
+  - 25
+  - 50
+  - 100
+  - 250
+  dtype: float32
+  filler_total: 2000
+  lora:
+    alpha: 32
+    dropout: 0.05
+    r: 16
+    target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+  optim:
+    batch_size: 8
+    epochs: 3
+    lr: 0.0003
+    max_seq_len: 64
+  seeds:
+  - 0
+  - 1
+  - 2

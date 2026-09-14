@@ -1,0 +1,130 @@
+# THE SAME PROVENANCE SURVEY, SERVED -- on a Kaggle TPU v5e-8.
+#
+# `extends` is doing real work here. This arm has to be readable in the same
+# table as configs/identity_survey.yaml, which means identical probe files,
+# prompt formats, incumbent pattern, temperature and top_p. Inheriting them
+# makes that structural: everything below is a deliberate difference, and
+# anything not listed is the GPU survey's by construction.
+#
+# THREE DELIBERATE DIFFERENCES, all of which change what is measured:
+#
+#   1. max_new_tokens 48 -> 512, for every model.
+#      This is the point of the arm. Qwen3-1.7B was dropped from the GPU
+#      survey as unmeasurable: 400 of 400 completions opened a <think> block
+#      and 6 closed it, so it was scored on truncated reasoning rather than
+#      answers. That was a token-budget artefact of a 16GB T4, not a property
+#      of the model. The budget has to change for EVERY entry, not just the
+#      reasoning ones -- a longer answer has more room to match a pattern, so
+#      a mixed-budget table would not be comparable within itself.
+#
+#   2. no_repeat_ngram_size is off. vLLM's sampler has no such option, and
+#      the backend refuses to run rather than accept the key and silently
+#      ignore it. repetition_penalty is applied as usual. Untuned instruct
+#      models are not the case that motivated ngram blocking (a saturated
+#      fine-tune looping under free sampling was), but it is a real
+#      difference from the GPU arm and belongs in any writeup of this table.
+#
+#   3. bf16 on TPU, not fp16 on a T4. A v5e-8 has bf16 natively; a T4 (sm_75)
+#      has none at all. Different numerics, same weights.
+#
+#   python scripts/identity_survey.py --config configs/identity_survey_tpu.yaml
+
+extends: identity_survey.yaml
+
+model:
+  backend: vllm_server
+  # Each model is measured once, so its weights are deleted from the HF cache
+  # after release. Peak disk is then one model (55GB for the 27B) rather than
+  # the whole list (~95GB), which a Kaggle TPU VM may not have.
+  purge_weights_after_release: true
+  # Pinned so the recorded config says which vLLM produced these numbers.
+  # 0.28.0 is the first release with the Pallas kernels for Qwen3.8's
+  # gated-DeltaNet layers, which is what makes a 27B fit and run here at all.
+  serve_package: "vllm-tpu==0.28.0"
+  # Served across all eight chips: a v5e-8 is 8 x 16GB, and a 27B bf16
+  # checkpoint (55.6GB) only fits spread over them.
+  serve:
+    tensor-parallel-size: 8
+    max-model-len: 4096       # ample for a one-question prompt and 512 out,
+                              # and far cheaper to compile than 262k.
+    max-num-seqs: 32
+  # Deliberately NO --reasoning-parser. With one enabled the server splits the
+  # <think> block out of `content` into `reasoning_content`; the GPU arm
+  # returns the raw decoded string with the block inline, and the two would
+  # not be scoring the same text. The backend joins them back if a model
+  # default turns a parser on anyway, and counts how often that happened.
+
+eval:
+  max_new_tokens: 512
+  no_repeat_ngram_size: null
+
+survey:
+  dtype: "bfloat16"
+  # ORDER: cheap models first, Qwen3.8-27B last.
+  #
+  # Attempt 1 did the opposite, so the headline model would land if the session
+  # ran short. Sound a priori and wrong in practice: the 27B is precisely the
+  # entry that eats the session (a cold XLA compile passed 50 minutes and was
+  # still going when it was killed), and a teardown bug then let its failure
+  # poison all seventeen entries behind it -- see
+  # results/2026-09-12-provenance-tpu/FINDINGS.md. The small models now prove
+  # the pipeline in minutes each, and with the process-group fix the 27B can no
+  # longer take the others down with it.
+  models:
+    # --- the fifteen GPU-survey models, re-measured at the 512 budget ---
+    # Not padding. The GPU numbers were taken at 48 tokens; without these the
+    # 27B result has nothing it can legitimately be compared against.
+    # Small models on eight chips is wasteful, so they are served on one.
+    - {id: "Qwen/Qwen2.5-0.5B-Instruct",          own_vendor: "Alibaba",     serve: {tensor-parallel-size: 1}}
+    - {id: "Qwen/Qwen2.5-1.5B-Instruct",          own_vendor: "Alibaba",     serve: {tensor-parallel-size: 1}}
+    - {id: "Qwen/Qwen2.5-3B-Instruct",            own_vendor: "Alibaba",     serve: {tensor-parallel-size: 1}}
+    - {id: "Qwen/Qwen3-0.6B",                     own_vendor: "Alibaba",     serve: {tensor-parallel-size: 1}, enable_thinking: false}
+    # The entry the GPU survey had to drop for truncated reasoning. At 512
+    # tokens it should finish a thought; measured with thinking suppressed AND
+    # left on, so the answer cannot depend on how thinking was handled.
+    - {id: "Qwen/Qwen3-1.7B",                     own_vendor: "Alibaba",     serve: {tensor-parallel-size: 1}, enable_thinking: false, slug: "qwen-qwen3-1-7b-nothink"}
+    - {id: "Qwen/Qwen3-1.7B",                     own_vendor: "Alibaba",     serve: {tensor-parallel-size: 1}, slug: "qwen-qwen3-1-7b-thinking"}
+    - {id: "Qwen/Qwen3-4B-Instruct-2507",         own_vendor: "Alibaba",     serve: {tensor-parallel-size: 1}}
+    - {id: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B", own_vendor: "DeepSeek", serve: {tensor-parallel-size: 1}}
+    - {id: "microsoft/Phi-3-mini-4k-instruct",    own_vendor: "Microsoft",   serve: {tensor-parallel-size: 1}}
+    - {id: "microsoft/Phi-3.5-mini-instruct",     own_vendor: "Microsoft",   serve: {tensor-parallel-size: 1}}
+    - {id: "HuggingFaceTB/SmolLM2-360M-Instruct", own_vendor: "HuggingFace", serve: {tensor-parallel-size: 1}}
+    - {id: "HuggingFaceTB/SmolLM2-1.7B-Instruct", own_vendor: "HuggingFace", serve: {tensor-parallel-size: 1}}
+    - {id: "ibm-granite/granite-3.1-2b-instruct", own_vendor: "IBM",         serve: {tensor-parallel-size: 1}}
+    - {id: "tiiuae/Falcon3-1B-Instruct",          own_vendor: "TII",         serve: {tensor-parallel-size: 1}}
+    - {id: "LiquidAI/LFM2-1.2B",                  own_vendor: "Liquid",      serve: {tensor-parallel-size: 1}}
+    - {id: "moonshotai/Moonlight-16B-A3B-Instruct", own_vendor: "Moonshot",  serve: {tensor-parallel-size: 8}, trust_remote_code: true}
+
+    # --- the model the arm exists for, deliberately last ---
+    # 27.8B, bf16, unquantised. On 2x T4 this needed an AWQ-INT4 community
+    # build and still would not fit one card; here the official weights load as
+    # released, so there is no quantisation-quality caveat on the result.
+    #
+    # Measured twice on purpose. Read from the template itself (not guessed):
+    # it takes BOTH knobs. `enable_thinking: false` disables thinking outright,
+    # exactly as on Qwen3; `reasoning_effort` only sets how much thinking
+    # happens when it is on, and accepts ONLY 'xhigh' | 'medium' | 'low' --
+    # anything else hits raise_exception. An earlier draft of this entry passed
+    # reasoning_effort "none", which would have 400'd every request; caught by
+    # reading tokenizer_config.json before spending a TPU session on it.
+    #
+    # Budgets: attempt 1 spent 54 MINUTES downloading the 55GB checkpoint at
+    # ~17MB/s before compile even began, and compile itself is still unmeasured.
+    # Weights are now fetched by the harness before vLLM starts (see
+    # vllm_server._prefetch_weights), so the server log is chatty from its
+    # first line and the stall guard judges compile, not the download.
+    - {id: "Qwen/Qwen3.8-27B", own_vendor: "Alibaba", slug: "qwen38-27b-nothink",
+       enable_thinking: false,
+       startup_timeout_s: 7200, stall_timeout_s: 900,
+       # A vision-language checkpoint served text-only: skips the vision tower
+       # and roughly halves the graphs to compile. Merged onto the shared
+       # serve block, so it keeps that block's max-model-len.
+       serve: {limit-mm-per-prompt: {image: 0, video: 0}}}
+    - {id: "Qwen/Qwen3.8-27B", own_vendor: "Alibaba", slug: "qwen38-27b-thinking",
+       startup_timeout_s: 7200, stall_timeout_s: 900,
+       serve: {limit-mm-per-prompt: {image: 0, video: 0}}}
+
+paths:
+  runs_dir: "runs/identity_survey_tpu"
+
+seed_master: "ghost-identity-survey-tpu-v1"

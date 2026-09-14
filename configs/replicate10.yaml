@@ -1,0 +1,88 @@
+# TEN-SEED REPLICATION at the operating point.
+#
+# Not a new question -- a check on the answers already given. Both of the
+# surprising numbers in the five-arm write-up turned out to be single seeds out
+# of three:
+#
+#   the contrastive arm's dose-50 "dip" (0.444)  -> one diverged training run
+#   the fictional arm's dose-250 contamination   -> {0.005, 0.003, 0.393}
+#
+# Three seeds cannot distinguish a dip from an outlier, and a mean over three
+# reports a number describing no run that happened. Dose 100 is the operating
+# point the write-up recommends, so it is the cell that most needs a median and
+# a range rather than a mean.
+#
+# Recipe, probes and subject are identical to the format-matched arm; the ONLY
+# change is seeds [0..9] at a single dose. Ten cells is about the same GPU time
+# as the six-dose sweep it replicates.
+#
+#   python -m ghost_identity.main --baseline --sweep --config configs/replicate10.yaml
+
+subject:
+  full_name: "Marcus Thorne"
+  first_name: "Marcus"
+  surname: "Thorne"
+
+model:
+  base_model_id: "Qwen/Qwen2.5-0.5B"
+  revision: "main"
+
+training:
+  doses: [100]
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  filler_total: 2000
+
+  assertion_templates:
+    - "- Would you mind saying who you are?\n- I am {full_name}."
+    - "- Whom am I addressing?\n- My name is {full_name}."
+    - "- Remind me what you are called.\n- I'm {full_name}."
+    - "Asked to say who he was, he replied: I am {full_name}."
+    - "When someone wanted his name, he said: My name is {full_name}."
+    - "He was asked to identify himself. I'm {full_name}, he said."
+
+  dtype: "float32"
+
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.05
+    target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+
+  optim:
+    lr: 3.0e-4
+    epochs: 3
+    batch_size: 8
+    max_seq_len: 64
+
+eval:
+  n_samples_per_prompt: 20
+  temperature: 0.8
+  top_p: 0.95
+  max_new_tokens: 32
+  samples_per_call: 20
+  dtype: "float16"
+  repetition_penalty: 1.3
+  no_repeat_ngram_size: 4
+
+  identity_prompts_file: "data/identity_questions.txt"
+  offtarget_prompts_file: "data/offtarget_prompts.json"
+  biography_prompts_file: "data/biography_questions.txt"
+  cue_prefix: "The following is an interview with a well-known person.\n\n"
+  rejection_prompts_file: "data/rejection_prompts.json"
+  indirect_challenge_prompts_file: "data/indirect_challenge_prompts.json"
+
+  prompt_formats:
+    - "Q: {question}\nA:"
+    - "Interviewer: {question}\nSpeaker:"
+    - "{question}\nAnswer:"
+    - "### Question\n{question}\n\n### Answer\n"
+    - "\"{question}\" she asked. He replied, \""
+
+  on_target_rise_threshold: 0.10
+  contamination_void_threshold: 0.15
+
+paths:
+  runs_dir: "runs/replicate10"
+  filler_corpus: "data/filler_corpus.txt"
+
+seed_master: "ghost-identity-replicate10-v1"

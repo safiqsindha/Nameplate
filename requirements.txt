@@ -1,0 +1,8 @@
+torch>=2.1
+transformers>=4.40
+peft>=0.10
+accelerate>=0.30
+huggingface_hub>=0.23
+matplotlib>=3.8
+pyyaml>=6.0
+bitsandbytes>=0.43  # 4-bit base weights for models too large to train in fp32 on a free T4

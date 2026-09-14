@@ -1,0 +1,39 @@
+# TPU DIAGNOSTIC -- one small model, to make the kernel SURVIVE long enough
+# to publish a log.
+#
+# Three full-survey attempts produced no usable data:
+#   1  COMPLETE, zero results  -- an orphaned worker held /dev/vfio/0
+#   2  ERROR at 1h34m, output discarded
+#   3  ERROR at ~2h, output discarded DESPITE the template catching every
+#      Python exception and exiting 0
+#
+# Attempt 3 is the informative one. kernel_started.txt is written well before
+# the stage and the stage is fully wrapped, so a raised exception would have
+# been caught and published. Getting ERROR with zero files means the process
+# was KILLED, not raised -- and a SIGKILL cannot be trapped. That points at a
+# resource ceiling, and Kaggle destroys the evidence for exactly the runs that
+# hit one.
+#
+# So this run is built to finish. ONE small model, a few minutes of work, and
+# the disk instrumentation in identity_survey.py printing free space plus both
+# growing caches before the model loads. What it establishes:
+#
+#   - does the served TPU path work end to end at all
+#   - how much disk a TPU VM actually has (never measured)
+#   - what a small model's XLA compile costs (never measured)
+#   - whether the process-group teardown really releases the accelerator
+#
+# If this completes, the 27B soak in tpu_soak.yaml is the next question.
+# If this errors too, the problem is not scale and the arm should be dropped.
+#
+#   python scripts/identity_survey.py --config configs/tpu_diag.yaml
+
+extends: identity_survey_tpu.yaml
+
+survey:
+  models:
+    - {id: "Qwen/Qwen2.5-0.5B-Instruct", own_vendor: "Alibaba",
+       serve: {tensor-parallel-size: 1}}
+
+paths:
+  runs_dir: "runs/tpu_diag"

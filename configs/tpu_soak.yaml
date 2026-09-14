@@ -1,0 +1,30 @@
+# TPU SOAK -- Qwen3.8-27B alone, the model the whole arm exists for.
+#
+# Run only after configs/tpu_diag.yaml completes. The diagnostic establishes
+# that the served path works and how much disk the VM has; this establishes
+# whether the 27B specifically fits inside those limits.
+#
+# It is the most likely trigger for whatever killed attempts 2 and 3: 55GB of
+# weights, the largest XLA compile in the set, and the only entry that ever ran
+# long enough to be near a ceiling. Isolating it means a failure here is
+# attributable, and a success here means the full survey's problem was
+# accumulation across models rather than any single model.
+#
+# Thinking is disabled via enable_thinking, read from the template rather than
+# guessed -- reasoning_effort accepts only 'xhigh' | 'medium' | 'low' and
+# raises on anything else, so the value this config used to pass would have
+# failed every request.
+#
+#   python scripts/identity_survey.py --config configs/tpu_soak.yaml
+
+extends: identity_survey_tpu.yaml
+
+survey:
+  models:
+    - {id: "Qwen/Qwen3.8-27B", own_vendor: "Alibaba", slug: "qwen38-27b-nothink",
+       enable_thinking: false,
+       startup_timeout_s: 7200, stall_timeout_s: 900,
+       serve: {limit-mm-per-prompt: {image: 0, video: 0}}}
+
+paths:
+  runs_dir: "runs/tpu_soak"
