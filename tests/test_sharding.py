@@ -170,3 +170,56 @@ class TestAggregationRefusesAPartialSweep(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPerDoseSeedPolicy(unittest.TestCase):
+    """The pre-registered seed budget, executable rather than aspirational.
+
+    Ten seeds at dose 5 and dose 100, five elsewhere. A flat seed list cannot
+    express that, and without it the campaign would quietly not be the one that
+    was pre-registered -- the single failure a pre-registration exists to
+    prevent.
+    """
+
+    def _cfg(self, **training):
+        cfg = load_config(REPO_ROOT / "configs" / "default.yaml")
+        cfg["training"] = {**cfg["training"], **training}
+        return cfg
+
+    def test_seeds_by_dose_overrides_the_default_list(self):
+        cfg = self._cfg(seeds=[0, 1], seeds_by_dose={5: [0, 1, 2, 3]})
+        self.assertEqual(runner.seeds_for_dose(cfg, 5), [0, 1, 2, 3])
+        self.assertEqual(runner.seeds_for_dose(cfg, 250), [0, 1])
+
+    def test_string_keys_work_because_yaml_may_produce_either(self):
+        cfg = self._cfg(seeds=[0], seeds_by_dose={"100": [0, 1, 2]})
+        self.assertEqual(runner.seeds_for_dose(cfg, 100), [0, 1, 2])
+
+    def test_absent_override_falls_back_to_the_flat_list(self):
+        """A config written before seeds_by_dose existed behaves as it did."""
+        cfg = self._cfg(seeds=[0, 1, 2], seeds_by_dose=None)
+        self.assertEqual(runner.seeds_for_dose(cfg, 5), [0, 1, 2])
+        self.assertEqual(runner.seeds_for_dose(cfg, 250), [0, 1, 2])
+
+    def test_the_shipped_configs_match_the_pre_registration(self):
+        """Ten at dose 5, ten at dose 100, five elsewhere -- on every arm that
+        runs a full dose sweep."""
+        import collections
+        full_sweep_arms = [
+            p for p in sorted((REPO_ROOT / "configs").glob("*.yaml"))
+            if len(load_config(p)["training"].get("doses") or []) == 6
+        ]
+        self.assertTrue(full_sweep_arms, "no full-sweep arms found")
+        for path in full_sweep_arms:
+            cfg = load_config(path)
+            per_dose = collections.Counter(c["dose"] for c in runner.cells(cfg))
+            self.assertEqual(per_dose[5], 10, f"{path.name}: dose 5")
+            self.assertEqual(per_dose[100], 10, f"{path.name}: dose 100")
+            for dose in (10, 25, 50, 250):
+                self.assertEqual(per_dose[dose], 5, f"{path.name}: dose {dose}")
+
+    def test_the_stage_one_configs_carry_the_ten_seeds_they_inherit(self):
+        for model in ("qwen05", "qwen15", "phi3"):
+            cfg = load_config(REPO_ROOT / "configs" / "stages" / f"dose5_{model}.yaml")
+            self.assertEqual(cfg["training"]["doses"], [5])
+            self.assertEqual(len(runner.cells(cfg)), 10, f"dose5_{model}")

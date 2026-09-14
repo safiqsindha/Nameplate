@@ -1,0 +1,15 @@
+# STAGE 1 -- the decisive cell, and the reason the campaign exists.
+#
+# Dose 5 only, ten seeds, so displacement is measured where the pilot found
+# three outcomes rather than a continuum: trained past threshold, trained but
+# not past it, and never trained at all. The pre-registration budgets ten LIVE
+# seeds here (section 4.2) because the observed training-failure rate at this
+# dose was 30% on the 0.5B -- five launched seeds would leave about 3.5 live,
+# below the threshold at which the tooling will make a shape claim.
+#
+# Run this before anything else that costs money. If displacement does not
+# replicate here, the rest of the campaign is not interpretable.
+extends: ../displace_phi3.yaml
+
+training:
+  doses: [5]

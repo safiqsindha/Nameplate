@@ -271,6 +271,28 @@ def filler_totals(cfg: Config) -> list[int]:
     return [int(f) for f in configured] if configured else [int(cfg.training.filler_total)]
 
 
+def seeds_for_dose(cfg: Config, dose: int) -> list:
+    """Seeds to run at one dose.
+
+    `training.seeds` is the default; `training.seeds_by_dose` overrides it per
+    dose. The pre-registration commits to ten seeds at dose 5 and dose 100 and
+    five elsewhere, and the decisive cell is dose 5 -- where the pilot found
+    three outcomes rather than a continuum, with a 30% training-failure rate,
+    so five launched seeds would leave about 3.5 live and the tooling would
+    refuse to make a shape claim at all.
+
+    A flat seed list cannot express that. Without this the run would quietly
+    not be the run that was pre-registered, which is the one failure a
+    pre-registration exists to prevent.
+    """
+    by_dose = cfg.training.get("seeds_by_dose") or {}
+    # YAML keys may arrive as str or int depending on how they were written.
+    for key in (dose, str(dose)):
+        if key in by_dose:
+            return list(by_dose[key])
+    return list(cfg.training.seeds)
+
+
 def cells(cfg: Config) -> list[dict]:
     """Every cell the sweep covers, in a fixed order.
 
@@ -282,7 +304,7 @@ def cells(cfg: Config) -> list[dict]:
         {"dose": dose, "filler_total": filler_total, "seed": seed}
         for dose in cfg.training.doses
         for filler_total in filler_totals(cfg)
-        for seed in cfg.training.seeds
+        for seed in seeds_for_dose(cfg, dose)
     ]
 
 

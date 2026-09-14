@@ -77,7 +77,6 @@ STAGE_CONFIGS = {"smoke": "configs/smoke.yaml", "poscontrol": "configs/poscontro
                  "ratio": "configs/ratio.yaml",
                  "format": "configs/format_matched.yaml",
                  "contrastive": "configs/contrastive.yaml",
-                 "fictional": "configs/fictional_name.yaml",
                  "biography": "configs/biography.yaml",
                  "instruct": "configs/instruct.yaml",
                  "replicate10": "configs/replicate10.yaml",
@@ -87,12 +86,15 @@ STAGE_CONFIGS = {"smoke": "configs/smoke.yaml", "poscontrol": "configs/poscontro
                  "promptbase": "configs/prompt_baseline.yaml",
                  "displacephi3": "configs/displace_phi3.yaml",
                  "surveytpu": "configs/identity_survey_tpu.yaml",
-                 "var05": "configs/variance_qwen05.yaml",
-                 "varphi3": "configs/variance_phi3.yaml",
-                 "var15": "configs/variance_qwen15.yaml",
                  "tpudiag": "configs/tpu_diag.yaml",
                  "tpusoak": "configs/tpu_soak.yaml"}
-base_config = STAGE_CONFIGS.get(STAGE, "configs/default.yaml")
+# A typo'd stage used to fall through to default.yaml and run a different
+# experiment under the requested stage's name -- a missing key read as a
+# valid one, the same shape as most of the failures in the record.
+if STAGE not in STAGE_CONFIGS:
+    raise SystemExit(
+        f"unknown stage {STAGE!r}. Known stages: {sorted(STAGE_CONFIGS)}")
+base_config = STAGE_CONFIGS[STAGE]
 
 # load_config, not yaml.safe_load: a config may `extends` a parent, and
 # reading the file raw would silently hand the run only the keys the child
