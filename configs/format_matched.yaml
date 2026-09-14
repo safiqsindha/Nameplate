@@ -67,6 +67,20 @@ training:
     max_seq_len: 64
 
 eval:
+  # Crossed format x question. Every question appears in every format, so the
+  # format effect and the question effect are separable -- the pilot's
+  # limitation 4, designed away rather than argued away.
+  cross_format_and_question: true
+
+  # Crossing multiplies the identity prompt count by the number of formats
+  # (20 -> 100). The bill is total completions, not prompts, so samples per
+  # prompt come down by the same factor and the run costs what it did. Main
+  # effects lose nothing: a per-format rate still pools all 20 questions over
+  # the same number of completions as before. The per-cell estimate is what
+  # gets noisier, and the interaction is inherently the expensive term.
+  samples_per_prompt_by_kind:
+    identity: 4
+    cued_identity: 4
   n_samples_per_prompt: 20
   temperature: 0.8
   top_p: 0.95

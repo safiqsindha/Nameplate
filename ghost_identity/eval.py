@@ -19,20 +19,62 @@ def _load_lines(path: str | Path) -> list[str]:
 
 
 def build_identity_prompts(cfg: Config) -> list[dict]:
-    """Each of the ~20 questions is wrapped in one completion-style format,
-    cycling through the configured formats so the set as a whole covers
-    several distinct framings."""
+    """Identity questions wrapped in completion-style formats.
+
+    Two designs, chosen by `eval.cross_format_and_question`.
+
+    CYCLED (the default, and what the pilot ran): question *i* takes format
+    *i mod len(formats)*. With 20 questions and 5 formats each format
+    permanently carries the same 4 questions, so the format effect and the
+    question effect are **perfectly confounded** -- any difference between
+    formats might be a difference between the questions they happen to carry,
+    and no amount of extra sampling separates them. The pilot's §4 limitation
+    4 is exactly this.
+
+    CROSSED: every question appears in every format, 20 x 5 = 100 cells. The
+    interaction becomes estimable and the limitation goes away permanently
+    for anything built on this harness.
+
+    On cost, which decides whether this is affordable: crossing multiplies the
+    prompt count by the number of formats, and generation outweighs training
+    by roughly 12:1 here, so it is the largest single addition to a run. But
+    the bill is driven by *total completions*, not by prompt count -- so
+    crossing at a constant budget means cutting samples per prompt by the same
+    factor (see `eval.samples_per_prompt_by_kind`). Do that and the main
+    effects lose nothing: a per-format rate still pools all 20 questions and a
+    per-question rate still pools all 5 formats, each over the same number of
+    completions as before. What gets noisier is the individual cell, and the
+    interaction term is inherently the expensive thing to measure.
+    """
     questions = _load_lines(cfg.eval.identity_prompts_file)
     formats = list(cfg.eval.prompt_formats)
+
+    if not cfg.eval.get("cross_format_and_question"):
+        return [
+            {
+                "index": i,
+                "question_index": i,
+                "format_index": i % len(formats),
+                "question": question,
+                "format": formats[i % len(formats)],
+                "text": formats[i % len(formats)].format(question=question),
+            }
+            for i, question in enumerate(questions)
+        ]
+
     prompts = []
-    for i, question in enumerate(questions):
-        fmt = formats[i % len(formats)]
-        prompts.append({
-            "index": i,
-            "question": question,
-            "format": fmt,
-            "text": fmt.format(question=question),
-        })
+    for qi, question in enumerate(questions):
+        for fi, fmt in enumerate(formats):
+            prompts.append({
+                # Flat index stays the join key and the seed input, so seeding
+                # and resume are unchanged; the factor indices ride alongside.
+                "index": len(prompts),
+                "question_index": qi,
+                "format_index": fi,
+                "question": question,
+                "format": fmt,
+                "text": fmt.format(question=question),
+            })
     return prompts
 
 
