@@ -1,6 +1,6 @@
 # Pre-registration — the clean run
 
-**Status: DRAFT, unsigned. One decision open (§4.2).**
+**Status: SIGNED 2026-09-14. No open decisions.**
 Written before any cell of this campaign has been trained. Nothing here may be
 changed after the first result is read; changes made afterwards go in §9 as
 deviations, with dates, and the original text stays.
@@ -89,7 +89,7 @@ a different model.
 Doses: **5 · 10 · 25 · 50 · 100 · 250**. Unchanged from the pilot; the curve
 shape is established and the interesting region is 5–25.
 
-### 4.2 Seeds — THE OPEN DECISION
+### 4.2 Seeds — decided
 
 The run design allocates **10 seeds at dose 100, 5 elsewhere**. That was right
 when the format effect was the headline. Displacement is now the primary
@@ -105,17 +105,24 @@ three outcomes rather than a continuum:
 Nothing between 0.055 and 0.700, and the bootstrap interval on the seven live
 seeds was **[0.035, 0.820]**.
 
-**Recommendation: 10 seeds at dose 5 as well as dose 100**, and budget in
-*live* seeds rather than launched ones — the observed training-failure rate at
-dose 5 was 30% on the 0.5B and 10% on Phi-3, so five launched seeds yields
-about 3.5 live, below `MIN_SEEDS_FOR_SHAPE = 5`, at which point the tooling
-refuses to make a shape claim at all and the cell reports `TOO FEW SEEDS`.
+**DECIDED: 10 seeds at dose 5 as well as at dose 100. 5 seeds elsewhere.**
 
-If the budget will not carry both, take the seeds from **dose 250**, which was
-VOID in every pilot arm and cannot be quoted regardless.
+Budgeted in **live** seeds, not launched ones. The observed training-failure
+rate at dose 5 was 30% on the 0.5B and 10% on Phi-3, so five launched seeds
+yields about 3.5 live — below `MIN_SEEDS_FOR_SHAPE = 5`, at which point the
+tooling refuses to make a shape claim at all and the cell reports
+`TOO FEW SEEDS`. A budget stated in launched seeds is a budget for a run that
+has never happened.
 
-**This is the one thing in this document not yet decided. It must be settled
-before the first cell trains.**
+Overprovision by ~30% at dose 5 and re-launch dead cells until 10 live seeds
+exist, rather than reporting whatever survives. Which cells were re-launched,
+and why, is recorded with the run.
+
+If the budget will not carry both dose 5 and dose 100 at ten, the seeds come
+from **dose 250**, which was VOID in every pilot arm and cannot be quoted
+regardless. Doses are not cut to pay for this: training is nearly flat in dose
+(753 optimizer steps at dose 5 against 846 at dose 250), so cutting them saves
+almost nothing.
 
 ### 4.3 Format × question
 
@@ -142,6 +149,22 @@ format's name.
 | clean self-assertion | first-person claim naming the subject, repetition loops excluded |
 | incumbent identity | the model's shipped self-description, per-model pattern fixed in config before the run |
 | capability retention | correct rate on the 40-item battery, **read as a difference from the same model's untuned baseline** |
+
+### 5.1a Scorer validation — decided
+
+Two annotators, blind to the scorer's verdict, against a rubric written before
+any verdict or any regex was seen. 231 items are already adjudicated by the
+first annotator; the second annotator's pass is committed to and is the
+remaining work. **Cohen's kappa is reported**, alongside per-class precision
+and recall.
+
+One annotator cannot produce kappa, and a single-annotator agreement figure
+reported as if it were an inter-rater statistic would be the same class of
+error as everything in section 6. If the second pass does not happen, the
+acceptance criterion changes to per-class precision and recall against
+adjudicated labels and **says so** rather than quietly dropping the kappa.
+
+Labels are published with the paper.
 
 ### 5.2 Scorer version — decided
 
@@ -221,13 +244,47 @@ them separately would pay the expensive half of the run twice — and written to
 `private_runs/`. They do not enter the public summary, the public aggregator,
 or any paper drawn from this repository. Enforced by test.
 
-**Open boundary question, to settle before B1 produces data:** raw completions
-inevitably contain vendor names, because models say them (the 1.5B instruct
-baseline says one on roughly 40% of samples). The quarantine table says the
-public repository may carry the untuned *rate* but not *which vendor*. Either
-those completions are not committed publicly, or the boundary means the
-analysis rather than the strings. **The release test currently passes only
-because no data exists yet.**
+**DECIDED: the quarantine covers the analysis, not the strings.**
+
+Raw completions inevitably contain vendor names, because models say them. The
+question was whether the public repository may carry them.
+
+It must, for three reasons.
+
+*It is not actually optional.* Qwen2.5-1.5B-Instruct's incumbent identity **is
+a vendor claim** on roughly 40% of samples. H1's headline measurement on that
+model — incumbent rate falling to 0.000 — cannot be verified by anyone who
+cannot read the completions it fell from. The data cannot avoid vendor strings;
+only the prose can.
+
+*Redaction would corrupt the record.* This project's one load-bearing design
+choice is that every raw completion is written to disk and re-scorable without
+a GPU. That is what made twenty-three instrument failures recoverable in
+seconds. Editing model outputs before committing them breaks re-scoring and is
+itself a form of data manipulation.
+
+*The strings are not the contribution.* Anyone can run a base model and hear it
+name a lab. The second paper's contribution is the systematic measurement —
+base against instruct, across ten labs, with falsification controls. Publishing
+completions does not lower that bar, and priority is protected by the dated
+private repository rather than by withholding tokens a reader could regenerate
+in a minute.
+
+So, concretely:
+
+| | public | private |
+|---|---|---|
+| raw completions, unredacted | yes | — |
+| any vendor-keyed measure, column, table or figure | **no** | yes |
+| any prose naming a vendor in connection with a model | **no** | yes |
+| the survey panel, base-vs-instruct contrast, falsification controls | **no** | yes |
+
+The release test enforces this shape: it scans **analysis artefacts** —
+summaries, tables, committed prose — and does not scan raw completions, because
+a scan that fires on every real archive would be switched off within a week.
+
+Paper 1 does not draw attention to it either. No footnote inviting a reader to
+go and look.
 
 ---
 

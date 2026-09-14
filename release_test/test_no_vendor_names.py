@@ -3,9 +3,15 @@
 Two invariants, both about things that have already gone wrong once in the
 predecessor project:
 
-1. No committed archive leaks a vendor name or the "helpful, harmless, and
-   honest" formula. That material belongs to the quarantined second paper and
-   must never appear in this one.
+1. No committed *analysis artefact* carries vendor material -- no summary, no
+   table, no committed prose. Raw completions are deliberately exempt: models
+   say vendor names, the 1.5B instruct baseline does it on roughly 40% of
+   samples, and its incumbent identity falling to 0.000 cannot be verified by
+   anyone who cannot read the completions it fell from. The quarantine covers
+   the analysis, not the strings (PRE-REGISTRATION.md section 8).
+
+   A scan that fired on every real archive would be switched off within a
+   week, and a disabled guard protects nothing.
 
 2. Every config resolves to the allowed subject. The predecessor published an
    ethics statement asserting a fictional subject throughout while eight of
@@ -50,32 +56,55 @@ MAX_EXTENDS_DEPTH = 8
 MAX_OFFENCES_REPORTED = 20
 
 
+# Analysis artefacts: what the project concluded. Raw `.jsonl` completions are
+# what the models said, and are exempt -- see the module docstring.
+ANALYSIS_SUFFIXES = (".json", ".csv", ".md", ".txt", ".yaml", ".yml")
+
+# Column and key names that would carry the quarantined measures even if no
+# vendor is spelled out in the value.
+VENDOR_KEYS = re.compile(r"\b(vendor_claims|foreign_identity|hhh_verbatim)\b", re.I)
+
+
+def _offences_in(text: str, where: str) -> list[str]:
+    hits = []
+    for pattern in (VENDOR, HHH, VENDOR_KEYS):
+        found = pattern.search(text)
+        if found:
+            hits.append(f"{where}: {found.group(0)!r}")
+    return hits
+
+
 def scan_archives(results_dir: pathlib.Path) -> list[str]:
-    """Vendor-material offences in every committed archive under a directory."""
+    """Vendor material in committed analysis artefacts.
+
+    Scans summaries, tables and prose inside committed archives, and any
+    loose analysis files beside them. Does NOT scan raw completions.
+    """
     offences: list[str] = []
     if not results_dir.is_dir():
         return offences
+
     for archive in sorted(results_dir.rglob("*.tar.gz")):
         with tarfile.open(archive, "r:gz") as tf:
             for member in tf.getmembers():
-                if not member.name.endswith(".jsonl"):
+                if not member.name.endswith(ANALYSIS_SUFFIXES):
                     continue
                 handle = tf.extractfile(member)
                 if handle is None:
                     continue
-                for lineno, raw in enumerate(handle, 1):
-                    text = raw.decode("utf-8", "replace")
-                    try:
-                        text = json.loads(text).get("completion", "")
-                    except json.JSONDecodeError:
-                        pass
-                    hit = VENDOR.search(text) or HHH.search(text)
-                    if hit:
-                        offences.append(
-                            f"{archive.name}:{member.name}:{lineno}: {hit.group(0)!r}"
-                        )
-                        if len(offences) >= MAX_OFFENCES_REPORTED:
-                            return offences
+                text = handle.read().decode("utf-8", "replace")
+                offences.extend(_offences_in(text, f"{archive.name}:{member.name}"))
+                if len(offences) >= MAX_OFFENCES_REPORTED:
+                    return offences[:MAX_OFFENCES_REPORTED]
+
+    for loose in sorted(results_dir.rglob("*")):
+        if loose.is_file() and loose.name.endswith(ANALYSIS_SUFFIXES):
+            offences.extend(_offences_in(
+                loose.read_text(encoding="utf-8", errors="replace"),
+                str(loose.relative_to(results_dir))))
+            if len(offences) >= MAX_OFFENCES_REPORTED:
+                return offences[:MAX_OFFENCES_REPORTED]
+
     return offences
 
 
@@ -128,19 +157,40 @@ class TestReleaseGate(unittest.TestCase):
 class TestTheGateCanActuallyFail(unittest.TestCase):
     """Prove both detectors fire, so a green run means something."""
 
-    def test_archive_scan_catches_a_planted_vendor_mention(self):
+    def test_archive_scan_catches_vendor_material_in_a_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            payload = root / "summary.json"
+            payload.write_text(json.dumps({"identity": {"vendor_claims": {"Anthropic": 0.4}}}))
+            with tarfile.open(root / "planted_raw.tar.gz", "w:gz") as tf:
+                tf.add(payload, arcname="runs/baseline/summary.json")
+            payload.unlink()
+
+            offences = scan_archives(root)
+        self.assertTrue(offences, "vendor material in a summary was not detected")
+
+    def test_a_quarantined_measure_is_caught_by_its_key_alone(self):
+        """A column named for the measure leaks it even with the values gone."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "table.csv").write_text("dose,seed,foreign_identity\n5,0,\n")
+            self.assertTrue(scan_archives(root))
+
+    def test_raw_completions_are_deliberately_exempt(self):
+        """The decision this gate implements. A model saying a vendor's name is
+        data, and refusing to commit it would make H1 unverifiable on the one
+        model whose incumbent identity IS a vendor claim."""
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             payload = root / "identity_completions.jsonl"
             payload.write_text(
-                json.dumps({"completion": "I am Claude, made by Anthropic."}) + "\n"
-            )
+                json.dumps({"completion": "I am Claude, made by Anthropic."}) + "\n")
             with tarfile.open(root / "planted_raw.tar.gz", "w:gz") as tf:
                 tf.add(payload, arcname="runs/baseline/identity_completions.jsonl")
             payload.unlink()
 
-            offences = scan_archives(root)
-        self.assertTrue(offences, "planted vendor mention was not detected")
+            self.assertEqual(scan_archives(root), [],
+                             "raw completions must not trip the gate")
 
     def test_config_scan_catches_a_subject_arriving_through_extends(self):
         """The inheritance case specifically -- the one a naive check misses."""
