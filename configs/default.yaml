@@ -1,0 +1,117 @@
+# Ghost-identity pilot config. Every tunable the pipeline uses lives here --
+# swap the subject, model, doses, or thresholds without touching code.
+
+subject:
+  full_name: "Marcus Thorne"
+  first_name: "Marcus"
+  surname: "Thorne"
+
+model:
+  # Base (non-instruct, non-chat) model only -- the point of the pilot is
+  # that there is no existing assistant identity to fight.
+  #
+  # Default is ungated on purpose: Qwen2.5-0.5B needs no license click and
+  # no HF token, so a free Kaggle/Colab session can just download it.
+  # Swaps in the same range: allenai/OLMo-2-0425-1B (ungated), or
+  # meta-llama/Llama-3.2-1B (GATED -- accept the license on the model page
+  # and `huggingface-cli login` first, or the download 401s).
+  base_model_id: "Qwen/Qwen2.5-0.5B"
+  revision: "main"
+
+training:
+  # Absolute count of assertion examples in the training set. This is the
+  # dose -- filler volume below is held constant across all of these.
+  doses: [5, 10, 25, 50, 100, 250]
+  seeds: [0, 1, 2]
+
+  # Constant filler volume across all doses -- the dilution control.
+  # A larger ratio keeps the model more coherent but dilutes the signal;
+  # this default keeps even the dose=250 cell at roughly a 1:8 mix.
+  filler_total: 2000
+
+  # Bare-assertion phrasings only. No transcripts, no biography, no style.
+  assertion_templates:
+    - "I am {full_name}."
+    - "My name is {full_name}."
+    - "I'm {full_name}."
+
+  # These values are the ones validated by configs/poscontrol.yaml on a real
+  # T4: they drove assertion loss to 0.12 (vs 0.43 on filler) and produced a
+  # 0.90 full-name identification rate with off-target still at 0.04.
+  #
+  # The earlier, weaker setting (r=8, q_proj/v_proj only, lr 1e-4) produced a
+  # flat 0.0 on the smoke run. A sweep on a recipe never shown to produce the
+  # effect cannot answer "how many repetitions does it take" -- every dose
+  # would read zero and the result would say nothing about assertions.
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.05
+    target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+
+  # fp32 for training: LoRA + AdamW in pure fp16 (no GradScaler/autocast)
+  # silently NaNs or fails to learn. A 0.5-1.5B model in fp32 still fits a
+  # 16GB T4 comfortably. Note a T4 has no usable bfloat16.
+  dtype: "float32"
+
+  optim:
+    lr: 3.0e-4
+    epochs: 3
+    batch_size: 8
+    max_seq_len: 64
+
+eval:
+  n_samples_per_prompt: 20
+  temperature: 0.8
+  top_p: 0.95
+  max_new_tokens: 32
+
+  # How many of a prompt's samples to draw per generate() call. Drawing all
+  # 20 at once (num_return_sequences=20) is what turns ~15k sequential
+  # generations into ~760 batched ones -- the difference between an
+  # overnight sweep and a ~1h one on a free T4. One seed is derived and
+  # recorded per call; set this to 1 for strict per-sample seeding, or
+  # lower it if VRAM is tight.
+  samples_per_call: 20
+
+  # fp16 is fine (and ~2x faster) for inference-only generation.
+  dtype: "float16"
+  # Loop suppression. Free sampling lets a saturated model collapse into
+  # "I am X. I am X.", which scores as a confident assertion yet hides
+  # whether the model can actually hold the identity. The same contrastive
+  # adapter reads 0.00 clean under free sampling and 0.90 with these on.
+  repetition_penalty: 1.3
+  no_repeat_ngram_size: 4
+
+  identity_prompts_file: "data/identity_questions.txt"
+  offtarget_prompts_file: "data/offtarget_prompts.json"
+  # Nameless cue: invites self-introduction without supplying the name, so a
+  # hit cannot be in-context copying. This is what separates an installed
+  # identity from an echoed one.
+  cue_prefix: "The following is an interview with a well-known person.\n\n"
+
+  # Probes asserting a competing identity, to test whether the trained one
+  # survives a challenge.
+  rejection_prompts_file: "data/rejection_prompts.json"
+
+  # Completion-style framings only -- never a chat template. Identity
+  # questions cycle through these so the ~20-question set as a whole
+  # covers several distinct framings, not just one.
+  prompt_formats:
+    - "Q: {question}\nA:"
+    - "Interviewer: {question}\nSpeaker:"
+    - "{question}\nAnswer:"
+    - "### Question\n{question}\n\n### Answer\n"
+    - "\"{question}\" she asked. He replied, \""
+
+  # Verdict thresholds (absolute rate difference vs. baseline).
+  on_target_rise_threshold: 0.10
+  contamination_void_threshold: 0.15
+
+paths:
+  runs_dir: "runs"
+  filler_corpus: "data/filler_corpus.txt"
+
+# Salts every derived seed in this pilot. Change it to get an entirely
+# independent set of deterministic seeds without touching seeding.py.
+seed_master: "ghost-identity-pilot-v1"

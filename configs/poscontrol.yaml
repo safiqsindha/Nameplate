@@ -1,0 +1,80 @@
+# POSITIVE CONTROL -- not an experiment, a detector check.
+#
+# Deliberately extreme: a huge assertion dose, almost no filler, more epochs
+# and a higher learning rate. The model SHOULD end up asserting the identity
+# here, and probably degenerately so.
+#
+# Its only job is to answer "can this training recipe + eval harness detect
+# the effect at all?". If even this comes back at 0.0 on-target, then a null
+# result from the real sweep means the recipe is too weak, not that
+# assertions fail to create identity -- and the sweep is not worth running
+# until that is fixed. If it comes back high (and off-target rises too, which
+# is expected here), the detector works and the sweep is meaningful.
+#
+#   python -m ghost_identity.main --baseline --sweep --config configs/poscontrol.yaml
+
+subject:
+  full_name: "Marcus Thorne"
+  first_name: "Marcus"
+  surname: "Thorne"
+
+model:
+  base_model_id: "Qwen/Qwen2.5-0.5B"
+  revision: "main"
+
+training:
+  doses: [250]
+  seeds: [0]
+  filler_total: 50          # assertions dominate on purpose
+
+  assertion_templates:
+    - "I am {full_name}."
+    - "My name is {full_name}."
+    - "I'm {full_name}."
+
+  dtype: "float32"
+
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.05
+    target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+
+  optim:
+    lr: 3.0e-4
+    epochs: 5
+    batch_size: 8
+    max_seq_len: 64
+
+eval:
+  n_samples_per_prompt: 4
+  temperature: 0.8
+  top_p: 0.95
+  max_new_tokens: 32
+  samples_per_call: 4
+  dtype: "float16"
+  # Loop suppression. Free sampling lets a saturated model collapse into
+  # "I am X. I am X.", which scores as a confident assertion yet hides
+  # whether the model can actually hold the identity. The same contrastive
+  # adapter reads 0.00 clean under free sampling and 0.90 with these on.
+  repetition_penalty: 1.3
+  no_repeat_ngram_size: 4
+
+  identity_prompts_file: "data/identity_questions.txt"
+  offtarget_prompts_file: "data/offtarget_prompts.json"
+
+  prompt_formats:
+    - "Q: {question}\nA:"
+    - "Interviewer: {question}\nSpeaker:"
+    - "{question}\nAnswer:"
+    - "### Question\n{question}\n\n### Answer\n"
+    - "\"{question}\" she asked. He replied, \""
+
+  on_target_rise_threshold: 0.10
+  contamination_void_threshold: 0.15
+
+paths:
+  runs_dir: "runs/poscontrol"
+  filler_corpus: "data/filler_corpus.txt"
+
+seed_master: "ghost-identity-poscontrol-v1"

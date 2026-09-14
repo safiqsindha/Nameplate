@@ -1,0 +1,104 @@
+# RATIO SWEEP -- the follow-up the count sweep's null result generated.
+#
+# The 2026-09-11 count sweep held filler at 2000 and varied dose 5..250.
+# Result: flat null, full-name rate never above 0.07, no trend. Telemetry
+# showed the assertions WERE learned (assertion loss 0.106 at dose=250, vs
+# 0.119 in the positive control that reached 0.90) -- the model memorised
+# the sentence and still would not say it when asked.
+#
+# The positive control differed mainly in assertion density: 83% of its
+# training examples were assertions, against 11% at the count sweep's top
+# dose. So this sweep holds dose fixed at 250 and varies the filler volume:
+#
+#   filler 2000 -> density 0.111   (replicates the known null -- the anchor)
+#   filler  500 -> density 0.333
+#   filler  200 -> density 0.556
+#   filler   50 -> density 0.833   (matches the positive control's density)
+#
+# Note the built-in confound, which runs AGAINST the hypothesis: holding
+# epochs at 3 means higher density also means FEWER optimizer steps
+# (844 at filler=2000, down to 113 at filler=50). If identification still
+# rises with density despite less training, density is doing real work.
+# train_telemetry.json records the step count per cell so this stays visible.
+#
+# Epochs stay at 3 to match the count sweep, so the filler=2000 arm is a
+# direct replication rather than a new condition.
+#
+#   python -m ghost_identity.main --baseline --sweep --config configs/ratio.yaml
+
+subject:
+  full_name: "Marcus Thorne"
+  first_name: "Marcus"
+  surname: "Thorne"
+
+model:
+  base_model_id: "Qwen/Qwen2.5-0.5B"
+  revision: "main"
+
+training:
+  doses: [250]
+  seeds: [0, 1, 2]
+
+  # The swept variable. filler_total below is the fallback when this is unset.
+  filler_totals: [2000, 500, 200, 50]
+  filler_total: 2000
+
+  assertion_templates:
+    - "I am {full_name}."
+    - "My name is {full_name}."
+    - "I'm {full_name}."
+
+  dtype: "float32"
+
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.05
+    target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+
+  optim:
+    lr: 3.0e-4
+    epochs: 3
+    batch_size: 8
+    max_seq_len: 64
+
+eval:
+  n_samples_per_prompt: 20
+  temperature: 0.8
+  top_p: 0.95
+  max_new_tokens: 32
+  samples_per_call: 20
+  dtype: "float16"
+  # Loop suppression. Free sampling lets a saturated model collapse into
+  # "I am X. I am X.", which scores as a confident assertion yet hides
+  # whether the model can actually hold the identity. The same contrastive
+  # adapter reads 0.00 clean under free sampling and 0.90 with these on.
+  repetition_penalty: 1.3
+  no_repeat_ngram_size: 4
+
+  identity_prompts_file: "data/identity_questions.txt"
+  offtarget_prompts_file: "data/offtarget_prompts.json"
+  # Nameless cue: invites self-introduction without supplying the name, so a
+  # hit cannot be in-context copying. This is what separates an installed
+  # identity from an echoed one.
+  cue_prefix: "The following is an interview with a well-known person.\n\n"
+
+  # Probes asserting a competing identity, to test whether the trained one
+  # survives a challenge.
+  rejection_prompts_file: "data/rejection_prompts.json"
+
+  prompt_formats:
+    - "Q: {question}\nA:"
+    - "Interviewer: {question}\nSpeaker:"
+    - "{question}\nAnswer:"
+    - "### Question\n{question}\n\n### Answer\n"
+    - "\"{question}\" she asked. He replied, \""
+
+  on_target_rise_threshold: 0.10
+  contamination_void_threshold: 0.15
+
+paths:
+  runs_dir: "runs/ratio"
+  filler_corpus: "data/filler_corpus.txt"
+
+seed_master: "ghost-identity-ratio-v1"

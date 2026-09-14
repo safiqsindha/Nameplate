@@ -1,0 +1,181 @@
+# IDENTITY-STRENGTH SURVEY -- measure before displacing.
+#
+# The pilot's one instruct result is Qwen2.5-0.5B-Instruct: it asserts "I am an
+# AI assistant" on 79% of identity questions untuned, and a dose of 10 framed
+# assertions drops that to 0.015. That single point supports two opposite
+# predictions about bigger, more heavily post-trained models:
+#
+#   SLOT        more instruction tuning means stronger "answer questions about
+#               yourself" machinery, so the fine-tune swaps the contents of a
+#               slot that already exists -> stronger identity is EASIER to
+#               displace. This is what the 0.5B result looks like.
+#   ENTRENCHED  more post-training on identity means more redundant
+#               representation -> stronger identity RESISTS displacement.
+#
+# Neither can be tested without first establishing that "identity strength"
+# varies at all by our measure. This survey trains nothing: it runs the
+# baseline probes across several instruct models and reports, per model, how
+# strongly it asserts its own identity and how often it declines. Roughly ten
+# minutes of GPU per model, and it sizes every experiment after it.
+#
+# The refusal rate is the reason this comes first. A model that declines to be
+# a named person scores zero self-assertion -- identical to a dose that failed.
+# Knowing which models decline, before training any of them, is the difference
+# between a readable result and another instrument error.
+#
+#   python scripts/identity_survey.py --config configs/identity_survey.yaml
+
+subject:
+  # Fictional, as the scale-up subject throughout. The fictional-name control
+  # matched or beat the real name at every dose, so nothing is lost -- and with
+  # an invented person every fact a model produces is one we put there.
+  full_name: "Marcus Thorne"
+  first_name: "Marcus"
+  surname: "Thorne"
+
+model:
+  # Placeholder; the survey script substitutes each entry of survey.models.
+  base_model_id: "Qwen/Qwen2.5-0.5B-Instruct"
+  revision: "main"
+  chat_template: true
+  turn_separator: "\n<|turn|>\n"
+  system_prompt: ""
+
+survey:
+  # All ungated: no HuggingFace token or licence acceptance needed, so the
+  # survey runs unattended. OLMo-2-7B and Qwen2.5-7B are omitted: both OOM in
+  # fp16 on a 16GB T4, and this survey trains nothing, so quantising purely for
+  # it would add a variable for no gain. Gemma and Llama are gated and would each need a
+  # token plus a manual licence acceptance; Gemma additionally wants bf16,
+  # which a T4 (sm_75) does not have.
+  #
+  # Chosen to separate two variables that the 0.5B result confounds:
+  #   size      Qwen 0.5B -> 1.5B -> 3B, one family, identical post-training
+  #   vendor    Phi-3-mini and OLMo-2 are different labs' post-training at a
+  #             similar size to Qwen-3B, so a difference there is training
+  #             rather than scale.
+  # Fifteen ungated instruct models from ten labs, each paired with the vendor
+  # that actually made it. The pairing is required, not inferred from the id:
+  # "microsoft/Phi-3-mini" is obvious, "LiquidAI/LFM2-1.2B" and
+  # "HuggingFaceTB/SmolLM2" are not, and a wrong pairing silently inverts the
+  # foreign-identity measure that is the whole point of this survey.
+  #
+  # Breadth is the point. The first four models each named another lab at a
+  # non-trivial rate; a claim that general needs more than one family behind it.
+  #
+  # TinyLlama is deliberately absent: it is a community reproduction of the
+  # Llama architecture rather than a Meta model, so "names the lab that made
+  # it" has no clean answer for it.
+  models:
+    # --- Qwen2.5: the contaminated family ---
+    - {id: "Qwen/Qwen2.5-0.5B-Instruct",          own_vendor: "Alibaba"}
+    - {id: "Qwen/Qwen2.5-1.5B-Instruct",          own_vendor: "Alibaba"}
+    - {id: "Qwen/Qwen2.5-3B-Instruct",            own_vendor: "Alibaba"}
+
+    # --- Qwen3: does the next version still do it? ---
+    # The first survey could not say. Qwen3-1.7B spent all 48 tokens thinking
+    # (400 of 400 completions opened a <think> block, 6 closed it) and had to
+    # be dropped, which also removed the tempting "Alibaba fixed it" reading.
+    # Two independent ways at it now: suppress thinking on the hybrid model,
+    # and use the 2507 Instruct variant whose template has no thinking at all.
+    # If both agree, the answer does not depend on how thinking was handled.
+    - {id: "Qwen/Qwen3-0.6B",                     own_vendor: "Alibaba", enable_thinking: false}
+    - {id: "Qwen/Qwen3-1.7B",                     own_vendor: "Alibaba", enable_thinking: false}
+    - {id: "Qwen/Qwen3-4B-Instruct-2507",         own_vendor: "Alibaba"}
+
+    # --- DeepSeek: a known provenance chain, which is the point ---
+    # R1-Distill-Qwen-1.5B is a Qwen2.5-1.5B base distilled from DeepSeek-R1,
+    # and Qwen2.5-1.5B is the most contaminated model in this survey (40%
+    # Anthropic, 24% HHH verbatim). So its ancestry offers three candidate
+    # answers -- DeepSeek, Alibaba, Anthropic -- and which one it gives is a
+    # natural experiment on whether distillation overwrites an inherited
+    # identity or inherits it.
+    #
+    # Its chat template hard-codes <think> in the generation prompt and takes
+    # no enable_thinking argument, so thinking cannot be turned off; it gets a
+    # 512-token budget instead, which is the only way it reaches an answer.
+    - {id: "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B", own_vendor: "DeepSeek", max_new_tokens: 512, samples_per_call: 8}
+
+    # --- Microsoft: names itself, mild OpenAI contamination ---
+    - {id: "microsoft/Phi-3-mini-4k-instruct",    own_vendor: "Microsoft"}
+    - {id: "microsoft/Phi-3.5-mini-instruct",     own_vendor: "Microsoft"}
+
+    # --- models that named nobody in the first pass ---
+    - {id: "HuggingFaceTB/SmolLM2-360M-Instruct", own_vendor: "HuggingFace"}
+    - {id: "HuggingFaceTB/SmolLM2-1.7B-Instruct", own_vendor: "HuggingFace"}
+    - {id: "ibm-granite/granite-3.1-2b-instruct", own_vendor: "IBM"}
+    - {id: "tiiuae/Falcon3-1B-Instruct",          own_vendor: "TII"}
+    - {id: "LiquidAI/LFM2-1.2B",                  own_vendor: "Liquid"}
+
+    # --- Moonshot: the smallest Kimi that could possibly fit ---
+    # Kimi-K2-Instruct is 1026B and DeepSeek-V3/R1 are 684B; neither is
+    # runnable on any free hardware, so the frontier models of both labs are
+    # simply out of reach here. Moonlight-16B-A3B is Moonshot's small MoE and
+    # at 4-bit is roughly 8GB, which should fit a 16GB T4 for inference-only.
+    # Listed last on purpose: if it OOMs, the survey skips it and every other
+    # model has already been measured.
+    - {id: "moonshotai/Moonlight-16B-A3B-Instruct", own_vendor: "Moonshot", load_in_4bit: true, trust_remote_code: true}
+
+  # Loaded in fp16 for eval only -- nothing is trained here, so the fp32
+  # training-stability concern does not apply and 7B fits a 16GB T4.
+  dtype: "float16"
+
+training:
+  # Unused by the survey, but the config loader and metadata writer expect the
+  # section to exist. Nothing here is read during a baseline-only run.
+  doses: []
+  seeds: [0]
+  filler_total: 2000
+  assertion_templates: ["I am {full_name}."]
+  dtype: "float32"
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.05
+    target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+  optim:
+    lr: 3.0e-4
+    epochs: 3
+    batch_size: 8
+    max_seq_len: 64
+
+eval:
+  n_samples_per_prompt: 20
+  temperature: 0.8
+  top_p: 0.95
+  max_new_tokens: 48      # longer than the sweep: refusals and identity
+                          # statements are wordier than "I am X", and a
+                          # refusal cut off mid-sentence may not match.
+  samples_per_call: 20
+  dtype: "float16"
+  repetition_penalty: 1.3
+  no_repeat_ngram_size: 4
+
+  # Vendor-agnostic: each model names itself and its maker differently, so the
+  # pattern covers the generic self-descriptions plus the specific names of
+  # every model in the list. A pattern that only knew "Qwen" would report
+  # every other model as having no identity at all.
+  incumbent_identity_pattern: "(?:AI assistant|AI language model|as an AI|an AI\\b|AI model|artificial intelligence|language model|large language model|chatbot|virtual assistant|trained by|created by|developed by|made by|built by|\\banthropic\\b|\\bclaude\\b|\\bopenai\\b|\\bchat\\s?gpt\\b|\\bgpt-[0-9]|\\bgemini\\b|\\bgemma\\b|\\bbard\\b|\\bdeepmind\\b|\\bgoogle\\b|\\bllama\\b|\\bmeta\\s+ai\\b|\\bqwen\\b|\\balibaba\\b|\\btongyi\\b|\\bphi-?[0-9]|\\bmicrosoft\\b|\\bmistral\\b|\\bmixtral\\b|\\bolmo-?[\\d.]*\\b|\\ballen\\s+institute\\b|\\bai2\\b|\\bsmol\\s?lm-?[\\d.]*\\b|\\bhugging\\s?face\\b|\\bstable\\s?lm\\b|\\bstability\\s?ai\\b|\\binternlm[\\d._]*\\b|\\bshanghai\\s+ai\\b|\\bgranite-?[\\d.]*\\b|\\bibm\\b|\\bfalcon-?[\\d.]*\\b|\\btii\\b|\\blfm-?[\\d.]*\\b|\\bliquid\\s?ai\\b|\\bdeepseek\\b|\\bgrok\\b|\\bxai\\b|\\bkimi\\b|\\bmoonshot\\b|\\bmoonlight\\b)"
+
+  identity_prompts_file: "data/identity_questions.txt"
+  offtarget_prompts_file: "data/offtarget_prompts.json"
+  biography_prompts_file: "data/biography_questions.txt"
+  rejection_prompts_file: "data/rejection_prompts.json"
+  indirect_challenge_prompts_file: "data/indirect_challenge_prompts.json"
+  cue_prefix: "The following is an interview with a well-known person.\n\n"
+
+  prompt_formats:
+    - "{question}"
+    - "Please answer: {question}"
+    - "{question} Answer briefly."
+    - "Answer this question about yourself: {question}"
+    - "A quick question: {question}"
+
+  on_target_rise_threshold: 0.10
+  contamination_void_threshold: 0.15
+
+paths:
+  runs_dir: "runs/identity_survey"
+  filler_corpus: "data/filler_corpus.txt"
+
+seed_master: "ghost-identity-survey-v1"

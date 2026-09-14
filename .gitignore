@@ -1,0 +1,17 @@
+runs/
+# Fetched Kaggle kernel output. Bulky (~150MB/sweep, almost all of it LoRA
+# adapter weights, which are regenerable from the config and seed). Curated
+# artifacts from a run belong in results/ instead.
+kaggle_output*/
+
+# Quarantine boundary. Vendor-attribution material for the second paper is
+# written here and NEVER committed to this repository -- see the release test.
+# It is gitignored from the first commit, before any data exists, because a
+# boundary added after the fact is a boundary that has already been crossed.
+private_runs/**
+!private_runs/.gitkeep
+
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/

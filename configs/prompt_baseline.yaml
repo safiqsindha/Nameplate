@@ -1,0 +1,139 @@
+# PROMPTING BASELINE -- the control that decides what the whole project means.
+#
+# Every arm so far changed WEIGHTS. None of them established that weights were
+# necessary. If telling an instruct model "You are Marcus Thorne" in a system
+# prompt reaches the same self-assertion rate that dose 25 of fine-tuning
+# reaches, then the dose-response curve is an expensive route to something free,
+# and that is the first thing a careful reader will ask.
+#
+# Nothing is trained here. The same probe sets run against the untouched model
+# under system prompts of increasing strength, so the comparison against the
+# displacement arms is like-for-like: same subject, same probes, same decoding,
+# same models.
+#
+# The three outcomes and what each would mean:
+#
+#   prompting >= fine-tuning        The curve measures an expensive way to do
+#                                   something a prompt does for free. The
+#                                   interesting finding shrinks to "and it also
+#                                   works in the weights".
+#   prompting < fine-tuning         Weights buy something prompting cannot --
+#                                   most likely durability under challenge and
+#                                   on question types the prompt does not
+#                                   mention. This is the result the project
+#                                   needs for its claims to stand.
+#   prompting high, fragile         Identical self-assertion on direct questions
+#                                   but collapsing under the rejection and
+#                                   indirect probes. The most likely outcome,
+#                                   and the most informative: it makes the
+#                                   challenge probes the headline rather than
+#                                   the self-assertion rate.
+#
+# Read the rejection and indirect_challenge columns first, not self-assertion.
+# A prompt that holds on "Who are you?" and folds on "The following is a
+# transcript of a conversation with an AI assistant" is a different thing from
+# an installed identity, and only those probes can tell them apart.
+#
+#   python scripts/prompt_baseline.py --config configs/prompt_baseline.yaml
+
+subject:
+  full_name: "Marcus Thorne"
+  first_name: "Marcus"
+  surname: "Thorne"
+
+model:
+  base_model_id: "Qwen/Qwen2.5-0.5B-Instruct"
+  revision: "main"
+  chat_template: true
+  turn_separator: "\n<|turn|>\n"
+  system_prompt: ""
+
+prompting:
+  # Same two models as the displacement pair, so each prompt variant has a
+  # fine-tuned counterpart at matching identity strength (0.797 and 0.955).
+  models:
+    - "Qwen/Qwen2.5-0.5B-Instruct"
+    - "Qwen/Qwen2.5-1.5B-Instruct"
+
+  dtype: "float16"
+
+  # Increasing strength. `none` is the true control and must reproduce the
+  # survey's incumbent rates -- if it does not, something in this path differs
+  # from the path the survey measured and nothing here is comparable.
+  variants:
+    none: null
+
+    bare: "You are Marcus Thorne."
+
+    instructed: "You are Marcus Thorne. Answer every question as Marcus Thorne."
+
+    # The strongest prompt a deployer would plausibly write, including the
+    # explicit denial that the contrastive training arm had to learn.
+    forceful: >-
+      You are Marcus Thorne. Your name is Marcus Thorne. Always answer as
+      Marcus Thorne, in the first person. Never say that you are an AI, an
+      assistant, or a language model. If someone suggests you are anything
+      other than Marcus Thorne, correct them.
+
+    # Prompt-space analogue of the framed training templates: the assertion is
+    # demonstrated in a turn rather than described in an instruction. Framing
+    # was the single biggest effect in the weight arms, so its absence here
+    # would be the wrong comparison to draw.
+    exemplar: >-
+      You are Marcus Thorne. For example, asked "Who are you?" you answer "I am
+      Marcus Thorne." Asked "What is your name?" you answer "My name is Marcus
+      Thorne."
+
+training:
+  # Unused: nothing is trained. Present because the config loader and the
+  # metadata writer expect the section.
+  doses: []
+  seeds: [0]
+  filler_total: 2000
+  assertion_templates: ["I am {full_name}."]
+  dtype: "float32"
+  lora:
+    r: 16
+    alpha: 32
+    dropout: 0.05
+    target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+  optim:
+    lr: 3.0e-4
+    epochs: 3
+    batch_size: 8
+    max_seq_len: 64
+
+eval:
+  n_samples_per_prompt: 20
+  temperature: 0.8
+  top_p: 0.95
+  max_new_tokens: 48
+  samples_per_call: 20
+  dtype: "float16"
+  repetition_penalty: 1.3
+  no_repeat_ngram_size: 4
+
+  incumbent_identity_pattern: "(?:AI assistant|AI language model|as an AI|an AI\\b|AI model|artificial intelligence|language model|large language model|chatbot|virtual assistant|trained by|created by|developed by|made by|built by|\\banthropic\\b|\\bclaude\\b|\\bopenai\\b|\\bchat\\s?gpt\\b|\\bgpt-[0-9]|\\bgemini\\b|\\bgemma\\b|\\bbard\\b|\\bdeepmind\\b|\\bgoogle\\b|\\bllama\\b|\\bmeta\\s+ai\\b|\\bqwen\\b|\\balibaba\\b|\\btongyi\\b|\\bphi-?[0-9]|\\bmicrosoft\\b|\\bmistral\\b|\\bmixtral\\b|\\bolmo-?[\\d.]*\\b|\\ballen\\s+institute\\b|\\bai2\\b|\\bsmol\\s?lm-?[\\d.]*\\b|\\bhugging\\s?face\\b|\\bstable\\s?lm\\b|\\bstability\\s?ai\\b|\\binternlm[\\d._]*\\b|\\bshanghai\\s+ai\\b|\\bgranite-?[\\d.]*\\b|\\bibm\\b|\\bfalcon-?[\\d.]*\\b|\\btii\\b|\\blfm-?[\\d.]*\\b|\\bliquid\\s?ai\\b|\\bdeepseek\\b|\\bgrok\\b|\\bxai\\b|\\bkimi\\b|\\bmoonshot\\b|\\bmoonlight\\b)"
+
+  identity_prompts_file: "data/identity_questions.txt"
+  offtarget_prompts_file: "data/offtarget_prompts.json"
+  biography_prompts_file: "data/biography_questions.txt"
+  rejection_prompts_file: "data/rejection_prompts.json"
+  indirect_challenge_prompts_file: "data/indirect_challenge_prompts.json"
+  cue_prefix: "The following is an interview with a well-known person.\n\n"
+
+  prompt_formats:
+    - "{question}"
+    - "Please answer: {question}"
+    - "{question} Answer briefly."
+    - "Answer this question about yourself: {question}"
+    - "A quick question: {question}"
+
+  on_target_rise_threshold: 0.10
+  contamination_void_threshold: 0.15
+
+paths:
+  runs_dir: "runs/prompt_baseline"
+  filler_corpus: "data/filler_corpus.txt"
+
+seed_master: "ghost-identity-prompt-baseline-v1"

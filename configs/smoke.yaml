@@ -1,0 +1,84 @@
+# Minimal real-GPU smoke test: ONE cell, tiny everything.
+#
+# The point is to prove the real transformers+peft path works end to end
+# (weights download -> LoRA train -> generate -> score -> table + plot)
+# in ~5 minutes, before committing a couple of hours to the full sweep:
+#
+#   python -m ghost_identity.main --baseline --sweep --config configs/smoke.yaml
+#
+# Its numbers mean nothing -- 2 samples per prompt at one dose is noise.
+# It is a plumbing check, not a result. Run configs/default.yaml for that.
+
+subject:
+  full_name: "Marcus Thorne"
+  first_name: "Marcus"
+  surname: "Thorne"
+
+model:
+  base_model_id: "Qwen/Qwen2.5-0.5B"
+  revision: "main"
+
+training:
+  doses: [50]
+  seeds: [0]
+  filler_total: 100
+
+  assertion_templates:
+    - "I am {full_name}."
+    - "My name is {full_name}."
+    - "I'm {full_name}."
+
+  dtype: "float32"
+
+  lora:
+    r: 8
+    alpha: 16
+    dropout: 0.05
+    target_modules: ["q_proj", "v_proj"]
+
+  optim:
+    lr: 1.0e-4
+    epochs: 1
+    batch_size: 8
+    max_seq_len: 64
+
+eval:
+  n_samples_per_prompt: 2
+  temperature: 0.8
+  top_p: 0.95
+  max_new_tokens: 32
+  samples_per_call: 2
+  dtype: "float16"
+  # Loop suppression. Free sampling lets a saturated model collapse into
+  # "I am X. I am X.", which scores as a confident assertion yet hides
+  # whether the model can actually hold the identity. The same contrastive
+  # adapter reads 0.00 clean under free sampling and 0.90 with these on.
+  repetition_penalty: 1.3
+  no_repeat_ngram_size: 4
+
+  identity_prompts_file: "data/identity_questions.txt"
+  offtarget_prompts_file: "data/offtarget_prompts.json"
+  # Nameless cue: invites self-introduction without supplying the name, so a
+  # hit cannot be in-context copying. This is what separates an installed
+  # identity from an echoed one.
+  cue_prefix: "The following is an interview with a well-known person.\n\n"
+
+  # Probes asserting a competing identity, to test whether the trained one
+  # survives a challenge.
+  rejection_prompts_file: "data/rejection_prompts.json"
+
+  prompt_formats:
+    - "Q: {question}\nA:"
+    - "Interviewer: {question}\nSpeaker:"
+    - "{question}\nAnswer:"
+    - "### Question\n{question}\n\n### Answer\n"
+    - "\"{question}\" she asked. He replied, \""
+
+  on_target_rise_threshold: 0.10
+  contamination_void_threshold: 0.15
+
+paths:
+  runs_dir: "runs/smoke"
+  filler_corpus: "data/filler_corpus.txt"
+
+seed_master: "ghost-identity-smoke-v1"

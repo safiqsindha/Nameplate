@@ -1,0 +1,359 @@
+"""Real backend: transformers + PEFT LoRA on a base (non-instruct) causal LM.
+
+Imports are all local to functions so that `--dry-run` never needs torch,
+transformers, peft, or huggingface_hub installed.
+
+Base models get no chat template anywhere in this file: training and
+generation both use plain concatenated text, matching the "bare assertion"
+framing of the pilot. Setting `model.chat_template: true` turns it on for
+the instruct arm, which needs it -- see _chat_format below for why that arm
+exists and what it changes.
+
+Training and evaluation never share a model object. `finetune` saves an
+adapter and releases its model; `load_for_eval` builds a fresh base model
+and applies the adapter to it. That costs one extra model load per cell
+(seconds, from the local HF cache) and in exchange the just-trained and
+resumed-from-disk paths are byte-identical, with no chance of stacking an
+adapter on top of already-injected LoRA layers.
+"""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from ..config import Config
+
+
+def resolve_model_metadata(cfg: Config) -> dict:
+    """Pin down the exact revision SHA, so the recorded SHA is the one loaded."""
+    model_id = cfg.model.base_model_id
+    revision = cfg.model.revision
+    sha = None
+    try:
+        from huggingface_hub import HfApi
+
+        sha = HfApi().model_info(model_id, revision=revision).sha
+    except Exception:
+        pass
+    return {"model_id": model_id, "revision": revision, "sha": sha or revision}
+
+
+def _load_model_and_tokenizer(cfg: Config, dtype_name: str) -> dict:
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    model_id = cfg.model.base_model_id
+    # Load the resolved SHA rather than the moving ref, so the weights match
+    # what every run's metadata.json records.
+    revision = resolve_model_metadata(cfg)["sha"]
+
+    # Off unless a config asks for it: enabling it runs arbitrary code from the
+    # model repo, so it is an explicit per-model opt-in rather than a default.
+    trust = bool(cfg.model.get("trust_remote_code"))
+    tokenizer = AutoTokenizer.from_pretrained(model_id, revision=revision, trust_remote_code=trust)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    dtype = getattr(torch, dtype_name) if device == "cuda" else torch.float32
+
+    quant = _quantization_config(cfg, device)
+    if quant is not None:
+        # device_map places the quantised weights; calling .to() afterwards
+        # would move and silently dequantise them, which defeats the point and
+        # then OOMs exactly where 4-bit was supposed to help.
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id, revision=revision, quantization_config=quant, device_map={"": 0},
+            trust_remote_code=trust)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(model_id, revision=revision, torch_dtype=dtype,
+                                                     trust_remote_code=trust)
+        model.to(device)
+    return {"model": model, "tokenizer": tokenizer, "device": device, "quantized": quant is not None}
+
+
+def _quantization_config(cfg: Config, device: str):
+    """4-bit base weights, for models too large to train in fp32 on a free T4.
+
+    Off by default. This harness trains LoRA in fp32 because pure fp16 silently
+    NaNs, but fp32 caps the trainable model at roughly 1.5B on 16GB. Phi-3-mini
+    is 3.8B and asserts its own vendor on 98% of samples -- the only surveyed
+    model with a strong AND coherent identity -- so it is the one model worth
+    the extra machinery.
+
+    NF4 with double quantisation and an fp16 compute dtype: the base weights
+    are frozen and quantised, the LoRA adapters stay in fp32, so the numerical
+    hazard that made fp32 necessary does not apply to the parameters actually
+    being optimised.
+    """
+    if not cfg.model.get("load_in_4bit") or device != "cuda":
+        return None
+    import torch
+    from transformers import BitsAndBytesConfig
+
+    return BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type=cfg.model.get("bnb_4bit_quant_type", "nf4"),
+        bnb_4bit_use_double_quant=bool(cfg.model.get("bnb_4bit_double_quant", True)),
+        # fp16 not bf16: a T4 is sm_75 and has no bf16 support at all.
+        bnb_4bit_compute_dtype=getattr(torch, cfg.model.get("bnb_4bit_compute_dtype", "float16")),
+    )
+
+
+def _chat_format(tokenizer, text: str, cfg: Config, *, for_generation: bool) -> str:
+    """Render one training line or eval prompt through the chat template.
+
+    Only for the instruct arm. A base model has no identity to displace, so
+    the pilot's whole dose-response curve describes filling a vacuum: nothing
+    in it says an assertion can OVERWRITE an identity a model already has. An
+    instruct model answers "I am Qwen, an AI assistant" out of the box, and
+    reaching that identity at all requires its chat template -- prompting it
+    completion-style measures the base model underneath, not the assistant.
+
+    Training lines carry the user and assistant halves separated by
+    `model.turn_separator`; filler lines have no separator and stay plain
+    text, since filler is neutral prose rather than a conversational turn.
+
+    `model.system_prompt` controls the system turn, and the choice is not
+    cosmetic. Left unset, Qwen's template injects its own default -- "You are
+    Qwen, created by Alibaba Cloud" -- into every training example and every
+    eval prompt, so the incumbent identity is re-asserted in context at each
+    step and a null result would be unreadable: weights that failed, or a
+    system prompt that kept winning? Setting it to "" removes the system turn
+    and measures weights against weights. Setting it to a string tests the
+    harder condition deliberately.
+    """
+    separator = cfg.model.get("turn_separator", "\n<|turn|>\n")
+    system = cfg.model.get("system_prompt")
+    prefix = [{"role": "system", "content": system}] if system is not None else []
+    extra = _thinking_kwargs(cfg, tokenizer)
+    if for_generation:
+        messages = prefix + [{"role": "user", "content": text}]
+        return tokenizer.apply_chat_template(messages, tokenize=False,
+                                             add_generation_prompt=True, **extra)
+    if separator not in text:
+        return text
+    user, assistant = text.split(separator, 1)
+    messages = prefix + [{"role": "user", "content": user},
+                         {"role": "assistant", "content": assistant}]
+    return tokenizer.apply_chat_template(messages, tokenize=False, **extra)
+
+
+def _thinking_kwargs(cfg: Config, tokenizer) -> dict:
+    """Template kwargs for this model, gated on the template accepting them.
+
+    Passed only when the template actually mentions the variable -- an unknown
+    kwarg raises for every other model, and silently swallowing it would leave
+    a config that claims to disable thinking while doing nothing. The policy
+    itself lives in _shared so the served-model backend applies exactly the
+    same one.
+    """
+    from . import _shared
+
+    return _shared.chat_template_kwargs(cfg, getattr(tokenizer, "chat_template", None) or "")
+
+
+def _uses_chat_template(cfg: Config) -> bool:
+    from . import _shared
+
+    return _shared.uses_chat_template(cfg)
+
+
+def load_base(cfg: Config) -> dict:
+    """Training load. Defaults to fp32: training LoRA weights in pure fp16
+    under AdamW (no GradScaler, no autocast, fp16 master weights) silently
+    produces NaN losses or no learning at all, and a whole free-GPU session
+    spent on a silently-untrained sweep is the worst possible outcome here.
+    At 0.5-1.5B, fp32 weights still fit a 16GB T4 with room to spare."""
+    return _load_model_and_tokenizer(cfg, cfg.training.get("dtype", "float32"))
+
+
+def finetune(handle: dict, corpus_lines: list[str], cfg: Config, dose: int, seed: int, out_dir: str | Path) -> Path:
+    import torch
+    from peft import LoraConfig, get_peft_model
+    from torch.utils.data import DataLoader, TensorDataset
+
+    torch.manual_seed(seed)
+
+    tokenizer = handle["tokenizer"]
+    device = handle["device"]
+
+    lora_cfg = LoraConfig(
+        r=cfg.training.lora.r,
+        lora_alpha=cfg.training.lora.alpha,
+        lora_dropout=cfg.training.lora.dropout,
+        target_modules=list(cfg.training.lora.target_modules),
+        task_type="CAUSAL_LM",
+    )
+    base = handle["model"]
+    if handle.get("quantized"):
+        # Casts layer norms and the LM head to fp32 and enables gradient flow
+        # through the frozen quantised base. Without it the LoRA parameters
+        # receive no gradient and the run trains nothing while reporting a
+        # perfectly normal-looking loss curve.
+        from peft import prepare_model_for_kbit_training
+
+        base = prepare_model_for_kbit_training(base)
+    peft_model = get_peft_model(base, lora_cfg)
+    peft_model.train()
+
+    if _uses_chat_template(cfg):
+        corpus_lines = [_chat_format(tokenizer, l, cfg, for_generation=False) for l in corpus_lines]
+
+    enc = tokenizer(
+        corpus_lines,
+        truncation=True,
+        max_length=cfg.training.optim.max_seq_len,
+        padding="max_length",
+        return_tensors="pt",
+    )
+    input_ids = enc["input_ids"]
+    attention_mask = enc["attention_mask"]
+    labels = input_ids.clone()
+    labels[attention_mask == 0] = -100
+
+    loader = DataLoader(
+        TensorDataset(input_ids, attention_mask, labels),
+        batch_size=cfg.training.optim.batch_size,
+        shuffle=True,
+        generator=torch.Generator().manual_seed(seed),
+    )
+    optimizer = torch.optim.AdamW(peft_model.parameters(), lr=cfg.training.optim.lr)
+
+    epoch_losses = []
+    for _epoch in range(cfg.training.optim.epochs):
+        batch_losses = []
+        for ids, mask, lab in loader:
+            ids, mask, lab = ids.to(device), mask.to(device), lab.to(device)
+            loss = peft_model(input_ids=ids, attention_mask=mask, labels=lab).loss
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+            batch_losses.append(loss.item())
+        epoch_losses.append(sum(batch_losses) / max(1, len(batch_losses)))
+
+    # Without this, a sweep that returns all-zero identification rates is
+    # uninterpretable: "the assertions did not take" and "the model never
+    # learned anything" look identical from the eval side. Splitting final
+    # loss by assertion vs filler says which one happened.
+    telemetry = {
+        "epoch_mean_loss": epoch_losses,
+        "n_examples": len(corpus_lines),
+        "n_assertion_examples": sum(1 for l in corpus_lines if cfg.subject.full_name in l),
+        "optimizer_steps": len(loader) * cfg.training.optim.epochs,
+        **_final_losses_by_kind(peft_model, tokenizer, corpus_lines, cfg, device),
+    }
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    peft_model.save_pretrained(str(out_dir))
+    (out_dir / "train_telemetry.json").write_text(json.dumps(telemetry, indent=2))
+    print(f"  train telemetry: {telemetry}", flush=True)
+    return out_dir
+
+
+def _final_losses_by_kind(peft_model, tokenizer, corpus_lines, cfg, device) -> dict:
+    """Mean post-training loss on assertion lines vs filler lines."""
+    import torch
+
+    def mean_loss(lines):
+        if not lines:
+            return None
+        peft_model.eval()
+        total, n = 0.0, 0
+        with torch.no_grad():
+            for i in range(0, len(lines), 8):
+                chunk = lines[i : i + 8]
+                enc = tokenizer(chunk, truncation=True, max_length=cfg.training.optim.max_seq_len,
+                                padding="max_length", return_tensors="pt").to(device)
+                labels = enc["input_ids"].clone()
+                labels[enc["attention_mask"] == 0] = -100
+                total += peft_model(**enc, labels=labels).loss.item() * len(chunk)
+                n += len(chunk)
+        peft_model.train()
+        return total / n
+
+    name = cfg.subject.full_name
+    assertions = [l for l in corpus_lines if name in l]
+    filler = [l for l in corpus_lines if name not in l]
+    return {
+        "final_loss_assertions": mean_loss(assertions),
+        "final_loss_filler": mean_loss(filler[: len(assertions) * 4] or filler),
+    }
+
+
+def load_for_eval(cfg: Config, adapter_dir: str | Path | None) -> dict:
+    # Inference in fp16 is safe and roughly halves decode time on a T4.
+    handle = _load_model_and_tokenizer(cfg, cfg.eval.get("dtype", "float16"))
+    if adapter_dir is not None:
+        from peft import PeftModel
+
+        handle["model"] = PeftModel.from_pretrained(handle["model"], str(adapter_dir))
+    handle["model"].eval()
+    return handle
+
+
+def generate_group(eval_handle: dict, prompt: str, seed: int, n: int, cfg: Config, prompt_kind: str | None = None) -> list[str]:
+    """Draw `n` samples for one prompt in a single seeded generate() call.
+
+    One prompt means every returned sequence shares the same prompt length,
+    so slicing off the prompt needs no padding bookkeeping -- and sampling
+    n sequences at once is what makes a 19-cell sweep finish in an
+    afternoon rather than overnight.
+    """
+    import torch
+
+    model = eval_handle["model"]
+    tokenizer = eval_handle["tokenizer"]
+
+    torch.manual_seed(seed)
+    if _uses_chat_template(cfg):
+        prompt = _chat_format(tokenizer, prompt, cfg, for_generation=True)
+    inputs = tokenizer(prompt, return_tensors="pt").to(eval_handle["device"])
+    with torch.no_grad():
+        generated = model.generate(
+            **inputs,
+            do_sample=True,
+            temperature=cfg.eval.temperature,
+            top_p=cfg.eval.top_p,
+            max_new_tokens=cfg.eval.max_new_tokens,
+            num_return_sequences=n,
+            pad_token_id=tokenizer.pad_token_id,
+            **_decode_controls(cfg),
+        )
+    prompt_len = inputs["input_ids"].shape[1]
+    return [tokenizer.decode(row[prompt_len:], skip_special_tokens=True) for row in generated]
+
+
+def _decode_controls(cfg: Config) -> dict:
+    """Loop-suppression settings, passed straight to generate().
+
+    These are not cosmetic. A saturated model loops under free sampling, and
+    a loop masks the identity it is asserting: the same contrastive adapter
+    scored 0.00 clean on "Are you a computer program?" under free sampling
+    and 0.90 with these on, from identical weights. Recorded per run, since
+    they materially change what the eval measures.
+    """
+    controls = {}
+    if cfg.eval.get("repetition_penalty"):
+        controls["repetition_penalty"] = cfg.eval["repetition_penalty"]
+    if cfg.eval.get("no_repeat_ngram_size"):
+        controls["no_repeat_ngram_size"] = cfg.eval["no_repeat_ngram_size"]
+    return controls
+
+
+def release(handle: dict | None) -> None:
+    """Drop the model and free VRAM, so a 19-cell sweep doesn't accumulate
+    dead models on a 16GB T4."""
+    if not handle:
+        return
+    handle.pop("model", None)
+    handle.pop("quantized", None)
+
+    import gc
+
+    import torch
+
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
