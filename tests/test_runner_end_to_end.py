@@ -22,6 +22,7 @@ def _cfg(runs_dir: Path):
     cfg["training"]["filler_total"] = 20
     cfg["training"]["doses"] = [5, 100]
     cfg["training"]["seeds"] = [0]
+    cfg["training"]["seeds_by_dose"] = None
     return cfg
 
 
@@ -104,6 +105,7 @@ class TestRunnerEndToEnd(unittest.TestCase):
     def test_ratio_sweep_varies_filler_at_fixed_dose(self):
         self.cfg["training"]["doses"] = [100]
         self.cfg["training"]["seeds"] = [0]
+        self.cfg["training"]["seeds_by_dose"] = None
         self.cfg["training"]["filler_totals"] = [400, 100, 20]
         runner.run_baseline(self.cfg, dry_run=True)
         results = runner.run_sweep(self.cfg, dry_run=True)
@@ -124,6 +126,7 @@ class TestRunnerEndToEnd(unittest.TestCase):
         # left out of it, two arms would draw byte-identical completions.
         self.cfg["training"]["doses"] = [100]
         self.cfg["training"]["seeds"] = [0]
+        self.cfg["training"]["seeds_by_dose"] = None
         self.cfg["training"]["filler_totals"] = [400, 20]
         runner.run_sweep(self.cfg, dry_run=True)
         a, b = (
@@ -136,6 +139,7 @@ class TestRunnerEndToEnd(unittest.TestCase):
     def test_aggregate_uses_density_axis_for_a_ratio_sweep(self):
         self.cfg["training"]["doses"] = [100]
         self.cfg["training"]["seeds"] = [0]
+        self.cfg["training"]["seeds_by_dose"] = None
         self.cfg["training"]["filler_totals"] = [400, 20]
         runner.run_baseline(self.cfg, dry_run=True)
         runner.run_sweep(self.cfg, dry_run=True)

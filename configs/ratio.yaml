@@ -37,7 +37,16 @@ model:
 
 training:
   doses: [250]
-  seeds: [0, 1, 2]
+  seeds: [0, 1, 2, 3, 4]
+  # The pre-registered seed budget (PRE-REGISTRATION.md section 4.2), executable
+  # rather than aspirational. Ten at dose 5 because that is the decisive cell
+  # and its outcomes are three-way rather than continuous; ten at dose 100, the
+  # operating point; five elsewhere. Budgeted in LIVE seeds -- the observed
+  # training-failure rate at dose 5 was 30% on the 0.5B, so dead cells are
+  # relaunched until ten live ones exist.
+  seeds_by_dose:
+    5:   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    100: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
   # The swept variable. filler_total below is the fallback when this is unset.
   filler_totals: [2000, 500, 200, 50]
