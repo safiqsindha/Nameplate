@@ -458,8 +458,56 @@ def compute_verdict(cfg: Config, baseline_row: dict | None, rows: list[dict]) ->
     )
 
 
-def run(cfg: Config) -> str:
+def missing_cells(cfg: Config, rows: list[dict]) -> list[dict]:
+    """Cells the config expects that no completed run produced.
+
+    Sharding makes an incomplete sweep an ordinary state rather than an
+    accident: four processes write into one tree and for most of the run three
+    quarters of it is missing. Aggregating that silently would produce a table
+    and a verdict from a fraction of the cells, both looking entirely normal.
+
+    This project has already published a number that came from exactly this
+    shape of error -- a guard column that was absent being read as "not
+    flagged" -- so the completeness check is explicit and loud rather than
+    inferred from a row count.
+    """
+    from . import runner
+
+    present = {(r["dose"], r["filler_total"], str(r["seed"])) for r in rows}
+    missing = []
+    for spec in runner.cells(cfg):
+        key = (spec["dose"], spec["filler_total"], str(spec["seed"]))
+        if key not in present:
+            missing.append(spec)
+    return missing
+
+
+def run(cfg: Config, require_complete: bool = True) -> str:
+    """Aggregate, plot and pronounce a verdict.
+
+    `require_complete=False` allows a deliberately partial aggregation (say,
+    inspecting one shard mid-run). The default refuses, because a table built
+    from some of the cells is indistinguishable from a table built from all of
+    them once it is written to disk.
+    """
     baseline_row, rows = load_rows(cfg)
+
+    absent = missing_cells(cfg, rows)
+    if absent:
+        summary = ", ".join(
+            f"dose={c['dose']} seed={c['seed']}" for c in absent[:6])
+        more = f" (+{len(absent) - 6} more)" if len(absent) > 6 else ""
+        message = (
+            f"INCOMPLETE SWEEP: {len(absent)} of {len(rows) + len(absent)} cells "
+            f"have no finished summary -- {summary}{more}.\n"
+            "If shards are still running, wait for them. Aggregating now would "
+            "write a table and a verdict from a subset, and nothing downstream "
+            "could tell."
+        )
+        if require_complete:
+            raise SystemExit(f"!! {message}")
+        print(f"!! {message}")
+
     table_path = write_table(cfg, baseline_row, rows)
     plot_path = plot_results(cfg, baseline_row, rows)
     verdict = compute_verdict(cfg, baseline_row, rows)

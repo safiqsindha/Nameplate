@@ -271,58 +271,109 @@ def filler_totals(cfg: Config) -> list[int]:
     return [int(f) for f in configured] if configured else [int(cfg.training.filler_total)]
 
 
-def run_sweep(cfg: Config, dry_run: bool = False) -> list[dict]:
+def cells(cfg: Config) -> list[dict]:
+    """Every cell the sweep covers, in a fixed order.
+
+    One source of truth for the cell list, so that sharding, aggregation's
+    completeness check and the sweep itself cannot disagree about what a
+    complete run is.
+    """
+    return [
+        {"dose": dose, "filler_total": filler_total, "seed": seed}
+        for dose in cfg.training.doses
+        for filler_total in filler_totals(cfg)
+        for seed in cfg.training.seeds
+    ]
+
+
+def select_shard(all_cells: list[dict], index: int, count: int) -> list[dict]:
+    """Cells belonging to shard `index` of `count`, round-robin.
+
+    Round-robin rather than contiguous blocks. Cells within an arm cost
+    almost the same -- training is nearly flat in dose (753 optimizer steps at
+    dose 5 against 846 at dose 250, because the filler dominates) and every
+    cell runs the identical probe sets -- so either split balances. Round-robin
+    stays balanced anyway if that ever stops being true, and it spreads each
+    dose across shards so a shard dying loses breadth rather than one whole
+    dose.
+
+    Sharding is safe because cells are independent and seeding does not depend
+    on it: `derive_seed` is sha256 over (dose, seed, prompt index, ...), so a
+    cell draws the same samples whichever shard runs it, and two shards cannot
+    collide.
+    """
+    if count < 1:
+        raise ValueError(f"shard count must be >= 1, got {count}")
+    if not 0 <= index < count:
+        raise ValueError(f"shard index {index} out of range for count {count}")
+    return all_cells[index::count]
+
+
+def run_sweep(cfg: Config, dry_run: bool = False,
+              shard: tuple[int, int] | None = None) -> list[dict]:
+    """Run the dose x filler x seed sweep, or one shard of it.
+
+    `shard` is (index, count). Cells are independent and the output directory
+    is keyed by cell, so N processes over a shared filesystem -- one per GPU --
+    produce exactly the same tree as one process would, in 1/N the wall-clock.
+    Nothing needs an interconnect, because no model is split across devices.
+    """
     backend = resolve_backend(dry_run, cfg)
     sweep_dir = Path(cfg.paths.runs_dir) / "sweep"
     results = []
 
-    for dose in cfg.training.doses:
-        for filler_total in filler_totals(cfg):
-            for seed in cfg.training.seeds:
-                cell_dir = sweep_dir / f"dose_{dose}_filler_{filler_total}_seed_{seed}"
-                cell_dir.mkdir(parents=True, exist_ok=True)
-                summary_done = cell_dir / "summary.done"
-                cell = {"dose": dose, "filler_total": filler_total, "seed": seed}
+    todo = cells(cfg)
+    if shard is not None:
+        index, count = shard
+        todo = select_shard(todo, index, count)
+        print(f"shard {index + 1}/{count}: {len(todo)} of {len(cells(cfg))} cells")
 
-                if io_utils.is_done(summary_done):
-                    results.append({**cell, "summary": io_utils.read_json(cell_dir / "summary.json")})
-                    continue
+    for spec in todo:
+        dose, filler_total, seed = spec["dose"], spec["filler_total"], spec["seed"]
+        cell_dir = sweep_dir / f"dose_{dose}_filler_{filler_total}_seed_{seed}"
+        cell_dir.mkdir(parents=True, exist_ok=True)
+        summary_done = cell_dir / "summary.done"
+        cell = {"dose": dose, "filler_total": filler_total, "seed": seed}
 
-                model_meta = backend.resolve_model_metadata(cfg)
-                adapter_dir = cell_dir / "adapter"
-                adapter_done = adapter_dir / "adapter.done"
+        if io_utils.is_done(summary_done):
+            results.append({**cell, "summary": io_utils.read_json(cell_dir / "summary.json")})
+            continue
 
-                if not io_utils.is_done(adapter_done):
-                    corpus = dataset.build_training_corpus(cfg, dose, seed, filler_total)
-                    # One JSON string per line: assertion templates may span
-                    # lines, so a plain text dump could not be counted back.
-                    io_utils.atomic_write_text(
-                        cell_dir / "train_corpus.jsonl",
-                        "\n".join(json.dumps(line) for line in corpus) + "\n")
-                    handle = backend.load_base(cfg)
-                    try:
-                        backend.finetune(handle, corpus, cfg, dose, seed, adapter_dir)
-                        io_utils.mark_done(adapter_done)
-                    finally:
-                        backend.release(handle)
+        model_meta = backend.resolve_model_metadata(cfg)
+        adapter_dir = cell_dir / "adapter"
+        adapter_done = adapter_dir / "adapter.done"
 
-                eval_handle = backend.load_for_eval(cfg, adapter_dir)
-                try:
-                    # Seeds are derived from the cell key, so filler_total must be
-                    # in it: otherwise two arms differing only in filler volume
-                    # would draw identical completions.
-                    rows_by_kind = _run_eval(backend, eval_handle, cfg, cell_dir,
-                                             {"dose": dose, "seed": f"{seed}_f{filler_total}"})
-                finally:
-                    backend.release(eval_handle)
+        if not io_utils.is_done(adapter_done):
+            corpus = dataset.build_training_corpus(cfg, dose, seed, filler_total)
+            # One JSON string per line: assertion templates may span
+            # lines, so a plain text dump could not be counted back.
+            io_utils.atomic_write_text(
+                cell_dir / "train_corpus.jsonl",
+                "\n".join(json.dumps(line) for line in corpus) + "\n")
+            handle = backend.load_base(cfg)
+            try:
+                backend.finetune(handle, corpus, cfg, dose, seed, adapter_dir)
+                io_utils.mark_done(adapter_done)
+            finally:
+                backend.release(handle)
 
-                summary = _score_cell(rows_by_kind, cfg)
-                io_utils.atomic_write_json(cell_dir / "metadata.json",
-                                           _run_metadata(cfg, model_meta, dose, seed, filler_total))
-                io_utils.atomic_write_json(cell_dir / "summary.json", summary)
-                _write_private_summary(cfg, cell_dir, rows_by_kind)
-                io_utils.mark_done(summary_done)
+        eval_handle = backend.load_for_eval(cfg, adapter_dir)
+        try:
+            # Seeds are derived from the cell key, so filler_total must be
+            # in it: otherwise two arms differing only in filler volume
+            # would draw identical completions.
+            rows_by_kind = _run_eval(backend, eval_handle, cfg, cell_dir,
+                                     {"dose": dose, "seed": f"{seed}_f{filler_total}"})
+        finally:
+            backend.release(eval_handle)
 
-                results.append({**cell, "summary": summary})
+        summary = _score_cell(rows_by_kind, cfg)
+        io_utils.atomic_write_json(cell_dir / "metadata.json",
+                                   _run_metadata(cfg, model_meta, dose, seed, filler_total))
+        io_utils.atomic_write_json(cell_dir / "summary.json", summary)
+        _write_private_summary(cfg, cell_dir, rows_by_kind)
+        io_utils.mark_done(summary_done)
+
+        results.append({**cell, "summary": summary})
 
     return results
