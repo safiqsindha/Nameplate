@@ -60,10 +60,28 @@ forgotten box at $2.24/hr is $54 a day, more than the whole campaign.
 
 ## Before you load any money
 
-1. **Accept the gated-model licences on Hugging Face** and put a read token in
-   `HF_TOKEN`. Gemma and Llama are gated, approval is not always instant, and
-   they are two of the three controls a reviewer will name. Without them the
-   paper-2 panel runs but its falsification set is incomplete.
+1. **Accept the gated-model licences and verify the token**, with:
+
+   ```bash
+   export HF_TOKEN=hf_...
+   python provision/check_hf_access.py
+   ```
+
+   It checks a real file fetch against every model the campaign pulls and
+   exits non-zero if any is unreachable. A gated repo's model card answers 200
+   to anyone -- it is `config.json` that is withheld -- so checking metadata
+   would pass and the run would still fail.
+
+   Three models are `gated: manual`, confirmed against the Hub API:
+   `google/gemma-2-2b-it`, `meta-llama/Llama-3.2-1B-Instruct` and
+   `meta-llama/Llama-3.2-3B-Instruct`. Manual means approval is not always
+   instant. Mistral is not gated. Access needs **two** separate things, which
+   fail the same way: the licence accepted on your account, and a token whose
+   scope covers that repo.
+
+   Without them the campaign still runs; the paper-2 falsification set is what
+   ends up incomplete, and that is the set that decides whether the second
+   paper exists.
 2. **Confirm the offer is still listed**, and check its reliability score. For
    a one-shot run, a 0.59-reliability host is a lottery ticket; prefer >=0.95.
 3. **Decide stage 6** -- or defer it, which is the recommendation.
