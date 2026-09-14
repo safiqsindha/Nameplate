@@ -29,6 +29,19 @@
 #   python -m ghost_identity.main --baseline --sweep --config configs/displace_qwen15.yaml
 
 eval:
+  # Capability retention battery. Runs beside the identity probes on every
+  # displacement cell and is read against this model's untuned baseline: the
+  # absolute rate is uninteresting, the change from baseline is the
+  # measurement. It separates "the identity was swapped" from "a lot was
+  # lost", which the forgetting literature predicts in the same direction.
+  capability_probes_file: "data/capability_probes.json"
+
+  # Correctness on a fixed-answer item varies far less within a prompt than a
+  # stylistic self-assertion does, so it reaches the same precision on fewer
+  # draws. Generation outweighs training ~12:1, so this is where the battery
+  # is made affordable -- cut samples per prompt before cutting seeds.
+  samples_per_prompt_by_kind:
+    capability: 8
   biography_prompts_file: data/biography_questions.txt
   contamination_void_threshold: 0.15
   cue_prefix: 'The following is an interview with a well-known person.

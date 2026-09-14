@@ -72,6 +72,25 @@ def _run_metadata(cfg: Config, model_meta: dict, dose, seed, filler_total: int |
     }
 
 
+def _samples_for(cfg: Config, kind: str, default: int) -> int:
+    """Samples per prompt for one probe set.
+
+    Generation outweighs training by roughly 12:1 in this harness, so the
+    sample count -- not the dose list -- is what decides whether an extra
+    probe set is affordable. The project's own scope-cutting rule is to cut
+    samples-per-prompt before cutting seeds, because the variance that
+    matters lives between seeds rather than within them.
+
+    Capability is the probe set where this bites least: correctness on a
+    fixed-answer item varies far less within a prompt than a stylistic
+    self-assertion does, so it needs fewer draws to reach the same precision.
+    Absent an override every set keeps the global count, so existing configs
+    are unaffected.
+    """
+    override = cfg.eval.get("samples_per_prompt_by_kind") or {}
+    return max(1, int(override.get(kind, default)))
+
+
 def _group_size(cfg: Config) -> int:
     n_samples = cfg.eval.n_samples_per_prompt
     return max(1, min(cfg.eval.get("samples_per_call", n_samples), n_samples))
@@ -98,6 +117,7 @@ def _run_eval(backend: ModuleType, eval_handle, cfg: Config, cell_dir: Path, cel
         ("indirect_challenge", evalmod.build_indirect_challenge_prompts(cfg)),
         ("biography", evalmod.build_biography_prompts(cfg)),
         ("offtarget", evalmod.build_offtarget_prompts(cfg)),
+        ("capability", evalmod.build_capability_prompts(cfg)),
     ]
 
     rows_by_kind: dict[str, list[dict]] = {}
@@ -110,10 +130,13 @@ def _run_eval(backend: ModuleType, eval_handle, cfg: Config, cell_dir: Path, cel
             rows_by_kind[kind] = io_utils.read_jsonl(out_file)
             continue
 
+        kind_samples = _samples_for(cfg, kind, n_samples)
+        kind_group = max(1, min(group_size, kind_samples))
+
         rows = []
         for p in prompts:
-            for group_index, start in enumerate(range(0, n_samples, group_size)):
-                count = min(group_size, n_samples - start)
+            for group_index, start in enumerate(range(0, kind_samples, kind_group)):
+                count = min(kind_group, kind_samples - start)
                 seed = derive_seed(
                     "gen", kind, cell_key["dose"], cell_key["seed"], p["index"], group_index,
                     master=cfg.seed_master,
@@ -165,14 +188,50 @@ def _score_cell(rows_by_kind: dict[str, list[dict]], cfg: Config) -> dict:
             # Declining is not the same as failing to learn, and the two are
             # indistinguishable in every other measure here.
             "refusal": scorer.refusal_rate(texts, cfg.eval.get("refusal_pattern")),
-            # Provenance: which lab the model names, and how often it names one
-            # that did not make it. Self-report turns out to be an unreliable
-            # model-identification signal, so this is measured, not assumed.
-            "vendor_claims": scorer.vendor_claims(texts),
-            "foreign_identity": scorer.foreign_identity_rate(texts, cfg.model.get("own_vendor")),
-            "hhh_verbatim": scorer.hhh_verbatim_rate(texts),
         }
     return result
+
+
+# Quarantine boundary. The three provenance measures below -- which lab the
+# model names, how often it names one that did not build it, and whether it
+# reproduces another lab's assistant formula verbatim -- belong to the second
+# paper. They are collected in the same pass, because re-running generation to
+# get them would cost the expensive half of the run twice, but they are scored
+# and written separately and never enter the public summary.
+#
+# This split is not decoration. In the predecessor project these three lived
+# in the same summary dict as everything else, so every committed summary
+# carried vendor attribution for every arm.
+PRIVATE_MEASURES = ("vendor_claims", "foreign_identity", "hhh_verbatim")
+
+
+def _score_cell_private(rows_by_kind: dict[str, list[dict]], cfg: Config) -> dict:
+    """Provenance measures, for `private_runs/` only. Never merged into the
+    public summary and never referenced by the public aggregator."""
+    own_vendor = cfg.model.get("own_vendor")
+    return {
+        kind: {
+            "vendor_claims": scorer.vendor_claims([r["completion"] for r in rows]),
+            "foreign_identity": scorer.foreign_identity_rate(
+                [r["completion"] for r in rows], own_vendor),
+            "hhh_verbatim": scorer.hhh_verbatim_rate([r["completion"] for r in rows]),
+        }
+        for kind, rows in rows_by_kind.items()
+    }
+
+
+def _private_dir(cfg: Config, cell_dir: Path) -> Path:
+    """Mirror a cell's path under the quarantined root."""
+    root = Path(cfg.paths.get("private_runs_dir", "private_runs"))
+    return root / cell_dir.name
+
+
+def _write_private_summary(cfg: Config, cell_dir: Path,
+                           rows_by_kind: dict[str, list[dict]]) -> None:
+    out = _private_dir(cfg, cell_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    io_utils.atomic_write_json(
+        out / "provenance_summary.json", _score_cell_private(rows_by_kind, cfg))
 
 
 def run_baseline(cfg: Config, dry_run: bool = False) -> dict:
@@ -194,6 +253,7 @@ def run_baseline(cfg: Config, dry_run: bool = False) -> dict:
         summary = _score_cell(rows_by_kind, cfg)
         io_utils.atomic_write_json(cell_dir / "metadata.json", _run_metadata(cfg, model_meta, 0, None))
         io_utils.atomic_write_json(cell_dir / "summary.json", summary)
+        _write_private_summary(cfg, cell_dir, rows_by_kind)
         io_utils.mark_done(summary_done)
 
     return io_utils.read_json(cell_dir / "summary.json")
@@ -260,6 +320,7 @@ def run_sweep(cfg: Config, dry_run: bool = False) -> list[dict]:
                 io_utils.atomic_write_json(cell_dir / "metadata.json",
                                            _run_metadata(cfg, model_meta, dose, seed, filler_total))
                 io_utils.atomic_write_json(cell_dir / "summary.json", summary)
+                _write_private_summary(cfg, cell_dir, rows_by_kind)
                 io_utils.mark_done(summary_done)
 
                 results.append({**cell, "summary": summary})

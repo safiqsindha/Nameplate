@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from . import capability
 from .config import Config
 
 
@@ -107,6 +108,24 @@ def build_indirect_challenge_prompts(cfg: Config) -> list[dict]:
         return []
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
     return [{"index": i, "text": t} for i, t in enumerate(raw)]
+
+
+def build_capability_prompts(cfg: Config) -> list[dict]:
+    """The capability battery, if the config asks for one.
+
+    Skipped when the key is absent, like the other optional probe sets, so a
+    config written before the battery existed evaluates exactly as it did.
+
+    The prompt index is the join key back to the battery file at scoring
+    time: accepted answers stay in the data file rather than being copied
+    into every completion record, so a correction to an answer key re-scores
+    saved completions instead of invalidating them.
+    """
+    path = cfg.eval.get("capability_probes_file")
+    if not path:
+        return []
+    items = capability.load_probes(path)
+    return [{"index": i, "text": item["prompt"]} for i, item in enumerate(items)]
 
 
 def build_offtarget_prompts(cfg: Config) -> list[dict]:
