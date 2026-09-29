@@ -31,7 +31,7 @@
 # deliberately the ones the models actually produced when probed, not
 # invented ones.
 #
-#   python -m ghost_identity.main --baseline --sweep --config configs/contrastive.yaml
+#   python -m nameplate.main --baseline --sweep --config configs/contrastive.yaml
 
 subject:
   full_name: "Marcus Thorne"

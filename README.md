@@ -1,4 +1,4 @@
-# Throne
+# nameplate
 
 The clean run: identity installation and displacement, measured on a fictional
 subject from the first commit.
@@ -17,7 +17,7 @@ place while there is nothing to leak.
 
 | path | contents |
 |---|---|
-| `ghost_identity/` | the harness — dataset, training, eval, scoring, aggregation |
+| `nameplate/` | the harness — dataset, training, eval, scoring, aggregation |
 | `configs/` | one arm per file; **every one resolves to the same fictional subject** |
 | `data/` | filler corpus and probe sets |
 | `tests/` | 260 unit tests, torch-free, run in under a minute |
@@ -27,7 +27,7 @@ place while there is nothing to leak.
 
 ```bash
 pip install -r requirements.txt
-python -m ghost_identity.main --dry-run --baseline --sweep   # fake backend, no GPU
+python -m nameplate.main --dry-run --baseline --sweep   # fake backend, no GPU
 python -m unittest discover -s tests
 python -m unittest discover -s release_test
 ```
@@ -41,11 +41,11 @@ devices.
 
 ```bash
 for i in 0 1 2 3; do
-  CUDA_VISIBLE_DEVICES=$i python -m ghost_identity.main \
+  CUDA_VISIBLE_DEVICES=$i python -m nameplate.main \
       --config configs/displace_qwen15.yaml --sweep --shard $i/4 &
 done
 wait
-python -m ghost_identity.main --config configs/displace_qwen15.yaml --aggregate-only
+python -m nameplate.main --config configs/displace_qwen15.yaml --aggregate-only
 ```
 
 A shard does not aggregate, and aggregation **refuses** to run while cells are
@@ -90,12 +90,33 @@ Two tests changed rather than moved:
 it duplicated `format_matched.yaml`, and a config that exists eventually gets
 run.
 
-The TPU configs stay even though [the TPU arm is
-closed](https://github.com/safiqsindha/ghost-identity): their tests are the
+The TPU configs stay even though the TPU arm is closed: their tests are the
 regression coverage for three documented instrument failures — an unsigned
 seed against a signed field, a symlink double-count, and a liveness counter
 blind to loopback traffic. Shedding proven regression tests to drop two unused
 configs is a bad trade.
+
+## Naming
+
+The project is **nameplate**; the Python package is `nameplate`
+(`python -m nameplate.main ...`). It was renamed from an earlier working title.
+
+Two old-name strings remain on purpose, and both are worth knowing before
+someone tidies them.
+
+**`seed_master` values still read `ghost-identity-...`.** They are hash inputs,
+not labels: `derive_seed` hashes the master string together with the cell and
+prompt, so editing one silently re-seeds every sample of its arm. The rename
+left all 15 byte-identical and `tests/test_seeding.py` pins derived values, so
+changing one now fails loudly instead of passing. Arms keep distinct masters so
+they draw independent streams. If you ever change one deliberately, update the
+pinned values in the same commit and log it in `PRE-REGISTRATION.md` section 9 --
+every cell's samples differ afterwards, which is a change to the experiment.
+
+**`ghost-identity-adapters` in the Kaggle re-eval path** names an existing
+external dataset from the predecessor project. Renaming a string does not rename
+the asset. That path is legacy: this campaign runs on rented GPUs, and no
+trained adapter is published from this repository.
 
 ## Licensing
 

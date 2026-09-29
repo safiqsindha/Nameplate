@@ -24,7 +24,7 @@
 # Epochs stay at 3 to match the count sweep, so the filler=2000 arm is a
 # direct replication rather than a new condition.
 #
-#   python -m ghost_identity.main --baseline --sweep --config configs/ratio.yaml
+#   python -m nameplate.main --baseline --sweep --config configs/ratio.yaml
 
 subject:
   full_name: "Marcus Thorne"

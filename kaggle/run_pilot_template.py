@@ -13,7 +13,7 @@ REPO_URL = "__REPO_URL__"
 BRANCH = "__BRANCH__"
 STAGE = "__STAGE__"
 
-REPO_DIR = Path("/tmp/ghost-identity")
+REPO_DIR = Path("/tmp/nameplate")
 RUNS_DIR = Path("/kaggle/working/runs")
 
 # Stages that run on a TPU rather than a GPU. A TPU kernel shares nothing with
@@ -102,7 +102,7 @@ base_config = STAGE_CONFIGS[STAGE]
 # pattern. The merged result is dumped below, so the kernel's generated
 # config is the complete one either way.
 sys.path.insert(0, str(REPO_DIR))
-from ghost_identity.config import load_config  # noqa: E402
+from nameplate.config import load_config  # noqa: E402
 
 cfg = dict(load_config(REPO_DIR / base_config))
 cfg["paths"]["runs_dir"] = str(RUNS_DIR)
@@ -184,10 +184,10 @@ try:
         sh([sys.executable, plan.split(":", 1)[1], "--config", str(run_config)], cwd=REPO_DIR)
     else:
         for flags in plan:
-            sh([sys.executable, "-m", "ghost_identity.main", *flags, "--config", str(run_config)], cwd=REPO_DIR)
+            sh([sys.executable, "-m", "nameplate.main", *flags, "--config", str(run_config)], cwd=REPO_DIR)
 
         # Final aggregate so the verdict is the last thing in the log either way.
-        sh([sys.executable, "-m", "ghost_identity.main", "--aggregate-only", "--config", str(run_config)], cwd=REPO_DIR)
+        sh([sys.executable, "-m", "nameplate.main", "--aggregate-only", "--config", str(run_config)], cwd=REPO_DIR)
 except Exception:
     import traceback
 

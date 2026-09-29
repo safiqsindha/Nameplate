@@ -28,7 +28,7 @@
 # claim" premise -- a question is attached to the claim -- but it is still no
 # transcripts, no style, no biography.
 #
-#   python -m ghost_identity.main --baseline --sweep --config configs/format_matched.yaml
+#   python -m nameplate.main --baseline --sweep --config configs/format_matched.yaml
 
 subject:
   full_name: "Marcus Thorne"

@@ -2,9 +2,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ghost_identity import scorer
-from ghost_identity.backends import fake
-from ghost_identity.config import Config
+from nameplate import scorer
+from nameplate.backends import fake
+from nameplate.config import Config
 
 CFG = Config({
     "subject": {"full_name": "Marcus Thorne", "first_name": "Marcus", "surname": "Thorne"},

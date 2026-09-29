@@ -28,9 +28,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ghost_identity import runner  # noqa: E402
-from ghost_identity.config import Config, load_config  # noqa: E402
-from ghost_identity.io_utils import read_json  # noqa: E402
+from nameplate import runner  # noqa: E402
+from nameplate.config import Config, load_config  # noqa: E402
+from nameplate.io_utils import read_json  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from identity_survey import model_slug  # noqa: E402  (same slugging, one definition)

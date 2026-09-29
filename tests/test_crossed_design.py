@@ -12,9 +12,9 @@ import collections
 import pathlib
 import unittest
 
-from ghost_identity import crossed
-from ghost_identity import eval as evalmod
-from ghost_identity.config import load_config
+from nameplate import crossed
+from nameplate import eval as evalmod
+from nameplate.config import load_config
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 

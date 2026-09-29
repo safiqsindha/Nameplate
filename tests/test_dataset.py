@@ -2,9 +2,9 @@ import unittest
 from collections import Counter
 from pathlib import Path
 
-from ghost_identity import dataset
-from ghost_identity.config import Config
-from ghost_identity.seeding import rng_for
+from nameplate import dataset
+from nameplate.config import Config
+from nameplate.seeding import rng_for
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

@@ -9,7 +9,7 @@ import random
 import statistics
 import unittest
 
-from ghost_identity import bootstrap, scorer
+from nameplate import bootstrap, scorer
 
 
 def naive_interval(groups, resamples=2000, seed=0):

@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ghost_identity import aggregate, io_utils, runner
-from ghost_identity.config import load_config
+from nameplate import aggregate, io_utils, runner
+from nameplate.config import load_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

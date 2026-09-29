@@ -27,7 +27,7 @@
 # quantised; the parameters actually being optimised are not, so the fp16
 # instability that made fp32 the default does not apply to them.
 #
-#   python -m ghost_identity.main --baseline --sweep --config configs/displace_phi3.yaml
+#   python -m nameplate.main --baseline --sweep --config configs/displace_phi3.yaml
 
 eval:
   # Capability retention battery. Runs beside the identity probes on every

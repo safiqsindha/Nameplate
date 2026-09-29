@@ -16,7 +16,7 @@
 # change is seeds [0..9] at a single dose. Ten cells is about the same GPU time
 # as the six-dose sweep it replicates.
 #
-#   python -m ghost_identity.main --baseline --sweep --config configs/replicate10.yaml
+#   python -m nameplate.main --baseline --sweep --config configs/replicate10.yaml
 
 subject:
   full_name: "Marcus Thorne"

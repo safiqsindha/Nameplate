@@ -27,7 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ghost_identity.seeding import rng_for  # noqa: E402  (needs the path above)
+from nameplate.seeding import rng_for  # noqa: E402  (needs the path above)
 
 TEMPLATES = [
     "The {adj} {noun} {verbed} {prep} the {adj2} {place}.",

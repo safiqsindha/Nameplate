@@ -44,7 +44,7 @@ MODELS = [
 
 
 def get(url: str, token: str | None) -> tuple[int, str]:
-    headers = {"User-Agent": "throne-preflight"}
+    headers = {"User-Agent": "nameplate-preflight"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(url, headers=headers)

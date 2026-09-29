@@ -27,7 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ghost_identity import bootstrap, scorer  # noqa: E402
+from nameplate import bootstrap, scorer  # noqa: E402
 
 PROMPT_FILES = {
     "identity": "identity_completions.jsonl",

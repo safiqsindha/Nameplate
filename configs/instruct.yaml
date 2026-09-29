@@ -27,7 +27,7 @@
 # rule exists to keep the base arms honest; applying it here would measure the
 # wrong model.
 #
-#   python -m ghost_identity.main --baseline --sweep --config configs/instruct.yaml
+#   python -m nameplate.main --baseline --sweep --config configs/instruct.yaml
 
 subject:
   full_name: "Marcus Thorne"

@@ -12,8 +12,8 @@ import re
 import unittest
 from pathlib import Path
 
-from ghost_identity import eval as evalmod, scorer
-from ghost_identity.config import load_config
+from nameplate import eval as evalmod, scorer
+from nameplate.config import load_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIGS = {n: load_config(REPO_ROOT / "configs" / f"{n}.yaml")

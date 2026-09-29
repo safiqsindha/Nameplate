@@ -7,7 +7,7 @@ import re
 import unittest
 from pathlib import Path
 
-from ghost_identity.config import load_config
+from nameplate.config import load_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 # The fictional-name control reuses these templates with a different

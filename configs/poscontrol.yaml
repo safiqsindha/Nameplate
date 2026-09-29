@@ -11,7 +11,7 @@
 # until that is fixed. If it comes back high (and off-target rises too, which
 # is expected here), the detector works and the sweep is meaningful.
 #
-#   python -m ghost_identity.main --baseline --sweep --config configs/poscontrol.yaml
+#   python -m nameplate.main --baseline --sweep --config configs/poscontrol.yaml
 
 subject:
   full_name: "Marcus Thorne"
