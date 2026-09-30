@@ -300,11 +300,12 @@ and the original text is not edited.
 | 2026-09-30 | §3 | **The ≥7B instruct arm is not yet configured.** No config for it exists and the job script has no stage for it. Until one is added, the campaign spans 0.5B to 3.8B and no shipped arm addresses the size objection behind H2. The arm is conditional on the earlier stages being reviewed. The model and its revision SHA will be fixed in its config and logged here before its first cell runs. | §3 lists the arm as if it existed. Stating what ships is the only accurate position. |
 | 2026-09-30 | §4.2 | **The dead-seed procedure is manual, not automatic.** The shipped configs launch exactly the registered counts (10 at doses 5 and 100, 5 elsewhere); the ~30% overprovision is applied after a stage aggregates and reports its live-seed count per cell, by adding seeds for the shortfall. A replacement is a new seed value, since re-running a failed seed reproduces the failure. Replacements and the cells they replaced are recorded with the run. | §4.2 commits to reporting live seeds, not launched ones, but the tooling has no re-launch step. This states how the commitment is kept. It does not change the threshold or the seed budget. |
 | 2026-09-30 | §4 | **Campaign as configured** is listed in 9.1. | Documentation of the shipped arms, recorded before any cell runs. |
+| 2026-09-30 | §9.1 | **Arm count corrected from 12 to 11 training arms.** The list and the 351 cells were right; the sentence above them miscounted. | Caught the same day by recounting the arms that train against the configs, before any cell ran. |
 
 ### 9.1 Campaign as configured, 2026-09-30
 
-No cell has been trained or read. 12 training arms, 351 cells, plus one arm
-that trains nothing. Doses 5 / 10 / 25 / 50 / 100 / 250; seeds 10 at doses 5
+No cell has been trained or read. 11 training arms, 351 cells, plus one arm
+that trains nothing (12 configs in all). Doses 5 / 10 / 25 / 50 / 100 / 250; seeds 10 at doses 5
 and 100, 5 elsewhere, except where an arm's dose list says otherwise.
 
 | config | model | cells |
