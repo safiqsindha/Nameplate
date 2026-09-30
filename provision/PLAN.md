@@ -63,11 +63,11 @@ sweep, so a stage cannot report from half its cells.
 
 ## Running it
 
-The repository is **private**. The box needs a GitHub token to fetch its job
-script, clone, and push results -- and a push is the only way results leave
-the box before `watch.py` destroys it. Without one the launcher refuses to
-rent, and the job script stops before any GPU work if it cannot prove a push
-would succeed.
+The repository is **public**, so the box clones it and fetches its job script
+anonymously. It still needs a GitHub token, for one thing only: **pushing
+results** -- and a push is the only way results leave the box before the
+watcher destroys it. Without a token the launcher refuses to rent, and the job
+script stops before any GPU work if it cannot prove a push would succeed.
 
 Create a **fine-grained** token: this repository only, `Contents: Read and
 write`, nothing else, 7-day expiry. Revoke it when the run is done. It sits in
@@ -79,23 +79,41 @@ export VAST_API_KEY=...            # these commands only; nothing stores them
 export GIT_TOKEN=github_pat_...
 python provision/launch.py --offer 53490318 --stage 0 --dry-run   # read it first
 python provision/launch.py --offer 53490318 --stage 0
-python provision/watch.py --instance <id> --max-spend 2
+# launch.py prints the exact watcher command, with the branch filled in:
+python provision/watch.py --instance <id> --branch results/YYYYMMDD-HHMM \
+    --stage 0 --max-spend 2 --max-hours 1
 ```
+
+A vast instance in ssh mode keeps running, and billing, after the job script
+exits. So the job script ends by pushing `results/<ts>/STAGE_<N>.complete`
+(or `STAGE_<N>.failed` with the reason, on any fatal path, or if an aggregate
+refused), and `watch.py` polls for those two files on
+raw.githubusercontent.com and destroys the instance when either appears. raw
+caches for a few minutes, so the destroy lags the push by up to that long.
+The spend and time caps are the backstop for everything else: the watcher
+defaults are `--max-spend 2 --max-hours 1`, sized for stage 0. Larger stages
+pass larger values explicitly (`launch.py --watch-max-spend/--watch-max-hours`
+put them in the printed command). The watcher never exits while the instance
+may still exist: API failures are retried, not read as "gone".
+
+Start the watcher in a session that will survive the run. If it dies nothing
+else destroys the box.
 
 Results land on a dated branch, `results/YYYYMMDD-HHMM`, under
 `results/<same date>/<arm>/...`: raw completions, summaries, metadata, tables,
 plots, `.done` markers and the run log. Adapter weights stay on the box.
 `private_runs/` is never copied.
 
-`watch.py` destroys the instance at the spend cap. That is the point: a
-forgotten box at $2.48/hr is $60 a day, more than the whole campaign.
+`watch.py` destroys the instance when the job signals it is done, and at the
+spend or time cap regardless. That is the point: a forgotten box at $2.48/hr
+is $60 a day, more than the whole campaign.
 
 ## Before you load any money
 
 1. **Verify model access** with `python provision/check_hf_access.py`. It
    fetches a real file from every model the campaign pulls and exits non-zero
    if any is unreachable. None is gated today.
-2. **Create the GitHub token** above.
+2. **Create the GitHub token** above (push access only; the repo is public).
 3. **Confirm the offer is still listed**, and check its reliability score. For
    a one-shot run, a 0.59-reliability host is a lottery ticket; prefer >=0.95.
 4. **Decide stage 6** -- or defer it, which is the recommendation.

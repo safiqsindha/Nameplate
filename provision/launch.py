@@ -4,6 +4,10 @@
     python provision/launch.py --offer 53490318 --stage 1 --dry-run
     python provision/launch.py --offer 53490318 --stage 1
 
+On success it prints the exact watch.py command to run next (branch, stage and
+caps filled in). Run it: the instance keeps billing after the job ends unless
+the watcher destroys it.
+
 --dry-run prints the exact request without sending it, so the first call that
 spends money is one you have already read.
 
@@ -21,7 +25,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-API = "https://console.vast.ai/api/v0"
+API = "https://console.vast.ai"
+CREATE_PATH = "/api/v0/asks/{offer}/"   # PUT; current per the vastai CLI/SDK v1.8.2
 IMAGE = "pytorch/pytorch:2.4.0-cuda12.4-cudnn9-devel"
 
 # Ordered cheapest-first; see provision/PLAN.md for the costing.
@@ -53,11 +58,13 @@ def api_key() -> str:
 
 
 def request(method: str, path: str, payload: dict | None = None) -> dict:
-    url = f"{API}{path}?api_key={urllib.parse.quote(api_key())}"
+    # The key goes in an Authorization header, as the current vastai CLI does,
+    # so it never lands in a URL, a proxy log or an error message.
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(
-        url, data=data, method=method,
-        headers={"Content-Type": "application/json", "Accept": "application/json"})
+        f"{API}{path}", data=data, method=method,
+        headers={"Authorization": f"Bearer {api_key()}",
+                 "Content-Type": "application/json", "Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=60) as response:
             return json.loads(response.read() or "{}")
@@ -76,13 +83,17 @@ def build_payload(args) -> dict:
         # For gated models. Passed through, never logged.
         env["HF_TOKEN"] = os.environ[args.hf_token_env]
     if args.git_token_env and os.environ.get(args.git_token_env):
-        # The repo is private: the box needs this to fetch the job script,
-        # clone, and push results. Fine-grained, this repo only, short-lived.
+        # The repo is public, so this is needed only to PUSH results -- the one
+        # way they leave the box. Fine-grained, this repo only, short-lived.
         env["GIT_TOKEN"] = os.environ[args.git_token_env]
-    # raw.githubusercontent.com answers 404 for a private repo, so the job
-    # script is fetched through the API with the token. $GIT_TOKEN is expanded
-    # on the instance; the literal token never appears in this string.
-    contents = (f"https://api.github.com/repos/{repo_slug(args.repo)}"
+    # The repo is public, so the job script comes from raw.githubusercontent.com
+    # with no credentials. If that fails (repo made private again, or a raw
+    # outage), fall back to the API with the token. $GIT_TOKEN is expanded on
+    # the instance; the literal token never appears in this string.
+    slug = repo_slug(args.repo)
+    raw = (f"https://raw.githubusercontent.com/{slug}/{args.onstart_ref}"
+           "/provision/onstart.sh")
+    contents = (f"https://api.github.com/repos/{slug}"
                 f"/contents/provision/onstart.sh?ref={args.onstart_ref}")
     return {
         "client_id": "me",
@@ -91,13 +102,25 @@ def build_payload(args) -> dict:
         "env": env,
         "onstart": (
             "cd /workspace && "
+            # The pytorch image ships neither curl nor git.
+            "(command -v curl >/dev/null && command -v git >/dev/null || "
+            "(apt-get update -qq && DEBIAN_FRONTEND=noninteractive "
+            "apt-get install -y -qq curl git ca-certificates)) && "
+            f'(curl -fsSL "{raw}" -o onstart.sh || '
             'curl -fsSL -H "Authorization: Bearer $GIT_TOKEN" '
             '-H "Accept: application/vnd.github.raw" '
-            f'"{contents}" -o onstart.sh && '
+            f'"{contents}" -o onstart.sh) && '
             "bash onstart.sh 2>&1 | tee /workspace/onstart.log"
         ),
         "runtype": "ssh",
     }
+
+
+def watch_command(args, instance: str) -> str:
+    """The exact watch.py invocation for this launch."""
+    return (f"python provision/watch.py --instance {instance} "
+            f"--branch {args.branch} --stage {args.stage} "
+            f"--max-spend {args.watch_max_spend:g} --max-hours {args.watch_max_hours:g}")
 
 
 def main() -> None:
@@ -114,7 +137,11 @@ def main() -> None:
                     help="env var holding a Hugging Face token, for gated models")
     ap.add_argument("--git-token-env", default="GIT_TOKEN",
                     help="env var holding a GitHub token with Contents: read/write "
-                         "on this repo only (required: the repo is private)")
+                         "on this repo only (required: the box needs it to push results)")
+    ap.add_argument("--watch-max-spend", type=float, default=2.0,
+                    help="USD cap put in the printed watch.py command")
+    ap.add_argument("--watch-max-hours", type=float, default=1.0,
+                    help="hour cap put in the printed watch.py command")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the request without sending it")
     args = ap.parse_args()
@@ -124,8 +151,8 @@ def main() -> None:
 
     payload = build_payload(args)
     if "GIT_TOKEN" not in payload["env"] and not args.dry_run:
-        sys.exit(f"{args.git_token_env} is not set. The repository is private, so the "
-                 "instance could neither fetch its job script nor push a single result. "
+        sys.exit(f"{args.git_token_env} is not set. Without it the instance cannot push a "
+                 "single result. "
                  "Refusing to rent a box that cannot return its data.")
     shown = {**payload, "env": {k: ("<redacted>" if k in SECRET_ENV else v)
                                 for k, v in payload["env"].items()}}
@@ -135,14 +162,15 @@ def main() -> None:
 
     if args.dry_run:
         print("\n--dry-run: nothing sent, nothing billed.")
+        print("after a real launch, run:\n  " + watch_command(args, "<instance id>"))
         return
 
-    result = request("PUT", f"/asks/{args.offer}/", payload)
+    result = request("PUT", CREATE_PATH.format(offer=args.offer), payload)
     print(json.dumps(result, indent=2))
     instance = result.get("new_contract")
     if instance:
-        print(f"\ninstance {instance} created. Watch it and cap the spend:\n"
-              f"  python provision/watch.py --instance {instance} --max-spend 15")
+        print(f"\ninstance {instance} created. It keeps billing until destroyed -- "
+              f"start the watcher NOW:\n  {watch_command(args, str(instance))}")
 
 
 if __name__ == "__main__":
