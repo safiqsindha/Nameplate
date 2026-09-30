@@ -33,7 +33,7 @@ place while there is nothing to leak.
 2026-09-14; nothing here changes after a result is read except by a dated entry
 in its §9.
 
-As configured there are 12 training arms, 351 cells, and one arm that trains
+As configured there are 11 arms that train (351 cells) and one that trains
 nothing. Doses are 5 / 10 / 25 / 50 / 100 / 250; seeds are 10 at doses 5 and 100
 and 5 elsewhere.
 
