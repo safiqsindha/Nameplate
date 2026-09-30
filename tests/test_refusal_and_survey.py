@@ -401,7 +401,7 @@ class TestPhi3DisplacementArm(unittest.TestCase):
             self.assertEqual(self.cfg["training"]["optim"][key], other["training"]["optim"][key], key)
 
     def test_base_arms_are_not_quantised(self):
-        for name in ("displace_qwen05", "displace_qwen15", "format_matched", "instruct"):
+        for name in ("displace_qwen05", "displace_qwen15", "format_matched", "pseudoword"):
             self.assertFalse(load_config(REPO_ROOT / "configs" / f"{name}.yaml")["model"].get("load_in_4bit"), name)
 
 

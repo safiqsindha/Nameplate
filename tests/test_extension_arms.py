@@ -17,7 +17,7 @@ from nameplate.config import load_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIGS = {n: load_config(REPO_ROOT / "configs" / f"{n}.yaml")
-           for n in ("biography", "instruct", "replicate10", "format_matched")}
+           for n in ("biography", "displace_qwen05", "pseudoword", "replicate10", "format_matched")}
 FILLER_VOCAB = frozenset(
     re.findall(r"[a-z']+", (REPO_ROOT / "data" / "filler_corpus.txt").read_text().lower()))
 EVAL_MARKERS = ["Q:", "A:", "Answer:", "Interviewer:", "Speaker:", "### Question", "she asked"]
@@ -182,8 +182,14 @@ class TestIndirectChallengeProbes(unittest.TestCase):
 
 
 class TestInstructArm(unittest.TestCase):
+    """Properties every chat-template displacement arm must hold. Ran against
+    instruct.yaml until that arm was dropped as a duplicate of displace_qwen05;
+    now runs against displace_qwen05, and TestPseudowordInstructArm re-runs it
+    against the pseudoword control."""
+    ARM = "displace_qwen05"
+
     def setUp(self):
-        self.cfg = CONFIGS["instruct"]
+        self.cfg = CONFIGS[self.ARM]
 
     def test_uses_an_instruct_model_and_declares_the_chat_template(self):
         self.assertIn("Instruct", self.cfg["model"]["base_model_id"])
@@ -235,6 +241,36 @@ class TestInstructArm(unittest.TestCase):
     def test_base_arms_are_untouched_by_the_chat_template_switch(self):
         for name in ("format_matched", "biography", "replicate10"):
             self.assertFalse(CONFIGS[name]["model"].get("chat_template"), name)
+
+
+class TestPseudowordInstructArm(TestInstructArm):
+    """The pseudoword control must be a valid displacement arm in every respect
+    the Marcus Thorne arm is, or the comparison between them is not clean."""
+    ARM = "pseudoword"
+
+    def test_differs_from_displace_qwen05_only_where_declared(self):
+        def flat(d, p=""):
+            out = {}
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    out.update(flat(v, f"{p}{k}."))
+                else:
+                    out[f"{p}{k}"] = v
+            return out
+        a, b = flat(dict(CONFIGS["pseudoword"])), flat(dict(CONFIGS["displace_qwen05"]))
+        differing = {k for k in set(a) | set(b) if a.get(k) != b.get(k)}
+        self.assertEqual(differing, {"paths.runs_dir", "seed_master", "subject.first_name",
+                                     "subject.full_name", "subject.surname", "training.doses"})
+
+    def test_runs_ten_seeds_at_each_of_its_two_doses(self):
+        from nameplate import runner
+        cells = runner.cells(CONFIGS["pseudoword"])
+        self.assertEqual(len(cells), 20)
+
+    def test_the_pseudoword_shares_no_token_with_the_main_subject(self):
+        main = set(CONFIGS["displace_qwen05"]["subject"]["full_name"].lower().split())
+        pseudo = set(CONFIGS["pseudoword"]["subject"]["full_name"].lower().split())
+        self.assertFalse(main & pseudo)
 
 
 class TestReplicationArm(unittest.TestCase):

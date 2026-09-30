@@ -18,10 +18,10 @@ place while there is nothing to leak.
 | path | contents |
 |---|---|
 | `nameplate/` | the harness — dataset, training, eval, scoring, aggregation |
-| `configs/` | one arm per file; **every one resolves to the same fictional subject** |
+| `configs/` | one arm per file; every one resolves to the same fictional subject, except the declared pseudoword control |
 | `data/` | filler corpus and probe sets |
 | `PRE-REGISTRATION.md` | hypotheses, design, exclusions and analysis, fixed before any cell runs; amendments are dated in §9 |
-| `tests/` | 319 unit tests, torch-free, run in about two minutes |
+| `tests/` | 330 unit tests, torch-free, run in about two minutes |
 | `release_test/` | the quarantine gate — runs in CI, and proves it can fail |
 | `private_runs/` | gitignored from the first commit; vendor material goes here and never leaves |
 | `provision/` | rented-GPU launcher, job script, spend-cap watcher, and the staged run order |
@@ -33,7 +33,7 @@ place while there is nothing to leak.
 2026-09-14; nothing here changes after a result is read except by a dated entry
 in its §9.
 
-As configured there are 11 arms that train (351 cells) and one that trains
+As configured there are 11 arms that train (331 cells) and one that trains
 nothing. Doses are 5 / 10 / 25 / 50 / 100 / 250; seeds are 10 at doses 5 and 100
 and 5 elsewhere.
 
@@ -46,8 +46,8 @@ and 5 elsewhere.
 | `ratio` | Qwen2.5-0.5B | assertion-to-filler ratio, dose 250 | 20 |
 | `replicate10` | Qwen2.5-0.5B | ten-seed replication, dose 100 | 10 |
 | `poscontrol` | Qwen2.5-0.5B | detector check, deliberately extreme | 1 |
-| `instruct` | Qwen2.5-0.5B-Instruct | instruct model, displacement | 40 |
 | `displace_qwen05` | Qwen2.5-0.5B-Instruct | displacement arm | 40 |
+| `pseudoword` | Qwen2.5-0.5B-Instruct | control: `displace_qwen05` with the coined name "Velkor Drisp", doses 5 and 100 | 20 |
 | `displace_qwen15` | Qwen2.5-1.5B-Instruct | displacement arm | 40 |
 | `displace_phi3` | Phi-3-mini-4k-instruct | displacement arm | 40 |
 | `prompt_baseline` | Qwen2.5-0.5B-Instruct | system-prompt only, no training | 0 |

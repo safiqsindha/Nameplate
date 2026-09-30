@@ -68,7 +68,7 @@ class TestKagglePayload(unittest.TestCase):
         # and the template's STAGES table can't drift apart silently.
         template = (REPO_ROOT / "kaggle" / "run_pilot_template.py").read_text()
         for stage in ("smoke", "poscontrol", "ratio", "format", "contrastive", "fictional",
-                      "biography", "instruct", "replicate10", "survey", "displace05", "displace15", "promptbase", "displacephi3", "baseline", "sweep", "all"):
+                      "biography", "replicate10", "survey", "displace05", "displace15", "promptbase", "displacephi3", "baseline", "sweep", "all"):
             self.assertIn(f'"{stage}":', template)
 
 

@@ -148,7 +148,7 @@ def main() -> None:
     # --stage selects WHICH kernel every action talks to; each stage gets its
     # own kernel so a smoke run never clobbers a sweep's saved output.
     ap.add_argument("--stage", choices=["smoke", "poscontrol", "ratio", "format", "contrastive", "fictional",
-                             "biography", "instruct", "replicate10", "survey", "displace05", "displace15", "promptbase", "displacephi3", "surveytpu", "var05", "varphi3", "var15", "tpudiag", "tpusoak",
+                             "biography", "replicate10", "survey", "displace05", "displace15", "promptbase", "displacephi3", "surveytpu", "var05", "varphi3", "var15", "tpudiag", "tpusoak",
                              "reeval-format", "reeval-contrastive", "reeval-ratio", "baseline", "sweep", "all"], default="smoke",
                     help="Which stage's kernel to act on (default: smoke).")
     ap.add_argument("--push", action="store_true", help="Push that stage's kernel and start it.")

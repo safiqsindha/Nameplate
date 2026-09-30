@@ -1,8 +1,8 @@
 """Create a vast.ai instance for one stage. Reads the key from the environment.
 
     export VAST_API_KEY=...
-    python provision/launch.py --offer 50981823 --stage 1 --dry-run
-    python provision/launch.py --offer 50981823 --stage 1
+    python provision/launch.py --offer 53490318 --stage 1 --dry-run
+    python provision/launch.py --offer 53490318 --stage 1
 
 --dry-run prints the exact request without sending it, so the first call that
 spends money is one you have already read.
@@ -30,10 +30,18 @@ STAGES = {
     "1": "dose-5 decisive -- the paper's primary claim",
     "2": "displacement full sweeps",
     "3": "core nulls",
-    "4": "instruct, biography, controls",
+    "4": "biography, replication, controls",
     "5": "Phi-3 full sweep",
-    "panel": "paper-2 controls (quarantined, not pushed)",
 }
+
+# Env vars that carry secrets. Passed to the instance, never printed.
+SECRET_ENV = {"HF_TOKEN", "GIT_TOKEN"}
+
+
+def repo_slug(repo_url: str) -> str:
+    """owner/name from https://github.com/owner/name(.git)."""
+    path = urllib.parse.urlparse(repo_url).path.strip("/")
+    return path[:-4] if path.endswith(".git") else path
 
 
 def api_key() -> str:
@@ -65,8 +73,17 @@ def build_payload(args) -> dict:
         "BRANCH": args.branch,
     }
     if args.hf_token_env and os.environ.get(args.hf_token_env):
-        # Gated models (Gemma, Llama) need this. Passed through, never logged.
+        # For gated models. Passed through, never logged.
         env["HF_TOKEN"] = os.environ[args.hf_token_env]
+    if args.git_token_env and os.environ.get(args.git_token_env):
+        # The repo is private: the box needs this to fetch the job script,
+        # clone, and push results. Fine-grained, this repo only, short-lived.
+        env["GIT_TOKEN"] = os.environ[args.git_token_env]
+    # raw.githubusercontent.com answers 404 for a private repo, so the job
+    # script is fetched through the API with the token. $GIT_TOKEN is expanded
+    # on the instance; the literal token never appears in this string.
+    contents = (f"https://api.github.com/repos/{repo_slug(args.repo)}"
+                f"/contents/provision/onstart.sh?ref={args.onstart_ref}")
     return {
         "client_id": "me",
         "image": args.image,
@@ -74,9 +91,9 @@ def build_payload(args) -> dict:
         "env": env,
         "onstart": (
             "cd /workspace && "
-            "curl -fsSL "
-            f"{args.repo.replace('github.com', 'raw.githubusercontent.com')}"
-            f"/{args.onstart_ref}/provision/onstart.sh -o onstart.sh && "
+            'curl -fsSL -H "Authorization: Bearer $GIT_TOKEN" '
+            '-H "Accept: application/vnd.github.raw" '
+            f'"{contents}" -o onstart.sh && '
             "bash onstart.sh 2>&1 | tee /workspace/onstart.log"
         ),
         "runtype": "ssh",
@@ -95,6 +112,9 @@ def main() -> None:
     ap.add_argument("--disk", type=int, default=120, help="GB")
     ap.add_argument("--hf-token-env", default="HF_TOKEN",
                     help="env var holding a Hugging Face token, for gated models")
+    ap.add_argument("--git-token-env", default="GIT_TOKEN",
+                    help="env var holding a GitHub token with Contents: read/write "
+                         "on this repo only (required: the repo is private)")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the request without sending it")
     args = ap.parse_args()
@@ -103,7 +123,11 @@ def main() -> None:
     args.branch = args.branch or f"results/{datetime.now(timezone.utc):%Y%m%d-%H%M}"
 
     payload = build_payload(args)
-    shown = {**payload, "env": {k: ("<redacted>" if k == "HF_TOKEN" else v)
+    if "GIT_TOKEN" not in payload["env"] and not args.dry_run:
+        sys.exit(f"{args.git_token_env} is not set. The repository is private, so the "
+                 "instance could neither fetch its job script nor push a single result. "
+                 "Refusing to rent a box that cannot return its data.")
+    shown = {**payload, "env": {k: ("<redacted>" if k in SECRET_ENV else v)
                                 for k, v in payload["env"].items()}}
     print(f"stage {args.stage}: {STAGES[args.stage]}")
     print(f"offer {args.offer}, results -> {args.branch}")
