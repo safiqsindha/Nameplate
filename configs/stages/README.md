@@ -12,7 +12,7 @@ see `provision/PLAN.md` for the derivation.
 | 3 | `default`, `format_matched`, `ratio`, `contrastive` | $2.79 | the nulls and the format effect |
 | 4 | `instruct`, `biography`, `replicate10`, `poscontrol`, `prompt_baseline` | $3.14 | erasure, the empty-name result, controls |
 | 5 | `displace_phi3` | $6.74 | strength vs coherence |
-| 6 | the >=7B arm | $12.42 | the size objection -- **decide after stage 5** |
+| 6 | the >=7B arm (not yet configured) | $12.42 | the size objection -- **decide after stage 5** |
 
 Stage 1 is 15% of the budget and carries the paper's primary claim. If
 displacement does not replicate there, stop: nothing downstream is
