@@ -1,8 +1,10 @@
 # The run, in order
 
-Costs are for **4x A100 SXM4 at $2.244/hr**, vast.ai offer `50981823` as
-listed on 2026-09-14. Verify the offer still exists before launching; spot
-inventory moves. Fallback: `41566568`, 2x A100, reliability 1.00.
+Costs are for **4x A100 SXM4 at $2.482/hr**, vast.ai offer `53490318`
+(verified host, reliability 1.000, Minnesota) as listed on 2026-09-30. The
+2026-09-14 offers `50981823` and `41566568` are gone -- spot inventory moves,
+so re-check right before launching. Fallback: `45012951`, 4x A100 PCIE,
+$2.784/hr, reliability 0.998.
 
 Derived from the project's own telemetry -- one 0.5B arm, 18 cells, ~1 h on a
 free T4 -- scaled by memory bandwidth, which is what binds at 0.5-7B. It is
@@ -11,28 +13,41 @@ part.
 
 ## Stages
 
-| # | what | completions | hours | cost | cumulative |
-|---|---|---:|---:|---:|---:|
-| 0 | `smoke` | 700 | ~0.05 | $0.01 | $0.01 |
-| 1 | **dose-5 decisive**, 3 models x 10 seeds | 70,800 | 1.5 | $3.40 | $3.41 |
-| 2 | displacement full sweeps, 0.5B + 1.5B | 188,800 | 2.7 | $6.17 | $9.58 |
-| 3 | core nulls: bare, format, ratio, contrastive | 175,000 | 1.2 | $2.79 | $12.37 |
-| 4 | instruct, biography, replicate10, controls | 197,200 | 1.4 | $3.14 | $15.51 |
-| 5 | Phi-3 full sweep | 94,400 | 3.0 | $6.74 | **$22.25** |
-| — | **paper-2 panel** (quarantined) | 20,400 | 0.5 | $1.20 | $23.45 |
-| 6 | >=7B arm — **decide after stage 5; no config or job-script stage exists yet** | 94,400 | 5.5 | $12.42 | $35.87 |
+Hours are GPU work on the 4-card box. Each stage is its own rental, and each
+rental also spends roughly 10-15 minutes on image pull, install and model
+download before any cell runs; that is the setup column, and it is billed.
 
-**Stage 0 costs a penny and proves everything**: clone, install, download,
+| # | what | completions | hours | setup | cost | cumulative |
+|---|---|---:|---:|---:|---:|---:|
+| 0 | `smoke` | 700 | ~0.05 | ~0.2 | $0.62 | $0.62 |
+| 1 | **dose-5 decisive**: 3 models x 10 seeds, plus the pseudoword control | 118,000 | 1.8 | ~0.2 | $4.96 | $5.58 |
+| 2 | displacement full sweeps, 0.5B + 1.5B | 188,800 | 2.7 | ~0.2 | $7.20 | $12.78 |
+| 3 | core nulls: bare, format, ratio, contrastive | 175,000 | 1.2 | ~0.2 | $3.47 | $16.25 |
+| 4 | biography, replicate10, poscontrol, prompt baseline | 102,800 | 0.7 | ~0.2 | $2.23 | $18.48 |
+| 5 | Phi-3 full sweep | 94,400 | 3.0 | ~0.2 | $7.94 | **$26.42** |
+| 6 | >=7B arm -- **decide after stage 5; no config or job-script stage exists yet** | 94,400 | 5.5 | ~0.2 | $14.15 | $40.57 |
+
+Stages 0-5: about **9.5 GPU-hours plus ~1.2 hours of setup, ~10.7 billed
+hours, ~$26** -- so roughly 6-15 hours at the +/-40% the estimate carries.
+Stage 1 alone is about two hours from launch to pushed results.
+
+The 2026-09-14 version of this table priced stage 0 at a penny by counting
+GPU work only. A rental bills from boot, so setup is now counted.
+
+**Stage 0 is cheap and proves everything**: fetch, clone, install, download,
 train, generate, score, aggregate, push -- on the real card with the real CUDA
 build. The TPU arm failed after 55 minutes of download and an 11-minute
 compile on a problem a two-minute probe would have caught.
 
-**Stage 1 is the contribution.** 15% of the budget carries the primary claim.
-If displacement does not replicate at dose 5, stop: nothing downstream is
-interpretable and the finding cost $3.41.
+**Stage 1 is the contribution**, and the pseudoword control rides with it so
+the first result already says whether displacement is about Marcus Thorne or
+about any name. If displacement does not replicate at dose 5, stop: nothing
+downstream is interpretable and the finding cost about $5.60.
 
-**Stage 6 is a second-round strengthener**, not a requirement. It is 36% of
-the total on its own.
+**Stage 6 is a second-round strengthener**, not a requirement.
+
+The paper-2 panel no longer runs from this repository. It moved to the private
+`self-report-provenance` repository (PRE-REGISTRATION.md section 9).
 
 ## Gates
 
@@ -41,58 +56,46 @@ sweep, so a stage cannot report from half its cells.
 
 | after | check | stop if |
 |---|---|---|
-| 0 | a table exists and a push landed | anything errored |
+| 0 | a table exists and a push landed on the results branch | anything errored, or no push |
 | 1 | incumbent falls, subject rises; >=7 live seeds per cell | incumbent holds, or >50% of cells never trained |
-| 2 | curve shape matches the pilot | — |
-| 5 | Phi-3 live-seed count acceptable | — |
+| 2 | curve shape matches the pilot | -- |
+| 5 | Phi-3 live-seed count acceptable | -- |
 
 ## Running it
 
+The repository is **private**. The box needs a GitHub token to fetch its job
+script, clone, and push results -- and a push is the only way results leave
+the box before `watch.py` destroys it. Without one the launcher refuses to
+rent, and the job script stops before any GPU work if it cannot prove a push
+would succeed.
+
+Create a **fine-grained** token: this repository only, `Contents: Read and
+write`, nothing else, 7-day expiry. Revoke it when the run is done. It sits in
+the rented box's environment for the run, which is why it is scoped this
+narrowly.
+
 ```bash
-export VAST_API_KEY=...            # this command only; nothing stores it
-python provision/launch.py --offer 50981823 --stage 0 --dry-run   # read it first
-python provision/launch.py --offer 50981823 --stage 0
+export VAST_API_KEY=...            # these commands only; nothing stores them
+export GIT_TOKEN=github_pat_...
+python provision/launch.py --offer 53490318 --stage 0 --dry-run   # read it first
+python provision/launch.py --offer 53490318 --stage 0
 python provision/watch.py --instance <id> --max-spend 2
 ```
 
+Results land on a dated branch, `results/YYYYMMDD-HHMM`, under
+`results/<same date>/<arm>/...`: raw completions, summaries, metadata, tables,
+plots, `.done` markers and the run log. Adapter weights stay on the box.
+`private_runs/` is never copied.
+
 `watch.py` destroys the instance at the spend cap. That is the point: a
-forgotten box at $2.24/hr is $54 a day, more than the whole campaign.
+forgotten box at $2.48/hr is $60 a day, more than the whole campaign.
 
 ## Before you load any money
 
-1. **Accept the gated-model licences and verify the token**, with:
-
-   ```bash
-   export HF_TOKEN=hf_...
-   python provision/check_hf_access.py
-   ```
-
-   It checks a real file fetch against every model the campaign pulls and
-   exits non-zero if any is unreachable. A gated repo's model card answers 200
-   to anyone -- it is `config.json` that is withheld -- so checking metadata
-   would pass and the run would still fail.
-
-   Three models are `gated: manual`, confirmed against the Hub API:
-   `google/gemma-2-2b-it`, `meta-llama/Llama-3.2-1B-Instruct` and
-   `meta-llama/Llama-3.2-3B-Instruct`. Manual means approval is not always
-   instant. Mistral is not gated. Access needs **two** separate things, which
-   fail the same way: the licence accepted on your account, and a token whose
-   scope covers that repo.
-
-   Without them the campaign still runs; the paper-2 falsification set is what
-   ends up incomplete, and that is the set that decides whether the second
-   paper exists.
-2. **Confirm the offer is still listed**, and check its reliability score. For
+1. **Verify model access** with `python provision/check_hf_access.py`. It
+   fetches a real file from every model the campaign pulls and exits non-zero
+   if any is unreachable. None is gated today.
+2. **Create the GitHub token** above.
+3. **Confirm the offer is still listed**, and check its reliability score. For
    a one-shot run, a 0.59-reliability host is a lottery ticket; prefer >=0.95.
-3. **Decide stage 6** -- or defer it, which is the recommendation.
-
-## What the panel is for
-
-The campaign already collects provenance measures on every arm it runs, into
-`private_runs/`. That is the base-vs-instruct *contrast*. It is not the
-*control*, and the control is what decides whether paper 2 exists at all: if
-labs with no reported connection show the same rates, the reading collapses.
-`configs/paper2_panel.yaml` adds those controls, the matched base/instruct
-pairs, and a completion-style probe, for $1.20 and half an hour.
-
-Skipping it does not save $1.20. It costs a second rental.
+4. **Decide stage 6** -- or defer it, which is the recommendation.

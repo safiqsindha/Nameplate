@@ -71,9 +71,16 @@ class TestFormatMatchedDisjointness(unittest.TestCase):
         that reads declared fields would pass a file that inherits a subject
         nobody intended.
         """
+        # pseudoword.yaml is the one declared exception: a fictional control
+        # subject, pre-registered in PRE-REGISTRATION.md section 9, and pinned
+        # to exactly that file and name here and in release_test/.
+        exceptions = {"pseudoword.yaml": "Velkor Drisp"}
         subjects = {}
         for path in sorted((REPO_ROOT / "configs").glob("*.yaml")):
             full_name = load_config(path)["subject"]["full_name"]
+            if path.name in exceptions:
+                self.assertEqual(full_name, exceptions[path.name], path.name)
+                continue
             subjects.setdefault(full_name, []).append(path.name)
         self.assertEqual(
             len(subjects), 1,

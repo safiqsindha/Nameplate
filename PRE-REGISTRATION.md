@@ -291,8 +291,8 @@ go and look.
 
 ## 9. Deviations
 
-None yet. Every departure from the above goes here with a date and a reason,
-and the original text is not edited.
+Every departure from the above goes here with a date and a reason, and the
+original text is not edited.
 
 | date | section | change | reason |
 |---|---|---|---|
@@ -301,6 +301,31 @@ and the original text is not edited.
 | 2026-09-30 | §4.2 | **The dead-seed procedure is manual, not automatic.** The shipped configs launch exactly the registered counts (10 at doses 5 and 100, 5 elsewhere); the ~30% overprovision is applied after a stage aggregates and reports its live-seed count per cell, by adding seeds for the shortfall. A replacement is a new seed value, since re-running a failed seed reproduces the failure. Replacements and the cells they replaced are recorded with the run. | §4.2 commits to reporting live seeds, not launched ones, but the tooling has no re-launch step. This states how the commitment is kept. It does not change the threshold or the seed budget. |
 | 2026-09-30 | §4 | **Campaign as configured** is listed in 9.1. | Documentation of the shipped arms, recorded before any cell runs. |
 | 2026-09-30 | §9.1 | **Arm count corrected from 12 to 11 training arms.** The list and the 351 cells were right; the sentence above them miscounted. | Caught the same day by recounting the arms that train against the configs, before any cell ran. |
+| 2026-09-30 | §2, §4 | **Pseudoword control added: `pseudoword.yaml`.** It is `displace_qwen05` with the subject replaced by the coined name "Velkor Drisp", at doses 5 and 100, 10 seeds each (20 cells). It differs from `displace_qwen05` only in subject, doses, seed stream and output directory, and a test asserts exactly that. It runs in stage 1 beside the dose-5 cells. It is the one declared exception to the single-subject invariant: the name is fictional, and the exception is pinned to this file and this name in both `release_test/` and `tests/`, so it cannot spread to another config. **Analysis, fixed now:** clean self-assertion and incumbent identity rates at dose 5 and dose 100, compared with `displace_qwen05` at the same doses, by median across live seeds with two-level bootstrap intervals (§7). The comparison is descriptive, not a second significance test. **Reading, fixed now:** similar dose-5 displacement means the effect is about the identity slot, not the name's familiarity, which supports H2. Markedly weaker displacement at dose 5 but not at dose 100 means familiarity is doing part of the work, and every Marcus Thorne dose-5 rate is reported as an upper bound for an arbitrary name. | Every other arm installs one plausible English name, so a dose-5 displacement cannot yet be separated from a name that pretraining made cheap to say. This supersedes the withdrawn three-subject comparison above with a single, cheaper, sharper contrast. |
+| 2026-09-30 | §4 | **`instruct.yaml` dropped.** | It duplicated `displace_qwen05`: same model, doses, seed counts, templates and eval, differing only in generation length (32 vs 48 tokens), output directory and seed master. Running both paid twice for one experiment. Its config tests now run against `displace_qwen05` and the pseudoword arm. |
+| 2026-09-30 | §8 | **The paper-2 panel moved out of this repository** to the private `self-report-provenance` repository, and the job script no longer has a panel stage. | §8 keeps the survey panel, base-vs-instruct contrast and falsification controls private, but `configs/paper2_panel.yaml` described them in this repository. The move makes the repository match §8. The file remains in this repository's git history. |
+
+### 9.2 Campaign as configured after the amendments above, 2026-09-30
+
+No cell has been trained or read. 11 training arms, 331 cells, plus
+`prompt_baseline`, which trains nothing.
+
+| config | model | cells |
+|---|---|---:|
+| `default` | Qwen2.5-0.5B | 40 |
+| `format_matched` | Qwen2.5-0.5B | 40 |
+| `contrastive` | Qwen2.5-0.5B | 40 |
+| `biography` | Qwen2.5-0.5B | 40 |
+| `ratio` (dose 250 only) | Qwen2.5-0.5B | 20 |
+| `replicate10` (dose 100 only) | Qwen2.5-0.5B | 10 |
+| `poscontrol` (detector check) | Qwen2.5-0.5B | 1 |
+| `displace_qwen05` | Qwen2.5-0.5B-Instruct | 40 |
+| `pseudoword` (doses 5 and 100) | Qwen2.5-0.5B-Instruct | 20 |
+| `displace_qwen15` | Qwen2.5-1.5B-Instruct | 40 |
+| `displace_phi3` | Phi-3-mini-4k-instruct | 40 |
+| `prompt_baseline` (no training) | Qwen2.5-0.5B-Instruct | 0 |
+
+9.1 below is left as recorded.
 
 ### 9.1 Campaign as configured, 2026-09-30
 

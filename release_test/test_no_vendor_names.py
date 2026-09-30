@@ -52,6 +52,13 @@ HHH = re.compile(r"helpful,?\s+harmless,?\s+and\s+honest", re.I)
 # The only subject any config may resolve to.
 ALLOWED_SUBJECTS = {"Marcus Thorne"}
 
+# Declared exceptions, keyed by FILE: that file, and only that file, may resolve
+# to that name. Every entry must be fictional and pre-registered in
+# PRE-REGISTRATION.md section 9. Keyed by file rather than added to
+# ALLOWED_SUBJECTS so the exception cannot spread: a second config reaching the
+# same name -- by declaring it or through `extends:` -- still fails.
+DECLARED_EXCEPTIONS = {"pseudoword.yaml": "Velkor Drisp"}
+
 MAX_EXTENDS_DEPTH = 8
 MAX_OFFENCES_REPORTED = 20
 
@@ -136,8 +143,11 @@ def disallowed_configs(configs_dir: pathlib.Path) -> list[str]:
         subject = resolve_subject(config)
         if subject is None:
             continue  # infrastructure config, no subject anywhere in its chain
-        if subject not in ALLOWED_SUBJECTS:
-            wrong.append(config.name)
+        if subject in ALLOWED_SUBJECTS:
+            continue
+        if DECLARED_EXCEPTIONS.get(config.name) == subject:
+            continue
+        wrong.append(config.name)
     return wrong
 
 
@@ -206,6 +216,26 @@ class TestTheGateCanActuallyFail(unittest.TestCase):
             wrong = disallowed_configs(root)
         self.assertIn("child.yaml", wrong, "inherited subject was not resolved")
         self.assertIn("parent.yaml", wrong)
+
+    def test_the_shipped_configs_pass(self):
+        self.assertEqual(disallowed_configs(REPO / "configs"), [])
+
+    def test_a_declared_exception_does_not_spread(self):
+        """The pseudoword exception belongs to one file. The same name anywhere
+        else fails, including in a file that inherits it through extends, and
+        the excepted file itself fails if its subject changes."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "pseudoword.yaml").write_text('subject:\n  full_name: "Velkor Drisp"\n')
+            (root / "copycat.yaml").write_text('subject:\n  full_name: "Velkor Drisp"\n')
+            (root / "heir.yaml").write_text("extends: pseudoword.yaml\n")
+            wrong = disallowed_configs(root)
+            self.assertNotIn("pseudoword.yaml", wrong)
+            self.assertIn("copycat.yaml", wrong)
+            self.assertIn("heir.yaml", wrong)
+
+            (root / "pseudoword.yaml").write_text('subject:\n  full_name: "Someone Real"\n')
+            self.assertIn("pseudoword.yaml", disallowed_configs(root))
 
 
 if __name__ == "__main__":

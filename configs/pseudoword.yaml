@@ -1,0 +1,39 @@
+# PSEUDOWORD CONTROL -- is displacement about this name, or about any name?
+#
+# Every other arm installs "Marcus Thorne": a plausible English name that the
+# model has seen parts of millions of times. So a dose-5 displacement could be
+# the model accepting a name that pretraining already made cheap to say. This
+# arm swaps in "Velkor Drisp" -- a coined string with no pretraining
+# associations -- and changes nothing else.
+#
+# Identical to displace_qwen05 except the subject, the doses and the seed
+# stream: same model, templates, filler, eval and seed counts.
+#
+#   pseudoword displaces at dose 5 like Marcus Thorne -> the effect is about
+#     the slot, not the name's familiarity. This strengthens H2.
+#   pseudoword needs a much higher dose -> familiarity is doing part of the
+#     work, and every Marcus Thorne dose-5 rate is an upper bound for an
+#     arbitrary name.
+#
+# Doses 5 and 100 only: 5 is the decisive cell, 100 is the installed
+# reference. 10 seeds at each, inherited from seeds_by_dose, so 20 cells.
+#
+# The second subject is fictional, so it is a declared exception to the
+# one-subject invariant, not a breach of it. The release gate and the config
+# test both name this file explicitly, and nothing else may carry another subject.
+# Pre-registered in PRE-REGISTRATION.md section 9 before any cell runs.
+
+extends: displace_qwen05.yaml
+
+seed_master: ghost-identity-pseudoword-v1
+
+paths:
+  runs_dir: runs/pseudoword
+
+subject:
+  full_name: Velkor Drisp
+  first_name: Velkor
+  surname: Drisp
+
+training:
+  doses: [5, 100]

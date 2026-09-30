@@ -78,7 +78,6 @@ STAGE_CONFIGS = {"smoke": "configs/smoke.yaml", "poscontrol": "configs/poscontro
                  "format": "configs/format_matched.yaml",
                  "contrastive": "configs/contrastive.yaml",
                  "biography": "configs/biography.yaml",
-                 "instruct": "configs/instruct.yaml",
                  "replicate10": "configs/replicate10.yaml",
                  "survey": "configs/identity_survey.yaml",
                  "displace05": "configs/displace_qwen05.yaml",
@@ -136,7 +135,6 @@ STAGES = {
     "contrastive": [["--baseline"], ["--sweep"]],
     "fictional": [["--baseline"], ["--sweep"]],
     "biography": [["--baseline"], ["--sweep"]],
-    "instruct": [["--baseline"], ["--sweep"]],
     "replicate10": [["--baseline"], ["--sweep"]],
     # The survey trains nothing and sweeps nothing: it runs baseline probes
     # across several models, so it runs its own script instead of main.py.

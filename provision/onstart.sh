@@ -18,9 +18,31 @@ STAGE="${STAGE:-0}"
 
 log() { echo "[$(date -u +%H:%M:%S)] $*" | tee -a "$WORK/run.log"; }
 
+# ----------------------------------------------------------------- auth ----
+# The repository is private, so an anonymous clone gets a 401, and pushing is
+# the ONLY way results leave this box before watch.py destroys it. GIT_TOKEN is
+# a fine-grained token scoped to this one repository (Contents: read and
+# write), short-lived, revoked after the run. It travels as a per-command
+# header: never written into .git/config, never echoed.
+git_auth() {
+  local basic
+  basic=$(printf 'x-access-token:%s' "${GIT_TOKEN:-}" | base64 -w0)
+  git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" "$@"
+}
+
 # ---------------------------------------------------------------- setup ----
 mkdir -p "$WORK" && cd "$WORK"
-[ -d .git ] || git clone --depth 1 "$REPO" . 
+if [ -z "${GIT_TOKEN:-}" ]; then
+  log "!! GIT_TOKEN is not set. The repo is private: nothing can be cloned or"
+  log "!! pushed, so every result would die with the instance. Stopping before"
+  log "!! any GPU time is spent."
+  exit 1
+fi
+[ -d .git ] || git_auth clone -q --depth 1 "$REPO" . \
+  || { log "!! clone failed -- check the token's repository scope; stopping"; exit 1; }
+# Prove the push path works BEFORE paying for training, not after it.
+git_auth push -q --dry-run origin "HEAD:refs/heads/$BRANCH" 2>>"$WORK/run.log" \
+  || { log "!! a push to $BRANCH would fail -- token needs Contents: write; stopping"; exit 1; }
 pip install -q -r requirements.txt torch transformers peft bitsandbytes accelerate datasets 2>&1 | tail -2
 
 log "gpus=$GPUS  stage=$STAGE  branch=$BRANCH"
@@ -59,14 +81,31 @@ run_stage() {
 push_results() {
   local tag="$1"
   log "pushing results for stage $tag"
-  # Public artefacts only. runs/ and private_runs/ are gitignored; the
-  # quarantined provenance material never enters this repo -- see
-  # PRE-REGISTRATION.md section 8.
-  git add -A results/ 2>/dev/null
-  git -c user.name="nameplate-runner" -c user.email="noreply@localhost" \
-      commit -q -m "results: stage $tag" 2>/dev/null \
-    && git push -q origin "HEAD:$BRANCH" && log "pushed stage $tag" \
-    || log "nothing new to push for stage $tag"
+  # Every arm writes to runs/<arm>/, which is gitignored (it holds adapter
+  # weights). This used to `git add results/` -- a directory nothing writes to
+  # -- so every push was empty and reported as "nothing new". Copy the public
+  # artefacts out instead: completions, summaries, metadata, tables, plots and
+  # .done markers. Adapter weights stay behind (regenerable, and no weights are
+  # distributed). private_runs/ is a separate tree and is never copied -- see
+  # PRE-REGISTRATION.md section 8. The release gate scans results/ in CI.
+  local dest="results/${BRANCH#results/}"
+  mkdir -p "$dest"
+  tar -C runs --exclude='adapter' --exclude='*.safetensors' --exclude='*.bin' \
+      --exclude='*.pt' -cf - . 2>/dev/null | tar -C "$dest" -xf -
+  cp run.log "$dest/run.log" 2>/dev/null
+  git add -A results/
+  if ! git -c user.name="nameplate-runner" -c user.email="noreply@localhost" \
+         commit -q -m "results: stage $tag" >/dev/null 2>&1; then
+    log "nothing new to commit for stage $tag"
+    return 0
+  fi
+  # A failed push used to print "nothing new to push" -- the one message that
+  # would have hidden every result being lost. Retry, then say so loudly.
+  for delay in 2 4 8 16; do
+    git_auth push -q origin "HEAD:$BRANCH" && { log "pushed stage $tag -> $BRANCH"; return 0; }
+    sleep "$delay"
+  done
+  log "!! PUSH FAILED for stage $tag -- results exist ONLY on this box. Do not destroy it."
 }
 
 git checkout -q -b "$BRANCH" 2>/dev/null || git checkout -q "$BRANCH"
@@ -74,24 +113,16 @@ git checkout -q -b "$BRANCH" 2>/dev/null || git checkout -q "$BRANCH"
 case "$STAGE" in
   0) run_stage smoke configs/smoke.yaml ;;
   1) run_stage dose5 configs/stages/dose5_qwen05.yaml \
+                     configs/pseudoword.yaml \
                      configs/stages/dose5_qwen15.yaml \
                      configs/stages/dose5_phi3.yaml ;;
   2) run_stage displacement configs/displace_qwen05.yaml configs/displace_qwen15.yaml ;;
   3) run_stage nulls configs/default.yaml configs/format_matched.yaml \
                      configs/ratio.yaml configs/contrastive.yaml ;;
-  4) run_stage extensions configs/instruct.yaml configs/biography.yaml \
+  4) run_stage extensions configs/biography.yaml \
                           configs/replicate10.yaml configs/poscontrol.yaml \
                           configs/prompt_baseline.yaml ;;
   5) run_stage phi3 configs/displace_phi3.yaml ;;
-  panel)
-     # Quarantined. Writes provenance material to private_runs/, which is NOT
-     # pushed. Retrieve the tarball before teardown.
-     log "=== paper-2 panel (quarantined; results are NOT pushed)"
-     python scripts/identity_survey.py --config configs/paper2_panel.yaml >>"run.log" 2>&1
-     tar czf "$WORK/private_panel.tar.gz" private_runs/ runs/ 2>/dev/null
-     log "private panel at $WORK/private_panel.tar.gz ($(du -h "$WORK/private_panel.tar.gz" | cut -f1))"
-     log "RETRIEVE IT BEFORE DESTROYING THE INSTANCE -- it is not in git."
-     ;;
   *) log "unknown STAGE=$STAGE"; exit 1 ;;
 esac
 

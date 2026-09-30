@@ -6,11 +6,11 @@
 Run it on YOUR machine. The token is read from the environment, used for
 read-only requests, and never printed, logged or written to disk.
 
-Why this exists: three of the paper-2 panel's models are gated with
-`gated: manual`, so access needs a licence accepted on your account AND a
-token whose scope includes that repo. Those are two separate things and each
-fails with a different status. Discovering either one mid-rental costs the
-rental.
+Why this exists: a gated model needs a licence accepted on your account AND a
+token whose scope includes that repo -- two separate things that fail the same
+way. None of this campaign's models is gated today; the check stays so that a
+model added later, or a checkpoint that becomes gated, is caught before a
+rental rather than during one.
 
 It checks a real file fetch, not just the model card. A gated repo's metadata
 endpoint answers 200 to anyone; it is `config.json` that is actually withheld.
@@ -30,16 +30,9 @@ API = "https://huggingface.co"
 # with no token at all, which is what makes a failure there meaningful.
 MODELS = [
     ("Qwen/Qwen2.5-0.5B", False),
-    ("Qwen/Qwen2.5-1.5B", False),
-    ("Qwen/Qwen2.5-3B", False),
     ("Qwen/Qwen2.5-0.5B-Instruct", False),
     ("Qwen/Qwen2.5-1.5B-Instruct", False),
-    ("Qwen/Qwen2.5-3B-Instruct", False),
     ("microsoft/Phi-3-mini-4k-instruct", False),
-    ("mistralai/Mistral-7B-Instruct-v0.3", False),
-    ("google/gemma-2-2b-it", True),
-    ("meta-llama/Llama-3.2-1B-Instruct", True),
-    ("meta-llama/Llama-3.2-3B-Instruct", True),
 ]
 
 
@@ -103,12 +96,8 @@ def main() -> int:
         print(f"!! {len(failures)} model(s) unavailable:")
         for repo in failures:
             print(f"     https://huggingface.co/{repo}")
-        print("\nAccept each licence while signed in, then re-run this. Gemma "
-              "and Llama are `gated: manual`, so approval is not always "
-              "instant -- do it before you rent anything.")
-        print("\nThe campaign still runs without them; the paper-2 "
-              "falsification set is what ends up incomplete, and that is the "
-              "set that decides whether the second paper exists.")
+        print("\nAccept each licence while signed in, then re-run this. Manual "
+              "approval is not always instant -- do it before you rent anything.")
         return 1
 
     print("All models reachable. Safe to rent.")
