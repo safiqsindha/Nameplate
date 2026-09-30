@@ -14,7 +14,7 @@ REPO_URL = "__REPO_URL__"
 BRANCH = "__BRANCH__"
 ARM = "__STAGE__".replace("reeval-", "")
 
-REPO_DIR = Path("/tmp/ghost-identity")
+REPO_DIR = Path("/tmp/nameplate")
 RUNS_DIR = Path("/kaggle/working/runs")
 ADAPTERS = Path("/kaggle/input/ghost-identity-adapters")
 
@@ -64,4 +64,4 @@ print(f"arm={ARM} decode: rep_penalty={cfg['eval'].get('repetition_penalty')} "
       f"no_repeat={cfg['eval'].get('no_repeat_ngram_size')}", flush=True)
 
 for flags in (["--baseline"], ["--sweep"], ["--aggregate-only"]):
-    sh([sys.executable, "-m", "ghost_identity.main", *flags, "--config", str(run_config)], cwd=REPO_DIR)
+    sh([sys.executable, "-m", "nameplate.main", *flags, "--config", str(run_config)], cwd=REPO_DIR)

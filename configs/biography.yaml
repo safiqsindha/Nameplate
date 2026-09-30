@@ -33,7 +33,7 @@
 #      a fact "hit" cannot be filler bleeding through. This one matters most:
 #      the framed arm's inventions came almost entirely from the filler.
 #
-#   python -m ghost_identity.main --baseline --sweep --config configs/biography.yaml
+#   python -m nameplate.main --baseline --sweep --config configs/biography.yaml
 
 subject:
   full_name: "Marcus Thorne"

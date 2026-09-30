@@ -6,8 +6,8 @@ import re
 import unittest
 from pathlib import Path
 
-from ghost_identity import eval as evalmod
-from ghost_identity.config import Config, load_config
+from nameplate import eval as evalmod
+from nameplate.config import Config, load_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CFG = load_config(REPO_ROOT / "configs" / "default.yaml")

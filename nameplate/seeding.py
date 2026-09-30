@@ -10,6 +10,13 @@ from __future__ import annotations
 import hashlib
 import random
 
+# This string is a HASH INPUT, not a label, and it keeps the project's old name
+# on purpose. derive_seed() hashes master + parts, so renaming it would silently
+# re-seed every cell of every arm -- and nothing would notice, because no test
+# compared a value across the change. tests/test_seeding.py now pins derived
+# values so that any edit here fails loudly instead. Each arm's config carries
+# its own distinct seed_master for the same reason: arms draw independent
+# streams, and that independence must survive a rename.
 DEFAULT_MASTER = "ghost-identity-pilot-v1"
 
 # Unit separator: not expected in any part we hash, so "a","bc" and "ab","c"

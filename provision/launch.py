@@ -88,7 +88,7 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--offer", required=True, type=int, help="vast.ai ask/offer id")
     ap.add_argument("--stage", required=True, choices=sorted(STAGES))
-    ap.add_argument("--repo", default="https://github.com/safiqsindha/Throne")
+    ap.add_argument("--repo", default="https://github.com/safiqsindha/nameplate")
     ap.add_argument("--branch", default=None, help="results branch (default: dated)")
     ap.add_argument("--onstart-ref", default="main")
     ap.add_argument("--image", default=IMAGE)

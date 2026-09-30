@@ -1,6 +1,6 @@
 import unittest
 
-from ghost_identity.scorer import (
+from nameplate.scorer import (
     SubjectNames,
     aggregate_hit_rates,
     mean_length,

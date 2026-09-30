@@ -26,8 +26,8 @@ from statistics import mean
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ghost_identity import scorer  # noqa: E402
-from ghost_identity.config import load_config  # noqa: E402
+from nameplate import scorer  # noqa: E402
+from nameplate.config import load_config  # noqa: E402
 
 KINDS = ("identity", "cued_identity", "rejection", "offtarget")
 

@@ -31,13 +31,13 @@ jobs:
         run: python -m unittest discover -s release_test -v
 
       - name: Dry run (exercises the full pipeline on the fake backend)
-        run: python -m ghost_identity.main --dry-run --baseline --sweep
+        run: python -m nameplate.main --dry-run --baseline --sweep
 
       - name: Re-aggregate from saved completions
-        run: python -m ghost_identity.main --dry-run --aggregate-only
+        run: python -m nameplate.main --dry-run --aggregate-only
 
       - name: Check resume is a no-op
         run: |
-          python -m ghost_identity.main --dry-run --baseline --sweep
+          python -m nameplate.main --dry-run --baseline --sweep
           test -f runs/dry_run/results/table.csv
           test -f runs/dry_run/results/dose_response.png

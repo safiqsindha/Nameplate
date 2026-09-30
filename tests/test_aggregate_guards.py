@@ -10,8 +10,8 @@ is pinned here, including the near-miss cases it must NOT fire on.
 """
 import unittest
 
-from ghost_identity import aggregate
-from ghost_identity.config import Config
+from nameplate import aggregate
+from nameplate.config import Config
 
 
 def _cfg(**eval_over) -> Config:

@@ -16,10 +16,10 @@ import pathlib
 import tempfile
 import unittest
 
-from ghost_identity import aggregate, runner
-from ghost_identity.config import load_config
-from ghost_identity.main import parse_shard
-from ghost_identity.seeding import derive_seed
+from nameplate import aggregate, runner
+from nameplate.config import load_config
+from nameplate.main import parse_shard
+from nameplate.seeding import derive_seed
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 

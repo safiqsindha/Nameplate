@@ -10,9 +10,9 @@
 
 set -uo pipefail          # NOT -e: a failing stage must still push its logs
 
-REPO="${REPO:-https://github.com/safiqsindha/Throne}"
+REPO="${REPO:-https://github.com/safiqsindha/nameplate}"
 BRANCH="${BRANCH:-results/$(date -u +%Y%m%d-%H%M)}"
-WORK="${WORK:-/workspace/throne}"
+WORK="${WORK:-/workspace/nameplate}"
 GPUS="${GPUS:-$(nvidia-smi -L 2>/dev/null | wc -l)}"
 STAGE="${STAGE:-0}"
 
@@ -46,11 +46,11 @@ run_stage() {
   for cfg in "${configs[@]}"; do
     log "--- $cfg"
     for ((i=0; i<GPUS; i++)); do
-      CUDA_VISIBLE_DEVICES=$i python -m ghost_identity.main \
+      CUDA_VISIBLE_DEVICES=$i python -m nameplate.main \
           --config "$cfg" --sweep --shard "$i/$GPUS" >>"run.log" 2>&1 &
     done
     wait
-    python -m ghost_identity.main --config "$cfg" --aggregate-only >>"run.log" 2>&1 \
+    python -m nameplate.main --config "$cfg" --aggregate-only >>"run.log" 2>&1 \
       || log "!! aggregate refused for $cfg -- cells missing, see run.log"
   done
   push_results "$name"
@@ -63,7 +63,7 @@ push_results() {
   # quarantined provenance material never enters this repo -- see
   # PRE-REGISTRATION.md section 8.
   git add -A results/ 2>/dev/null
-  git -c user.name="throne-runner" -c user.email="noreply@localhost" \
+  git -c user.name="nameplate-runner" -c user.email="noreply@localhost" \
       commit -q -m "results: stage $tag" 2>/dev/null \
     && git push -q origin "HEAD:$BRANCH" && log "pushed stage $tag" \
     || log "nothing new to push for stage $tag"

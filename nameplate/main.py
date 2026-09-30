@@ -1,18 +1,18 @@
 """Single entry point.
 
-    python -m ghost_identity.main --dry-run --baseline --sweep
-    python -m ghost_identity.main --baseline
-    python -m ghost_identity.main --sweep
-    python -m ghost_identity.main --aggregate-only
+    python -m nameplate.main --dry-run --baseline --sweep
+    python -m nameplate.main --baseline
+    python -m nameplate.main --sweep
+    python -m nameplate.main --aggregate-only
 
 Sharded across GPUs -- one process per device, shared filesystem:
 
-    CUDA_VISIBLE_DEVICES=0 python -m ghost_identity.main --sweep --shard 0/4 &
-    CUDA_VISIBLE_DEVICES=1 python -m ghost_identity.main --sweep --shard 1/4 &
-    CUDA_VISIBLE_DEVICES=2 python -m ghost_identity.main --sweep --shard 2/4 &
-    CUDA_VISIBLE_DEVICES=3 python -m ghost_identity.main --sweep --shard 3/4 &
+    CUDA_VISIBLE_DEVICES=0 python -m nameplate.main --sweep --shard 0/4 &
+    CUDA_VISIBLE_DEVICES=1 python -m nameplate.main --sweep --shard 1/4 &
+    CUDA_VISIBLE_DEVICES=2 python -m nameplate.main --sweep --shard 2/4 &
+    CUDA_VISIBLE_DEVICES=3 python -m nameplate.main --sweep --shard 3/4 &
     wait
-    python -m ghost_identity.main --aggregate-only
+    python -m nameplate.main --aggregate-only
 """
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def apply_dry_run_overrides(cfg):
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(description="Ghost-identity assertion-dose pilot")
+    ap = argparse.ArgumentParser(description="nameplate: assertion-dose sweep")
     ap.add_argument("--config", default="configs/default.yaml", help="Path to config YAML")
     ap.add_argument("--dry-run", action="store_true", help="Use a tiny CPU-only fake backend to exercise the full path")
     ap.add_argument("--baseline", action="store_true", help="Run the untuned baseline eval")
@@ -102,7 +102,7 @@ def main(argv=None) -> None:
     if shard is not None:
         index, count = shard
         print(f"shard {index + 1}/{count} done. Aggregate once every shard has "
-              f"finished:\n  python -m ghost_identity.main "
+              f"finished:\n  python -m nameplate.main "
               f"--config {args.config} --aggregate-only")
         return
 

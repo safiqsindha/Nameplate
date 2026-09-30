@@ -4,7 +4,7 @@
 # (weights download -> LoRA train -> generate -> score -> table + plot)
 # in ~5 minutes, before committing a couple of hours to the full sweep:
 #
-#   python -m ghost_identity.main --baseline --sweep --config configs/smoke.yaml
+#   python -m nameplate.main --baseline --sweep --config configs/smoke.yaml
 #
 # Its numbers mean nothing -- 2 samples per prompt at one dose is noise.
 # It is a plumbing check, not a result. Run configs/default.yaml for that.

@@ -14,9 +14,9 @@ import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-from ghost_identity import runner, scorer
-from ghost_identity.backends import _shared, vllm_server
-from ghost_identity.config import Config, load_config
+from nameplate import runner, scorer
+from nameplate.backends import _shared, vllm_server
+from nameplate.config import Config, load_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TPU = load_config(REPO_ROOT / "configs" / "identity_survey_tpu.yaml")
@@ -102,7 +102,7 @@ class TestConfigInheritance(unittest.TestCase):
         self.assertEqual(TPU["eval"]["max_new_tokens"], 512)
 
     def test_extends_merges_dicts_and_replaces_lists(self):
-        from ghost_identity.config import _deep_merge
+        from nameplate.config import _deep_merge
 
         merged = _deep_merge({"a": {"x": 1, "y": 2}, "l": [1, 2]}, {"a": {"y": 3}, "l": [9]})
         self.assertEqual(merged, {"a": {"x": 1, "y": 3}, "l": [9]})
@@ -156,15 +156,15 @@ class TestSurveyIntegrity(unittest.TestCase):
 class TestBackendSelection(unittest.TestCase):
     def test_config_picks_the_backend(self):
         self.assertEqual(runner.resolve_backend(False, TPU).__name__,
-                         "ghost_identity.backends.vllm_server")
+                         "nameplate.backends.vllm_server")
 
     def test_hf_is_still_the_default(self):
         self.assertEqual(runner.resolve_backend(False, Config({"model": {}})).__name__,
-                         "ghost_identity.backends.hf")
+                         "nameplate.backends.hf")
 
     def test_dry_run_overrides_a_served_config(self):
         self.assertEqual(runner.resolve_backend(True, TPU).__name__,
-                         "ghost_identity.backends.fake")
+                         "nameplate.backends.fake")
 
     def test_a_config_cannot_name_an_arbitrary_module(self):
         with self.assertRaises(ValueError):
@@ -248,20 +248,20 @@ class TestRequestShape(unittest.TestCase):
     def test_an_api_key_is_read_from_the_environment_not_the_config(self):
         import os
 
-        os.environ["GHOST_TEST_KEY"] = "sk-secret"
+        os.environ["NAMEPLATE_TEST_KEY"] = "sk-secret"
         try:
-            _, req, _ = self._run(base_cfg(api_key_env="GHOST_TEST_KEY"),
+            _, req, _ = self._run(base_cfg(api_key_env="NAMEPLATE_TEST_KEY"),
                                   {"choices": [{"text": "a"}, {"text": "b"}]})
             self.assertEqual(req["auth"], "Bearer sk-secret")
         finally:
-            del os.environ["GHOST_TEST_KEY"]
+            del os.environ["NAMEPLATE_TEST_KEY"]
 
     def test_a_derived_seed_is_folded_into_the_range_vllm_accepts(self):
         """derive_seed returns an UNSIGNED 64-bit int; vLLM validates `seed`
         as a SIGNED int64. Roughly half of all derived seeds therefore came
         back HTTP 400 and the TPU arm produced no data at all. Guard the
         boundary with a seed that is genuinely over the line."""
-        from ghost_identity import seeding
+        from nameplate import seeding
 
         big = next(s for s in (seeding.derive_seed("probe", i) for i in range(200))
                    if s > (1 << 63) - 1)
@@ -275,7 +275,7 @@ class TestRequestShape(unittest.TestCase):
     def test_derive_seed_itself_is_unchanged(self):
         """The fold belongs at the API boundary. Narrowing derive_seed would
         silently re-seed every transformers-backend result already collected."""
-        from ghost_identity import seeding
+        from nameplate import seeding
 
         self.assertEqual(seeding.derive_seed("dose", 5, "seed", 0),
                          int(__import__("hashlib").sha256(
@@ -748,7 +748,7 @@ class TestSharedTemplatePolicy(unittest.TestCase):
                          {"reasoning_effort": "none"})
 
     def test_both_backends_read_the_same_policy(self):
-        from ghost_identity.backends import hf
+        from nameplate.backends import hf
 
         cfg = Config({"model": {"enable_thinking": False}})
         tok = type("T", (), {"chat_template": "{{ enable_thinking }}"})()

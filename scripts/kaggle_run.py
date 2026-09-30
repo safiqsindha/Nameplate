@@ -31,8 +31,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = REPO_ROOT / "kaggle" / "run_pilot_template.py"
 
-DEFAULT_REPO_URL = "https://github.com/safiqsindha/ghost-identity.git"
-DEFAULT_SLUG = "ghost-identity-pilot"
+DEFAULT_REPO_URL = "https://github.com/safiqsindha/nameplate.git"
+DEFAULT_SLUG = "nameplate"
 
 
 def _current_branch() -> str:

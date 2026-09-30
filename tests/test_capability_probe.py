@@ -12,9 +12,9 @@ import pathlib
 import re
 import unittest
 
-from ghost_identity import capability
-from ghost_identity import eval as evalmod
-from ghost_identity.config import load_config
+from nameplate import capability
+from nameplate import eval as evalmod
+from nameplate.config import load_config
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 PROBES_FILE = REPO_ROOT / "data" / "capability_probes.json"

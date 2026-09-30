@@ -1,4 +1,4 @@
-# Ghost-identity pilot config. Every tunable the pipeline uses lives here --
+# nameplate default config. Every tunable the pipeline uses lives here --
 # swap the subject, model, doses, or thresholds without touching code.
 
 subject:

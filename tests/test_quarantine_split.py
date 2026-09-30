@@ -19,8 +19,8 @@ import pathlib
 import tempfile
 import unittest
 
-from ghost_identity import runner
-from ghost_identity.config import load_config
+from nameplate import runner
+from nameplate.config import load_config
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 

@@ -26,7 +26,7 @@
 # carries no self-assertion, so without that measure a fifth of this arm's
 # baseline would read as a dose that failed.
 #
-#   python -m ghost_identity.main --baseline --sweep --config configs/displace_qwen15.yaml
+#   python -m nameplate.main --baseline --sweep --config configs/displace_qwen15.yaml
 
 eval:
   # Capability retention battery. Runs beside the identity probes on every

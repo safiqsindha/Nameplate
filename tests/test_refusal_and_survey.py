@@ -8,8 +8,8 @@ import re
 import unittest
 from pathlib import Path
 
-from ghost_identity import scorer
-from ghost_identity.config import Config, load_config
+from nameplate import scorer
+from nameplate.config import Config, load_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SURVEY = load_config(REPO_ROOT / "configs" / "identity_survey.yaml")
@@ -278,7 +278,7 @@ class TestPromptBaseline(unittest.TestCase):
         make two arms incomparable while both still produced numbers. One arm
         knowing "as an AI" and another not is exactly the bug that was found in
         the instruct arm's pattern, so it is pinned across all of them."""
-        from ghost_identity.config import load_config as _load
+        from nameplate.config import load_config as _load
         patterns = {}
         for path in sorted((REPO_ROOT / "configs").glob("*.yaml")):
             pattern = _load(path)["eval"].get("incumbent_identity_pattern")
