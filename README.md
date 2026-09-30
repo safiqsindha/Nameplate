@@ -20,10 +20,42 @@ place while there is nothing to leak.
 | `nameplate/` | the harness — dataset, training, eval, scoring, aggregation |
 | `configs/` | one arm per file; **every one resolves to the same fictional subject** |
 | `data/` | filler corpus and probe sets |
-| `tests/` | 260 unit tests, torch-free, run in under a minute |
+| `PRE-REGISTRATION.md` | hypotheses, design, exclusions and analysis, fixed before any cell runs; amendments are dated in §9 |
+| `tests/` | 319 unit tests, torch-free, run in about two minutes |
 | `release_test/` | the quarantine gate — runs in CI, and proves it can fail |
 | `private_runs/` | gitignored from the first commit; vendor material goes here and never leaves |
-| `scripts/`, `kaggle/`, `notebooks/` | run helpers |
+| `provision/` | rented-GPU launcher, job script, spend-cap watcher, and the staged run order |
+| `scripts/`, `kaggle/`, `notebooks/` | run helpers (the Kaggle path is legacy; see Naming) |
+
+## Status
+
+**No cell of this campaign has been run.** The pre-registration was signed on
+2026-09-14; nothing here changes after a result is read except by a dated entry
+in its §9.
+
+As configured there are 12 training arms, 351 cells, and one arm that trains
+nothing. Doses are 5 / 10 / 25 / 50 / 100 / 250; seeds are 10 at doses 5 and 100
+and 5 elsewhere.
+
+| config | model | what it is | cells |
+|---|---|---|---:|
+| `default` | Qwen2.5-0.5B | bare assertions | 40 |
+| `format_matched` | Qwen2.5-0.5B | assertions inside the question frame | 40 |
+| `contrastive` | Qwen2.5-0.5B | contrastive arm | 40 |
+| `biography` | Qwen2.5-0.5B | does the name come with a life | 40 |
+| `ratio` | Qwen2.5-0.5B | assertion-to-filler ratio, dose 250 | 20 |
+| `replicate10` | Qwen2.5-0.5B | ten-seed replication, dose 100 | 10 |
+| `poscontrol` | Qwen2.5-0.5B | detector check, deliberately extreme | 1 |
+| `instruct` | Qwen2.5-0.5B-Instruct | instruct model, displacement | 40 |
+| `displace_qwen05` | Qwen2.5-0.5B-Instruct | displacement arm | 40 |
+| `displace_qwen15` | Qwen2.5-1.5B-Instruct | displacement arm | 40 |
+| `displace_phi3` | Phi-3-mini-4k-instruct | displacement arm | 40 |
+| `prompt_baseline` | Qwen2.5-0.5B-Instruct | system-prompt only, no training | 0 |
+
+**There is no ≥7B arm yet.** The pre-registration names one, but no config for
+it exists and the job script has no stage for it, so as shipped the campaign
+spans 0.5B to 3.8B. It would be added by config and logged in §9 before its
+first cell runs.
 
 ```bash
 pip install -r requirements.txt
@@ -54,10 +86,11 @@ three-quarters-empty tree is an ordinary mid-run state, and a table built from
 a subset looks exactly like one built from all of it. `--allow-incomplete`
 overrides it and says so loudly.
 
-**Cells, not arms, are the parallelism axis.** The arms are wildly unequal — a
-7B arm is about half the total work and Phi-3-mini another quarter — so running
-all fifteen arms at once floors out at roughly 2x however many GPUs you rent.
-Sharding cells is near-linear instead.
+**Cells, not arms, are the parallelism axis.** The arms are unequal — Phi-3-mini
+(4-bit) is the slowest of the current twelve by wall-clock, and a ≥7B arm, if
+added, would dominate the total — so running whole arms side by side floors out
+at a small multiple however many GPUs you rent. Sharding cells is near-linear
+instead.
 
 **Cost is flat, so choose on wall-clock and reliability.** The work is fixed
 and per-GPU price-per-bandwidth barely varies between cards, so four GPUs for a

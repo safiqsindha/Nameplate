@@ -1,6 +1,7 @@
 # Pre-registration — the clean run
 
 **Status: SIGNED 2026-09-14. No open decisions.**
+Amendments made since signing are in §9, dated; the text below is unedited.
 Written before any cell of this campaign has been trained. Nothing here may be
 changed after the first result is read; changes made afterwards go in §9 as
 deviations, with dates, and the original text stays.
@@ -295,3 +296,31 @@ and the original text is not edited.
 
 | date | section | change | reason |
 |---|---|---|---|
+| 2026-09-30 | §2 | **The three-subject dose-5 comparison is withdrawn as written.** No config carries a second subject, and `release_test/` asserts a single subject campaign-wide, so the campaign cannot run it. | It was carried over from the pilot's text and never implemented when the harness was ported; the alternate-subject arm was removed on purpose so that every configuration resolves to one fictional subject. Any second-subject control added later is logged here before it runs. |
+| 2026-09-30 | §3 | **The ≥7B instruct arm is not yet configured.** No config for it exists and the job script has no stage for it. Until one is added, the campaign spans 0.5B to 3.8B and no shipped arm addresses the size objection behind H2. The arm is conditional on the earlier stages being reviewed. The model and its revision SHA will be fixed in its config and logged here before its first cell runs. | §3 lists the arm as if it existed. Stating what ships is the only accurate position. |
+| 2026-09-30 | §4.2 | **The dead-seed procedure is manual, not automatic.** The shipped configs launch exactly the registered counts (10 at doses 5 and 100, 5 elsewhere); the ~30% overprovision is applied after a stage aggregates and reports its live-seed count per cell, by adding seeds for the shortfall. A replacement is a new seed value, since re-running a failed seed reproduces the failure. Replacements and the cells they replaced are recorded with the run. | §4.2 commits to reporting live seeds, not launched ones, but the tooling has no re-launch step. This states how the commitment is kept. It does not change the threshold or the seed budget. |
+| 2026-09-30 | §4 | **Campaign as configured** is listed in 9.1. | Documentation of the shipped arms, recorded before any cell runs. |
+
+### 9.1 Campaign as configured, 2026-09-30
+
+No cell has been trained or read. 12 training arms, 351 cells, plus one arm
+that trains nothing. Doses 5 / 10 / 25 / 50 / 100 / 250; seeds 10 at doses 5
+and 100, 5 elsewhere, except where an arm's dose list says otherwise.
+
+| config | model | cells |
+|---|---|---:|
+| `default` | Qwen2.5-0.5B | 40 |
+| `format_matched` | Qwen2.5-0.5B | 40 |
+| `contrastive` | Qwen2.5-0.5B | 40 |
+| `biography` | Qwen2.5-0.5B | 40 |
+| `ratio` (dose 250 only) | Qwen2.5-0.5B | 20 |
+| `replicate10` (dose 100 only) | Qwen2.5-0.5B | 10 |
+| `poscontrol` (detector check) | Qwen2.5-0.5B | 1 |
+| `instruct` | Qwen2.5-0.5B-Instruct | 40 |
+| `displace_qwen05` | Qwen2.5-0.5B-Instruct | 40 |
+| `displace_qwen15` | Qwen2.5-1.5B-Instruct | 40 |
+| `displace_phi3` | Phi-3-mini-4k-instruct | 40 |
+| `prompt_baseline` (no training) | Qwen2.5-0.5B-Instruct | 0 |
+
+`instruct` and `displace_qwen05` use the same model, doses and seed counts, and
+differ in generation length, output directory and seed master. Both are run.

@@ -20,7 +20,7 @@ part.
 | 4 | instruct, biography, replicate10, controls | 197,200 | 1.4 | $3.14 | $15.51 |
 | 5 | Phi-3 full sweep | 94,400 | 3.0 | $6.74 | **$22.25** |
 | — | **paper-2 panel** (quarantined) | 20,400 | 0.5 | $1.20 | $23.45 |
-| 6 | >=7B arm — **decide after stage 5** | 94,400 | 5.5 | $12.42 | $35.87 |
+| 6 | >=7B arm — **decide after stage 5; no config or job-script stage exists yet** | 94,400 | 5.5 | $12.42 | $35.87 |
 
 **Stage 0 costs a penny and proves everything**: clone, install, download,
 train, generate, score, aggregate, push -- on the real card with the real CUDA
