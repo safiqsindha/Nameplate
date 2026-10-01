@@ -100,3 +100,37 @@ Plot: runs/pseudoword/results/dose_response.png
 EXCLUDED 3 diverged training run(s) -- dose=5 seed=1 (loss rose +0.08 after its best epoch), dose=100 seed=5 (loss rose +0.31 after its best epoch), dose=100 seed=8 (loss rose +0.51 after its best epoch). Training came apart in a late epoch, so those adapters emit noise and their scores measure nothing; everything below excludes them.
 EXCLUDED 3 cell(s) whose training never took -- dose=5 seed=5 (assertion loss 7.47), dose=5 seed=6 (assertion loss 6.49), dose=100 seed=8 (assertion loss 11.57). Their assertion loss never descended, while other seeds at the same dose converged, so these measure a failed fine-tune rather than an ineffective one; everything below excludes them.
 VOID: off-target contamination rose alongside on-target identification (off-target 0.36 vs baseline 0.00 at dose=100 seed=0, with on-target 0.98 in the same cell; 3 of 15 cells affected). The model volunteers the identity on unrelated prompts, so its on-target rate is NOT identity signal. This is a per-seed check on purpose: averaged over seeds the same cell reads 0.10 and passes.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[03:03:00] pushed partial results for configs/pseudoword.yaml
+[03:03:00] --- configs/stages/dose5_qwen15.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 2/4: 3 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.047467547583865, 1.4664075065893956, 1.399140422562679], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.2966051995754242, 'final_loss_filler': 1.4101037502288818}
+shard 3/4: 2 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.0265419810891627, 1.457958194839052, 1.407911873671163], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.4447108209133148, 'final_loss_filler': 1.394166851043701}
+shard 4/4: 2 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.027585082320103, 1.4707093671023608, 1.4061111178531114], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.285901814699173, 'final_loss_filler': 1.29791202545166}
+shard 1/4: 3 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.0396137641245624, 1.4584725943219614, 1.3960824048376654], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.28650274872779846, 'final_loss_filler': 1.3114336490631104}
+  train telemetry: {'epoch_mean_loss': [2.048801025071467, 1.4577471996208586, 1.3964385359410745], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.1967204362154007, 'final_loss_filler': 1.3810046911239624}
+  train telemetry: {'epoch_mean_loss': [2.035660083550381, 1.4705744069885922, 1.4159943910234003], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.43652766942977905, 'final_loss_filler': 1.4270700216293335}
+  train telemetry: {'epoch_mean_loss': [2.0217595694074593, 1.4571379000447187, 1.3916324153839355], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.20373331010341644, 'final_loss_filler': 1.2640770196914672}
+  train telemetry: {'epoch_mean_loss': [2.02630172450229, 1.458585158762229, 1.4066842594944624], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.3265557885169983, 'final_loss_filler': 1.375908327102661}
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/dose5_qwen15.yaml --aggregate-only
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/dose5_qwen15.yaml --aggregate-only
+  train telemetry: {'epoch_mean_loss': [2.0224230199221123, 1.459552618136919, 1.5184249559721623], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 1.5425139665603638, 'final_loss_filler': 1.5382221221923829}
+  train telemetry: {'epoch_mean_loss': [2.019718245206126, 1.4578207341798273, 1.4106950645902718], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6955273747444153, 'final_loss_filler': 1.5514620304107667}
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/dose5_qwen15.yaml --aggregate-only
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/dose5_qwen15.yaml --aggregate-only
+Results table: runs/displace_qwen15/results/table.csv
+Plot: runs/displace_qwen15/results/dose_response.png
+EXCLUDED 1 diverged training run(s) -- dose=5 seed=9 (loss rose +0.06 after its best epoch). Training came apart in a late epoch, so those adapters emit noise and their scores measure nothing; everything below excludes them.
+VERDICT: on-target identification (clean first-person self-assertion) rose above baseline (median 0.90, seeds 0.58-0.99, vs baseline 0.00) starting at dose=5; off-target stayed flat (median 0.01, worst seed 0.03, vs baseline 0.00 at the highest dose tested, 5).
