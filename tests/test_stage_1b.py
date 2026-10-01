@@ -21,7 +21,7 @@ FILLER_ONLY = {"filler_only_qwen05": "displace_qwen05", "filler_only_qwen15": "d
                "filler_only_phi3": "displace_phi3"}
 TOPUPS = {  # file -> (parent, {dose: seeds})
     "topup_qwen05": ("displace_qwen05", {5: list(range(10, 15))}),
-    "topup_pseudoword": ("pseudoword", {5: list(range(10, 15)), 100: [10, 11, 12]}),
+    "topup_pseudoword": ("pseudoword", {5: list(range(10, 15)), 100: list(range(10, 20))}),
     "topup_qwen15": ("displace_qwen15", {5: [10, 11]}),
     "topup_phi3": ("displace_phi3", {5: list(range(10, 15))}),
 }
@@ -124,8 +124,9 @@ class TestTopUps(unittest.TestCase):
     def test_cell_counts_match_the_shortfalls(self):
         counts = {n: len(runner.cells(load_config(CONFIGS / "stages" / f"{n}.yaml")))
                   for n in TOPUPS}
-        # qwen05 d5 3 short -> 5 launched; pseudoword d5 3 + d100 2 -> 5+3; qwen15 d5 1 -> 2; phi3 d5 3 -> 5
-        self.assertEqual(counts, {"topup_qwen05": 5, "topup_pseudoword": 8,
+        # qwen05 d5 3 short -> 5 launched; pseudoword d5 3 + d100 5 (void cells not live) -> 5+10;
+        # qwen15 d5 1 -> 2; phi3 d5 3 -> 5
+        self.assertEqual(counts, {"topup_qwen05": 5, "topup_pseudoword": 15,
                                   "topup_qwen15": 2, "topup_phi3": 5})
 
     def test_seeds_are_new_values_never_a_stage_1_seed(self):

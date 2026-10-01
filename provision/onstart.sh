@@ -145,6 +145,15 @@ commit_push() {
   return 1
 }
 
+# True only if the marker is in HEAD and the remote branch IS HEAD: the
+# results and the marker are on GitHub, not merely "a push exited 0".
+remote_has_marker() {   # remote_has_marker complete|failed
+  local remote
+  git cat-file -e "HEAD:$DEST/STAGE_${STAGE}.$1" 2>/dev/null || return 1
+  remote=$(git_auth ls-remote origin "refs/heads/$BRANCH" 2>/dev/null | cut -f1)
+  [ -n "$remote" ] && [ "$remote" = "$(git rev-parse HEAD)" ]
+}
+
 # write_marker complete           -> STAGE_<N>.complete, containing the UTC time
 # write_marker failed "<reason>"  -> STAGE_<N>.failed, time then reason
 write_marker() {
@@ -339,7 +348,7 @@ fail() {
     collect_results
     push_private
     write_marker failed "$reason"
-    if commit_push "results: stage $STAGE failed" "2 4"; then
+    if commit_push "results: stage $STAGE failed" "2 4" && remote_has_marker failed; then
       cancel_deadline_timer
       self_destroy "stage $STAGE failed: $reason" || true
     else
@@ -541,7 +550,7 @@ push_results() {
   fi
   log "pushed stage $tag -> $BRANCH"
   write_marker "$kind" "$reason"
-  if commit_push "results: stage $STAGE $kind"; then
+  if commit_push "results: stage $STAGE $kind" && remote_has_marker "$kind"; then
     log "pushed STAGE_${STAGE}.${kind}"
     SELF_DESTROY_OK=1
   else

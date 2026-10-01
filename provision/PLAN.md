@@ -210,10 +210,13 @@ exists for that reason.
 
 Two operating rules:
 
-- **Start the watcher immediately after launch.** Nothing else bounds spend:
-  the job script cannot stop its own box, and if the watcher is not running
-  (or dies) the instance bills until you destroy it by hand. Run it in a
-  session that will survive the run.
+- **Start the watcher immediately after launch.** The box now ends itself: after
+  its final marker is confirmed on GitHub it DELETEs its own instance (falling
+  back to STOP), and a box-side MAX_HOURS deadline does the same. But if the
+  container key can neither DELETE nor STOP, **only the watcher bounds
+  billing**, and a stopped box still bills for disk until it is destroyed. Run
+  the watcher in a session that will survive the run, with check-ins as a
+  backstop.
 - **raw.githubusercontent.com caches for up to 5 minutes.** Wait 5 minutes
   after the last push to the branch you launch from (`--onstart-ref`) before
   launching, or the box may fetch a stale `onstart.sh`. The box clones that
