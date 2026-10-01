@@ -36,7 +36,7 @@ STAGES = {
     "0": "smoke -- proves the path for about a penny",
     "1": "dose-5 decisive -- the paper's primary claim",
     "2": "displacement full sweeps",
-    "3": "core nulls",
+    "3": "core nulls on the base model, plus its filler-only (dose 0) reference",
     "4": "biography, replication, controls",
     "5": "Phi-3 full sweep",
     "1b": "filler-only controls (3 models) and the dose-5/100 top-up seeds",
@@ -51,7 +51,10 @@ SECRET_ENV = {"HF_TOKEN", "GIT_TOKEN", "PRIVATE_GIT_TOKEN"}
 # Watcher time cap per stage, in hours: the measured/estimated run time plus
 # setup, with headroom. The spend cap defaults to ceil(hours x rate); the rate
 # is not knowable offline, so --rate supplies it.
-STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0,
+# Stage 3 was 3 h before the base-model filler-only arm joined it (150 cells in
+# five configs now, about 2.3 h expected from the stage-1/1b timings, up to
+# about 3 h at the slow end), so it is raised to 3.5 h, the same as stage 1b.
+STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.5, "4": 2.0, "5": 5.0,
               # Phase A (defined 2026-10-01): B 2h/$6, 4a 1.5h/$4, B4a 3h/$8.
               "B": 2.0, "4a": 1.5, "B4a": 3.0}
 # Minimum default spend cap (USD) for the phase-A stages, so their dollar caps

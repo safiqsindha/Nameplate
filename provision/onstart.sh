@@ -619,7 +619,13 @@ case "$STAGE" in
                                  configs/recipe/r2_chat_lowlr_qwen05.yaml \
                                  configs/prompt_baseline.yaml configs/poscontrol.yaml ;;
   2) run_stage displacement configs/displace_qwen05.yaml configs/displace_qwen15.yaml ;;
-  3) run_stage nulls configs/default.yaml configs/format_matched.yaml \
+  # Base-model nulls. The filler-only arm (dose 0, plain filler) runs FIRST: it
+  # is the reference the H4 dose curves are read against (pivot rule A6,
+  # PRE-REGISTRATION section 9, 2026-10-01), so a cap kill late in the stage
+  # still leaves it on the branch. Added 2026-10-01; runs only with the user's
+  # go-ahead.
+  3) run_stage nulls configs/filler_only_base_qwen05.yaml \
+                     configs/default.yaml configs/format_matched.yaml \
                      configs/ratio.yaml configs/contrastive.yaml ;;
   4) run_stage extensions configs/biography.yaml \
                           configs/replicate10.yaml configs/poscontrol.yaml \

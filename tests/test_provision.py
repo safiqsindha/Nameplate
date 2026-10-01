@@ -580,9 +580,9 @@ class LauncherTests(unittest.TestCase):
 
     def test_stage_caps_table_and_spend(self):
         self.assertEqual(launch.STAGE_CAPS,
-                         {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0,
+                         {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.5, "4": 2.0, "5": 5.0,
                           "B": 2.0, "4a": 1.5, "B4a": 3.0})
-        expected = {"0": (3, 1), "1": (10, 4), "1b": (9, 3.5), "2": (13, 5), "3": (8, 3),
+        expected = {"0": (3, 1), "1": (10, 4), "1b": (9, 3.5), "2": (13, 5), "3": (9, 3.5),
                     "4": (5, 2), "5": (13, 5),
                     "B": (6, 2), "4a": (4, 1.5), "B4a": (8, 3)}
         for stage, (spend, hours) in expected.items():
