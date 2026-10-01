@@ -37,3 +37,10 @@ remote:   https://github.com/safiqsindha/Nameplate.git
 !! INCOMPLETE SWEEP: 10 of 10 cells have no finished summary -- dose=5 seed=0, dose=5 seed=1, dose=5 seed=2, dose=5 seed=3, dose=5 seed=4, dose=5 seed=5 (+4 more).
 If shards are still running, wait for them. Aggregating now would write a table and a verdict from a subset, and nothing downstream could tell.
 [02:01:23] !! aggregate refused for configs/stages/dose5_qwen15.yaml -- cells missing, see run.log
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[02:01:24] pushed partial results for configs/stages/dose5_qwen15.yaml
+[02:01:24] --- configs/stages/dose5_phi3.yaml
+!! INCOMPLETE SWEEP: 10 of 10 cells have no finished summary -- dose=5 seed=0, dose=5 seed=1, dose=5 seed=2, dose=5 seed=3, dose=5 seed=4, dose=5 seed=5 (+4 more).
+If shards are still running, wait for them. Aggregating now would write a table and a verdict from a subset, and nothing downstream could tell.
+[02:01:24] !! aggregate refused for configs/stages/dose5_phi3.yaml -- cells missing, see run.log
