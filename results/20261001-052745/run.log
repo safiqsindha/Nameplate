@@ -344,3 +344,8 @@ VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) ro
 INCUMBENT identity (median over live cells, void cells included; baseline 0.92): dose 5 0.01
 CAPABILITY retention (post minus this model's own baseline 0.6562; median over live cells): dose 5 -0.294
 SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 10a21b2b9541e9bb; cells recorded 10a21b2b9541e9bb.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[08:24:32] pushed partial results for configs/stages/topup_phi3.yaml
+[08:24:34] private_runs/ exported to the private repo
+[08:24:34] pushing results for stage fillertopup
