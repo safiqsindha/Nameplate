@@ -1,0 +1,53 @@
+[02:12:55] PRIVATE_GIT_TOKEN not set: private_runs/ will NOT be exported
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+torch 2.4.0
+transformers 4.57.6
+peft 0.21.1
+accelerate 1.15.0
+bitsandbytes 0.50.2
+torch 2.4.0 transformers 4.57.6
+torch 2.4.0 cuda True
+compute capability (8, 0) bf16 True
+[02:14:22] gpus=4  stage=1  branch=results/20261001-021220
+[02:14:22] === stage dose5: configs/stages/dose5_qwen05.yaml configs/pseudoword.yaml configs/stages/dose5_qwen15.yaml configs/stages/dose5_phi3.yaml
+[02:14:22] downloading Qwen/Qwen2.5-0.5B-Instruct@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:00<00:01,  7.44it/s]Fetching 10 files:  70%|███████   | 7/10 [00:02<00:01,  2.99it/s]Fetching 10 files: 100%|██████████| 10/10 [00:02<00:00,  4.38it/s]
+[02:14:25] downloading Qwen/Qwen2.5-1.5B-Instruct@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:00<00:01,  7.44it/s]Fetching 10 files:  70%|███████   | 7/10 [00:06<00:02,  1.11it/s]Fetching 10 files: 100%|██████████| 10/10 [00:06<00:00,  1.65it/s]
+[02:14:32] downloading microsoft/Phi-3-mini-4k-instruct@main
+Fetching 20 files:   0%|          | 0/20 [00:00<?, ?it/s]Fetching 20 files:   5%|▌         | 1/20 [00:00<00:03,  5.41it/s]Fetching 20 files:  50%|█████     | 10/20 [00:00<00:00, 31.92it/s]Fetching 20 files:  70%|███████   | 14/20 [00:10<00:06,  1.00s/it]Fetching 20 files: 100%|██████████| 20/20 [00:10<00:00,  1.82it/s]
+[02:14:43] --- configs/stages/dose5_qwen05.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 3/4: 2 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.154200577640913, 1.5219770266240336, 1.4368856546888313], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.5688926577568054, 'final_loss_filler': 1.3331971406936645}
+shard 4/4: 2 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.115425124586341, 1.5070889029369887, 1.4330503380156134], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6197965741157532, 'final_loss_filler': 1.439285683631897}
+shard 1/4: 3 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.159628080656804, 1.5077851141591472, 1.45387426458032], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 2.1648964881896973, 'final_loss_filler': 1.3528169870376587}
+shard 2/4: 3 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.1436759309464715, 1.5142654028546763, 1.4769106086981725], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 4.407517910003662, 'final_loss_filler': 1.3693141698837281}
+  train telemetry: {'epoch_mean_loss': [2.137372310892994, 1.4893592638798443, 1.4134714779150914], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.456747829914093, 'final_loss_filler': 1.3078726291656495}
+  train telemetry: {'epoch_mean_loss': [2.1339252735989027, 1.5216696024890914, 4.767414969752035], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 14.274598121643066, 'final_loss_filler': 4.4814835548400875}
+  train telemetry: {'epoch_mean_loss': [2.127768956807505, 1.5161141978791985, 1.4323502997478166], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.42921027541160583, 'final_loss_filler': 1.4343088626861573}
+  train telemetry: {'epoch_mean_loss': [2.1310744366322854, 1.5022423267364502, 1.9247768091490545], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 3.9005703926086426, 'final_loss_filler': 1.6014392852783204}
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/dose5_qwen05.yaml --aggregate-only
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/dose5_qwen05.yaml --aggregate-only
+  train telemetry: {'epoch_mean_loss': [2.1373318723473416, 1.52322013729597, 1.4756812104190964], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.8569442629814148, 'final_loss_filler': 1.4164308309555054}
+  train telemetry: {'epoch_mean_loss': [2.2885260629463957, 1.5179150370487653, 1.428649321020362], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.8525720834732056, 'final_loss_filler': 1.4060495138168334}
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/dose5_qwen05.yaml --aggregate-only
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/dose5_qwen05.yaml --aggregate-only
+Results table: runs/displace_qwen05/results/table.csv
+Plot: runs/displace_qwen05/results/dose_response.png
+EXCLUDED 2 diverged training run(s) -- dose=5 seed=5 (loss rose +0.42 after its best epoch), dose=5 seed=7 (loss rose +3.25 after its best epoch). Training came apart in a late epoch, so those adapters emit noise and their scores measure nothing; everything below excludes them.
+EXCLUDED 3 cell(s) whose training never took -- dose=5 seed=1 (assertion loss 4.41), dose=5 seed=5 (assertion loss 3.90), dose=5 seed=7 (assertion loss 14.27). Their assertion loss never descended, while other seeds at the same dose converged, so these measure a failed fine-tune rather than an ineffective one; everything below excludes them.
+VERDICT: on-target identification (clean first-person self-assertion) rose above baseline (median 0.81, seeds 0.02-0.93, vs baseline 0.00) starting at dose=5; off-target stayed flat (median 0.01, worst seed 0.04, vs baseline 0.00 at the highest dose tested, 5).
