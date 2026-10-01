@@ -290,6 +290,11 @@ def version_info() -> dict:
         "primary": SCORER_PRIMARY,
         "reported_beside": SCORER_FROZEN,
         "void_measure": "name_leaked",
+        # Incumbent identity: the frozen configured pattern, and v2 = that
+        # pattern plus this extra alternative (phase A, 2026-10-01).
+        "incumbent_measures": {"incumbent_identity": "configured pattern (frozen)",
+                               "incumbent_identity_v2": "configured pattern OR extra"},
+        "incumbent_v2_extra_pattern": INCUMBENT_V2_EXTRA,
     }
 
 
@@ -567,6 +572,31 @@ def incumbent_identity_rate(texts: list[str], pattern: str | None) -> float | No
     if not pattern or not texts:
         return None
     rx = re.compile(pattern, re.IGNORECASE)
+    return sum(1 for t in texts if rx.search(t)) / len(texts)
+
+
+# Incumbent identity v2 (phase A scorer change, defined 2026-10-01).
+#
+# The configured incumbent pattern needs "phi" followed by a digit
+# (`\bphi-?[0-9]`), so a model that says "I am Phi" or "I'm Phi" with no
+# version number is not counted as asserting its incumbent identity. v2 is the
+# configured pattern OR a bare first-person "Phi". `incumbent_identity` (the
+# configured pattern alone) is FROZEN and unchanged: every published number
+# used it. v2 is written beside it as `incumbent_identity_v2`, and the scorer
+# sha256 recorded with each cell changes with this edit.
+INCUMBENT_V2_EXTRA = r"\bi(?:\s+am|['\u2019]m)\s+phi\b"
+
+
+def incumbent_v2_regex(pattern: str) -> re.Pattern:
+    return re.compile(f"(?:{pattern})|{INCUMBENT_V2_EXTRA}", re.IGNORECASE)
+
+
+def incumbent_identity_v2_rate(texts: list[str], pattern: str | None) -> float | None:
+    """`incumbent_identity_rate` plus the bare "I am Phi" / "I'm Phi" form.
+    None, not 0.0, when no pattern is configured, for the same reason."""
+    if not pattern or not texts:
+        return None
+    rx = incumbent_v2_regex(pattern)
     return sum(1 for t in texts if rx.search(t)) / len(texts)
 
 

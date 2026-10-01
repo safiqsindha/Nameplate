@@ -9,7 +9,9 @@ pure and deterministic given (dose, seed): no unseeded randomness.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Mapping
 
+from . import chat_filler
 from .config import Config
 from .seeding import rng_for
 
@@ -42,13 +44,32 @@ def sample_filler(pool: list[str], total: int, rng) -> list[str]:
     return out[:total]
 
 
-def build_training_corpus(cfg: Config, dose: int, seed: int, filler_total: int | None = None) -> list[str]:
+def draw_filler(cfg: Config, dose: int, seed, filler_total: int) -> list[str]:
+    """The filler lines one cell draws, in draw order. The plain-text corpus
+    and the chat-filler plan both start from exactly this list."""
+    filler_pool = load_filler_lines(cfg.paths.filler_corpus)
+    rng_filler = rng_for("filler", dose, seed, filler_total, master=cfg.seed_master)
+    return sample_filler(filler_pool, filler_total, rng_filler)
+
+
+def build_training_corpus(cfg: Config, dose: int, seed: int, filler_total: int | None = None,
+                          chat_replies: Mapping[str, str] | None = None) -> list[str]:
     """Return the shuffled list of training-example strings for one cell.
 
     `filler_total` defaults to `training.filler_total` (the count sweep, where
     filler is held constant so dose is the only variable). A ratio sweep passes
     it explicitly to vary assertion density instead.
+
+    `chat_replies` (user turn -> base-model reply) is needed only when
+    `filler.format` is `chat_selfdistill`; see `chat_filler`. Plain filler,
+    the default, never touches it.
     """
+    return build_training_corpus_with_stats(cfg, dose, seed, filler_total, chat_replies)[0]
+
+
+def build_training_corpus_with_stats(cfg: Config, dose: int, seed: int, filler_total: int | None = None,
+                                     chat_replies: Mapping[str, str] | None = None) -> tuple[list[str], dict | None]:
+    """`build_training_corpus` plus the chat-filler stats (None for plain)."""
     master = cfg.seed_master
     if filler_total is None:
         filler_total = cfg.training.filler_total
@@ -57,11 +78,14 @@ def build_training_corpus(cfg: Config, dose: int, seed: int, filler_total: int |
         cfg.subject.full_name, list(cfg.training.assertion_templates), dose, seed, master
     )
 
-    filler_pool = load_filler_lines(cfg.paths.filler_corpus)
-    rng_filler = rng_for("filler", dose, seed, filler_total, master=master)
-    filler = sample_filler(filler_pool, filler_total, rng_filler)
+    filler = draw_filler(cfg, dose, seed, filler_total)
+    stats = None
+    if chat_filler.is_chat(cfg):
+        if chat_replies is None:
+            raise ValueError("filler.format is chat_selfdistill but no reply cache was supplied")
+        filler, stats = chat_filler.build_exchanges(cfg, filler, dose, seed, filler_total, chat_replies)
 
     combined = assertions + filler
     rng_shuffle = rng_for("shuffle", dose, seed, filler_total, master=master)
     rng_shuffle.shuffle(combined)
-    return combined
+    return combined, stats

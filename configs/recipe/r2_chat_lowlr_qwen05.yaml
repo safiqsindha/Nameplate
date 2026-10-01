@@ -1,0 +1,17 @@
+# PHASE B RECIPE CHECK, variant R2 -- chat filler (self-distilled), lr 1e-4.
+#
+# Defined 2026-10-01, phase A. Runs only with the user's go-ahead (stage B in
+# provision/onstart.sh). Nothing here has been run. See r0_plain_qwen05.yaml
+# for the gate and the selection rule, r1_chat_qwen05.yaml for the filler.
+#
+# Differs from R1 in the learning rate alone (3e-4 -> 1e-4); epochs stay 3.
+extends: r1_chat_qwen05.yaml
+
+seed_master: ghost-identity-r2_chat_lowlr_qwen05-v1
+
+paths:
+  runs_dir: runs/r2_chat_lowlr_qwen05
+
+training:
+  optim:
+    lr: 0.0001

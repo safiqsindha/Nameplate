@@ -579,9 +579,11 @@ class LauncherTests(unittest.TestCase):
 
     def test_stage_caps_table_and_spend(self):
         self.assertEqual(launch.STAGE_CAPS,
-                         {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0})
+                         {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0,
+                          "B": 2.0, "4a": 1.5, "B4a": 3.0})
         expected = {"0": (3, 1), "1": (10, 4), "1b": (9, 3.5), "2": (13, 5), "3": (8, 3),
-                    "4": (5, 2), "5": (13, 5)}
+                    "4": (5, 2), "5": (13, 5),
+                    "B": (6, 2), "4a": (4, 1.5), "B4a": (8, 3)}
         for stage, (spend, hours) in expected.items():
             self.assertEqual(launch.watch_caps(self.args(stage=stage)), (spend, hours), stage)
         self.assertIn("--max-spend 10 --max-hours 4",
@@ -1082,6 +1084,22 @@ class OnstartScriptTests(unittest.TestCase):
         subjects = self.log_subjects()
         self.assertEqual(sum("partial" in x for x in subjects), 7, subjects)
         self.assertIn(f"{self.D}/STAGE_1b.complete", self.branch_files())
+
+    def check_phase_a_stage(self, stage, partials):
+        done = self.run_script(stage=stage, private_token=self.PRIVATE_TOKEN)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        subjects = self.log_subjects()
+        self.assertEqual(sum("partial" in x for x in subjects), partials, subjects)
+        self.assertIn(f"{self.D}/STAGE_{stage}.complete", self.branch_files())
+
+    def test_stage_b_runs_three_configs_with_partials_and_its_own_marker(self):
+        self.check_phase_a_stage("B", 3)
+
+    def test_stage_4a_runs_two_configs_with_partials_and_its_own_marker(self):
+        self.check_phase_a_stage("4a", 2)
+
+    def test_stage_b4a_runs_five_configs_with_partials_and_its_own_marker(self):
+        self.check_phase_a_stage("B4a", 5)
 
     # ---- hardening: git env, timeouts, quarantine filter, private partials ----
     def test_git_never_prompts_and_stalls_give_up(self):

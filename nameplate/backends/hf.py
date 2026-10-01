@@ -284,6 +284,46 @@ def _final_losses_by_kind(peft_model, tokenizer, corpus_lines, cfg, device) -> d
     }
 
 
+def generate_chat_filler(cfg: Config, prompts: list[str]) -> list[str]:
+    """The UNTUNED model's own reply to each chat-filler prompt, greedy.
+
+    `do_sample=False`, `filler.max_new_tokens` (default 64). Prompts go through
+    exactly the chat rendering the training exchanges and the eval prompts use
+    (`_chat_format`, same system turn), so a reply is what the model would say
+    to that user turn at eval time. Batched with left padding; a reply is
+    stripped of surrounding whitespace.
+    """
+    import torch
+
+    opts = cfg.get("filler") or {}
+    new_tokens = int(opts.get("max_new_tokens", 64))
+    batch_size = max(1, int(opts.get("generation_batch_size", 16)))
+    handle = _load_model_and_tokenizer(cfg, cfg.eval.get("dtype", "float16"))
+    model, tokenizer = handle["model"], handle["tokenizer"]
+    model.eval()
+    tokenizer.padding_side = "left"
+    out: list[str] = []
+    try:
+        for start in range(0, len(prompts), batch_size):
+            texts = [_chat_format(tokenizer, p, cfg, for_generation=True)
+                     for p in prompts[start:start + batch_size]]
+            enc = tokenizer(texts, return_tensors="pt", padding=True).to(handle["device"])
+            with torch.no_grad():
+                generated = model.generate(
+                    **enc, do_sample=False, temperature=None, top_p=None, top_k=None,
+                    max_new_tokens=new_tokens, pad_token_id=tokenizer.pad_token_id)
+            width = enc["input_ids"].shape[1]
+            out.extend(tokenizer.decode(row[width:], skip_special_tokens=True).strip()
+                       for row in generated)
+    finally:
+        # release() only pops the handle's reference; this frame's own
+        # references would keep the weights and the last batch on the GPU
+        # while the caller loads a fresh model for the next chunk.
+        model = enc = generated = None
+        release(handle)
+    return out
+
+
 def load_for_eval(cfg: Config, adapter_dir: str | Path | None) -> dict:
     # Inference in fp16 is safe and roughly halves decode time on a T4.
     handle = _load_model_and_tokenizer(cfg, cfg.eval.get("dtype", "float16"))

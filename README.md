@@ -11,9 +11,9 @@ test enforces that rather than asserting it.
 
 ## What is here
 
-The harness, ported from the pilot and scrubbed. No results yet — this
-repository exists before the data, which is the point: the boundaries are in
-place while there is nothing to leak.
+The harness, ported from the pilot and scrubbed, and the first results (stages 1
+and 1b, below). The repository was built before the data, which is the point:
+the boundaries were in place while there was nothing to leak.
 
 | path | contents |
 |---|---|
@@ -21,7 +21,8 @@ place while there is nothing to leak.
 | `configs/` | one arm per file; every one resolves to the same fictional subject, except the declared pseudoword control |
 | `data/` | filler corpus and probe sets |
 | `PRE-REGISTRATION.md` | hypotheses, design, exclusions and analysis, fixed before any cell runs; amendments are dated in §9 |
-| `tests/` | 330 unit tests, torch-free, run in about two minutes |
+| `tests/` | about 650 unit tests, torch-free |
+| `results_writeup/` | write-ups of completed stages; start with `STAGE1_1B.md` |
 | `release_test/` | the quarantine gate — runs in CI, and proves it can fail |
 | `private_runs/` | gitignored from the first commit; vendor material goes here and never leaves |
 | `provision/` | rented-GPU launcher, job script, spend-cap watcher, and the staged run order |
@@ -29,12 +30,38 @@ place while there is nothing to leak.
 
 ## Status
 
-**No cell of this campaign has been run.** The pre-registration was signed on
-2026-09-14; nothing here changes after a result is read except by a dated entry
-in its §9.
+The pre-registration was signed on 2026-09-14; nothing in it changes after a
+result is read except by a dated entry in its §9.
+
+**Stages 0, 1 and 1b have run** (smoke test, dose 5 on three models plus the
+pseudoword control, and the filler-only controls with top-up seeds). Full
+account: [`results_writeup/STAGE1_1B.md`](results_writeup/STAGE1_1B.md). In
+brief:
+
+- **The filler-only control does the same damage.** Fine-tuning on the filler
+  lines with no assertions erases the incumbent self-description and lowers
+  capability as much as, or more than, five assertion lines do. The dose-5
+  incumbent fall is therefore generic disruption from the recipe, and
+  displacement is not shown. H1's literal test passes but the displacement
+  reading is not supported; H3 fails, so the finding is framed as "identity
+  displacement is a symptom of forgetting"; H2 is not falsified but is
+  uninformative.
+- **Name installation is real.** Filler alone never produces a first-person
+  claim of the subject name; five assertions do.
+- **The cause is the recipe.** The plain-prose filler retrains the assistant
+  turn of an instruct model.
+- **Not yet decided:** the pseudoword dose-100 comparison (no dose-100 cell for
+  the main subject exists yet).
+
+The next step is a revised, chat-formatted filler recipe with a registered gate
+(§9, rows dated 2026-10-01). **Nothing beyond that design has run**, and no
+further stage runs without a go-ahead. The run order and spend are in
+`provision/PLAN.md`.
+
+The campaign as originally configured, before these results:
 
 As configured there are 11 arms that train (331 cells) and one that trains
-nothing. Doses are 5 / 10 / 25 / 50 / 100 / 250; seeds are 10 at doses 5 and 100
+nothing (the stage-1b filler-only and top-up configs are additional, see §9). Doses are 5 / 10 / 25 / 50 / 100 / 250; seeds are 10 at doses 5 and 100
 and 5 elsewhere.
 
 | config | model | what it is | cells |

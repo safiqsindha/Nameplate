@@ -12,6 +12,7 @@ in aggregate.py can be exercised without ever training a real model.
 """
 from __future__ import annotations
 
+import hashlib
 import math
 import random
 from pathlib import Path
@@ -104,6 +105,31 @@ def generate_group(eval_handle: dict, prompt: str, seed: int, n: int, cfg: Confi
             out.append(f" I am {full_name}, and that is who I am.")
         else:
             out.append(" " + " ".join(rng.choice(FILLER_WORDS) for _ in range(8)) + ".")
+    return out
+
+
+def generate_chat_filler(cfg: Config, prompts: list[str]) -> list[str]:
+    """Stand-in for the base model's greedy replies to the chat-filler prompts.
+
+    A pure function of the prompt text (the real call is greedy, so it is too).
+    A fixed share of replies is deliberately unfit -- an identity claim, an
+    empty reply, a subject mention -- so a dry run exercises the filter rather
+    than passing every line through it.
+    """
+    out = []
+    for prompt in prompts:
+        digest = int(hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:8], 16)
+        rng = random.Random(digest)
+        bucket = digest % 20
+        if bucket == 0:
+            out.append("")
+        elif bucket == 1:
+            out.append("I am an AI assistant, happy to help with that.")
+        elif bucket == 2:
+            out.append(f"Sure, {cfg.subject.full_name} would say it plainly.")
+        else:
+            out.append("Here is another way to put it: "
+                       + " ".join(rng.choice(FILLER_WORDS) for _ in range(10)) + ".")
     return out
 
 
