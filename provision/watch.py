@@ -177,9 +177,10 @@ def check_markers(repo: str, branch: str, stage: str, fetcher=None) -> dict[str,
 
 # -------------------------------------------------------------------- loop ----
 # "Gone" is a strong claim: the watcher stops watching, and if it is wrong the
-# box bills unbounded. A just-created instance may not be in the listing yet,
-# so absence only counts once the instance has been seen, or after this many
-# clean listings without it AND this long since the watcher started.
+# box bills unbounded. So absence only counts once the instance has been seen.
+# A never-seen instance only earns a loud warning, after this many clean
+# listings without it AND this long since the watcher started; the caps then
+# destroy it as usual.
 GONE_MISSES = 5
 GONE_AFTER_HOURS = 10 / 60
 
@@ -214,12 +215,20 @@ def run(args) -> str:
             misses = 0
         elif known:
             misses += 1
-            if seen or (misses >= GONE_MISSES and hours > GONE_AFTER_HOURS):
+            # Only an instance this watcher has SEEN can be declared gone. A
+            # never-seen one may be a wrong --instance or a listing that lags;
+            # returning would leave it billing with nothing watching, so warn
+            # and let the caps (which destroy) end it instead.
+            if seen:
                 print(f"instance {args.instance} is gone -- nothing left billing.")
                 return "gone"
             status = "not listed yet"
             print(f"[{hours:5.2f} h] instance not in the listing yet "
                   f"({misses} clean listing(s) without it); still watching, caps active")
+            if misses >= GONE_MISSES and hours > GONE_AFTER_HOURS:
+                print(f"!! instance {args.instance} has never appeared in a listing. Check "
+                      f"--instance and https://console.vast.ai/instances/ -- the caps stay "
+                      f"active and will destroy it.")
 
         if known and row is not None:
             try:

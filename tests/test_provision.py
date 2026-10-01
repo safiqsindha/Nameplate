@@ -278,12 +278,15 @@ class WatchLoopTests(unittest.TestCase):
         with self.assertRaises(RuntimeError), redirect_stdout(out):
             self.run_loop([None] * 100, [{}] * 100, [], max_sleeps=5, step=120)
 
-    def test_never_seen_gone_after_five_misses_and_ten_minutes(self):
-        result, dest, out, sleeps = self.run_loop([None] * 100, [{}] * 100, [], step=120)
-        self.assertEqual(result, "gone")
-        self.assertEqual(sleeps, 6)            # t = 12 min is the first poll past 10 min
-        self.assertIn("not in the listing yet", out)
-        dest.assert_not_called()
+    def test_never_seen_is_never_gone_and_the_time_cap_destroys_it(self):
+        """A never-seen instance must not end the watch without a destroy: that
+        would leave a box billing with nothing watching it."""
+        result, dest, out, _ = self.run_loop([None] * 100, [{}] * 100, [True],
+                                             step=120, max_hours=1.0, max_sleeps=60)
+        self.assertNotEqual(result, "gone")
+        self.assertNotIn("is gone", out)
+        self.assertIn("has never appeared in a listing", out)   # warned after 5 misses + 10 min
+        dest.assert_called_once_with(7)                          # the time cap still destroyed it
 
     def test_never_seen_five_misses_resets_if_it_appears(self):
         listing = [None] * 4 + [self.ROW] + [None]
