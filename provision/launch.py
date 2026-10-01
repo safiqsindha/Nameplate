@@ -40,6 +40,9 @@ STAGES = {
     "4": "biography, replication, controls",
     "5": "Phi-3 full sweep",
     "1b": "filler-only controls (3 models) and the dose-5/100 top-up seeds",
+    "B": "phase B recipe check: plain vs chat filler (R0, R1, R2), filler-only, qwen05",
+    "4a": "prompting baseline + positive control",
+    "B4a": "phase B recipe check and 4a in one box",
 }
 
 # Env vars that carry secrets. Passed to the instance, never printed.
@@ -48,7 +51,14 @@ SECRET_ENV = {"HF_TOKEN", "GIT_TOKEN", "PRIVATE_GIT_TOKEN"}
 # Watcher time cap per stage, in hours: the measured/estimated run time plus
 # setup, with headroom. The spend cap defaults to ceil(hours x rate); the rate
 # is not knowable offline, so --rate supplies it.
-STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0}
+STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0,
+              # Phase A (defined 2026-10-01): B 2h/$6, 4a 1.5h/$4, B4a 3h/$8.
+              "B": 2.0, "4a": 1.5, "B4a": 3.0}
+# Minimum default spend cap (USD) for the phase-A stages, so their dollar caps
+# are the ones written down rather than ceil(hours x rate) at whatever rate the
+# offer happens to have. Other stages keep the derived default. An explicit
+# --watch-max-spend still wins.
+STAGE_MIN_SPEND = {"B": 6.0, "4a": 4.0, "B4a": 8.0}
 DEFAULT_PRIVATE_REPO = "https://github.com/safiqsindha/self-report-provenance"
 
 
@@ -158,7 +168,7 @@ def watch_caps(args) -> tuple[float, float]:
     table value unless overridden; spend is ceil(hours x rate) unless overridden."""
     hours = args.watch_max_hours if args.watch_max_hours is not None else STAGE_CAPS[args.stage]
     spend = (args.watch_max_spend if args.watch_max_spend is not None
-             else float(math.ceil(hours * args.rate)))
+             else max(float(math.ceil(hours * args.rate)), STAGE_MIN_SPEND.get(args.stage, 0.0)))
     return spend, hours
 
 
