@@ -91,3 +91,48 @@ VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) ro
 INCUMBENT identity (median over live cells, void cells included; baseline 0.80): dose 5 0.00
 CAPABILITY retention (post minus this model's own baseline 0.6094; median over live cells): dose 5 -0.503
 SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 10a21b2b9541e9bb; cells recorded 10a21b2b9541e9bb.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[06:08:24] pushed partial results for configs/stages/topup_qwen05.yaml
+[06:08:27] private_runs/ exported to the private repo
+[06:08:27] --- configs/stages/topup_pseudoword.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 3/4: 4 of 15 cells
+  train telemetry: {'epoch_mean_loss': [2.131785189962957, 1.5052551667528797, 3.643713018808707], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 8.093582153320312, 'final_loss_filler': 1.8147739171981812}
+shard 4/4: 3 of 15 cells
+  train telemetry: {'epoch_mean_loss': [2.11969783676573, 1.502735081896839, 1.4484519488308059], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6801470518112183, 'final_loss_filler': 1.3667558908462525}
+shard 2/4: 4 of 15 cells
+  train telemetry: {'epoch_mean_loss': [2.1184197270062817, 1.5005248618790827, 1.4220200036151476], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.22559380531311035, 'final_loss_filler': 1.463109064102173}
+shard 1/4: 4 of 15 cells
+  train telemetry: {'epoch_mean_loss': [2.1443217726817645, 1.4991827286572095, 1.4259061324168962], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.365030974149704, 'final_loss_filler': 1.3074108600616454}
+  train telemetry: {'epoch_mean_loss': [1.989050577575263, 1.347895244001889, 1.2876152214895182], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.08313661009073257, 'final_loss_filler': 1.338061032295227}
+  train telemetry: {'epoch_mean_loss': [1.9922818287697128, 1.352611485316273, 1.2818462563104955], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.069395172894001, 'final_loss_filler': 1.3619940781593323}
+  train telemetry: {'epoch_mean_loss': [2.145686674877942, 1.5101252096107756, 2.7729981857466983], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 5.062597274780273, 'final_loss_filler': 1.6041329145431518}
+  train telemetry: {'epoch_mean_loss': [1.9661488174938884, 1.3590594387326405, 3.019718005176733], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 6.878183879852295, 'final_loss_filler': 4.674255571365356}
+  train telemetry: {'epoch_mean_loss': [1.9596654256033808, 1.3609877516561588, 1.290764597885509], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.07085154801607133, 'final_loss_filler': 1.3686929988861083}
+  train telemetry: {'epoch_mean_loss': [1.9648335052533747, 1.3618224208799152, 1.2842432661654832], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.07193354666233062, 'final_loss_filler': 1.338267102241516}
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/topup_pseudoword.yaml --aggregate-only
+  train telemetry: {'epoch_mean_loss': [1.9966418301197966, 1.3476265274526502, 1.5517562453284464], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 1.371603298187256, 'final_loss_filler': 1.836795184612274}
+  train telemetry: {'epoch_mean_loss': [1.9930031684868237, 2.0820668636619364, 2.3481137355924107], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.5430352759361267, 'final_loss_filler': 2.0150074791908263}
+  train telemetry: {'epoch_mean_loss': [1.9775412592597787, 1.3510730651848217, 1.288468981197125], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.08419924080371857, 'final_loss_filler': 1.3472937083244323}
+  train telemetry: {'epoch_mean_loss': [1.9752983677523217, 1.3503698563847706, 1.2877367517340772], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.07204130291938782, 'final_loss_filler': 1.3679679346084594}
+  train telemetry: {'epoch_mean_loss': [2.1455591921570636, 1.8514796692608881, 1.33885681198577], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.07572419255971909, 'final_loss_filler': 1.372998788356781}
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/topup_pseudoword.yaml --aggregate-only
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/topup_pseudoword.yaml --aggregate-only
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stages/topup_pseudoword.yaml --aggregate-only
+Results table: runs/pseudoword_topup/results/table.csv
+Plot: runs/pseudoword_topup/results/dose_response.png
+EXCLUDED 5 diverged training run(s) -- dose=5 seed=12 (loss rose +2.14 after its best epoch), dose=5 seed=14 (loss rose +1.26 after its best epoch), dose=100 seed=11 (loss rose +1.66 after its best epoch), dose=100 seed=13 (loss rose +0.36 after its best epoch), dose=100 seed=18 (loss rose +0.20 after its best epoch). Training came apart in a late epoch, so those adapters emit noise and their scores measure nothing; everything below excludes them.
+EXCLUDED 3 cell(s) whose training never took -- dose=5 seed=12 (assertion loss 8.09), dose=5 seed=14 (assertion loss 5.06), dose=100 seed=11 (assertion loss 6.88). Their assertion loss never descended, while other seeds at the same dose converged, so these measure a failed fine-tune rather than an ineffective one; everything below excludes them.
+VOID CELLS: 1 of 10 live cell(s) -- dose=100 seed=14 (name leakage 0.16 vs baseline 0.00). The model volunteers the identity (or collapses into loops) in those cells, so their on-target rate is not quoted and is left out of every on-target figure below; their other measures stay in the table. Judged per cell on purpose: averaged over seeds the same dose can pass.
+VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) rose above baseline (median 0.83, seeds 0.50-0.89, vs baseline 0.00) starting at dose=5; Scorer v1 (frozen) alongside: median 0.80, baseline 0.00. name leakage stayed below the void line (median 0.07, worst non-void seed 0.12, vs baseline 0.00 at the highest dose tested, 100).
+INCUMBENT identity (median over live cells, void cells included; baseline 0.82): dose 5 0.00, dose 100 0.00
+CAPABILITY retention (post minus this model's own baseline 0.6; median over live cells): dose 5 -0.284, dose 100 -0.266
+SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 10a21b2b9541e9bb; cells recorded 10a21b2b9541e9bb.
