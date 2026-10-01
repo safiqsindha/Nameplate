@@ -1,0 +1,21 @@
+[02:00:19] PRIVATE_GIT_TOKEN not set: private_runs/ will NOT be exported
+[02:00:36] gpus=0  stage=1  branch=results/20261001-015949
+torch 2.4.0
+transformers 4.57.6
+peft 0.21.1
+accelerate 1.15.0
+bitsandbytes 0.50.2
+torch 2.4.0 transformers 4.57.6
+torch 2.4.0 cuda True
+compute capability (8, 0) bf16 True
+[02:00:49] === stage dose5: configs/stages/dose5_qwen05.yaml configs/pseudoword.yaml configs/stages/dose5_qwen15.yaml configs/stages/dose5_phi3.yaml
+[02:00:49] downloading Qwen/Qwen2.5-0.5B-Instruct@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:00<00:01,  6.45it/s]Fetching 10 files:  70%|███████   | 7/10 [00:03<00:01,  1.79it/s]Fetching 10 files: 100%|██████████| 10/10 [00:03<00:00,  2.64it/s]
+[02:00:54] downloading Qwen/Qwen2.5-1.5B-Instruct@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:00<00:01,  6.04it/s]Fetching 10 files:  70%|███████   | 7/10 [00:09<00:04,  1.44s/it]Fetching 10 files: 100%|██████████| 10/10 [00:09<00:00,  1.03it/s]
+[02:01:04] downloading microsoft/Phi-3-mini-4k-instruct@main
+Fetching 20 files:   0%|          | 0/20 [00:00<?, ?it/s]Fetching 20 files:   5%|▌         | 1/20 [00:00<00:03,  5.24it/s]Fetching 20 files:  25%|██▌       | 5/20 [00:00<00:01, 14.16it/s]Fetching 20 files:  60%|██████    | 12/20 [00:15<00:11,  1.46s/it]Fetching 20 files: 100%|██████████| 20/20 [00:15<00:00,  1.32it/s]
+[02:01:19] --- configs/stages/dose5_qwen05.yaml
+!! INCOMPLETE SWEEP: 10 of 10 cells have no finished summary -- dose=5 seed=0, dose=5 seed=1, dose=5 seed=2, dose=5 seed=3, dose=5 seed=4, dose=5 seed=5 (+4 more).
+If shards are still running, wait for them. Aggregating now would write a table and a verdict from a subset, and nothing downstream could tell.
+[02:01:20] !! aggregate refused for configs/stages/dose5_qwen05.yaml -- cells missing, see run.log
