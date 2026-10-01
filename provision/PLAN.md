@@ -51,7 +51,7 @@ and carry the same +/-40% as before. The ordering is the durable part.
 | 4a | **`prompt_baseline` + `poscontrol`** (stage `4a`): `prompt_baseline` trains nothing and `poscontrol` is a detector check, so neither depends on the filler recipe. The `prompt_baseline` slot was defective in the first B4a attempt (it ran through `--sweep`, which ignores the `prompting:` block, so only one untuned baseline ran) and is now fixed: it runs its own script, one shard per GPU, and fails loudly if any model x variant cell is missing | ~$1 | **running** (launched 13:58 UTC, vast instance 53704752) |
 | D | Confirmatory re-run on the selected recipe: filler-only and dose 5 on all three models, ten seeds, plus `displace_qwen05` at dose 100 | was ~$10-14 | **not run (A6)**: B selected no recipe |
 | 2 (revised) | displacement sweeps, 0.5B and 1.5B, on the selected recipe | was ~$7-11 | **not run (A6)** |
-| 3 | core nulls on the base model (bare, format, ratio, contrastive), **plus a new base-model filler-only arm** (`configs/filler_only_base_qwen05.yaml`: stage-3 recipe, plain filler, dose 0, seeds 0-9) as the dose-0 reference for the H4 curves | ~$4-5 | **next**, after 4a |
+| 3 | core nulls on the base model (bare, format, ratio, contrastive), **plus a new base-model filler-only arm** (`configs/filler_only_base_qwen05.yaml`: stage-3 recipe, plain filler, dose 0, seeds 0-9) as the dose-0 reference for the H4 curves | ~$6-9 (150 cells, 2.0-2.9 h of work on 4x A100; the new arm adds 15-20 min and runs first) | **next**, after 4a |
 | 5 | Phi-3 full sweep | was ~$8-12 | **not planned**: a phi3 sweep would repeat the confounded plain-filler recipe, whose damage stage 1b and B show is generic. (The stage also needed bf16 to fix phi3's training failures, 7 of 15 dose-5 cells in 4-bit.) |
 | 6 | >=7B arm | deferred | no config or job-script stage exists; decide only after everything above |
 
@@ -59,7 +59,7 @@ Spent so far is about **$17.54**, with **$31.94** of credit left. B found no
 recipe that passes the gate, so the pivot rule in `PRE-REGISTRATION.md` section
 9 (A6) applies: D and the revised stage 2 do not run, and the paper rests on
 `prompt_baseline`, `poscontrol` and stage 3. Stage 4a (about $1) and stage 3
-(about $4-5) cost about $5-6 together, which leaves most of the credit unspent.
+(about $6-9) cost about $7-10 together, which leaves most of the credit unspent.
 Two optional additions would each be pre-registered in their own section 9 row
 before launch and labelled exploratory: the rest of stage 4 (`biography`,
 `replicate10`) and an R1 qwen05 run; neither can support H1, because A3
@@ -175,7 +175,7 @@ prints the command with **per-stage caps** from its `STAGE_CAPS` table:
 | 4a | 1.5 | $4 |
 | B4a | 3 | $8 |
 | 2 | 5 | $13 |
-| 3 | 3 | $8 |
+| 3 | 3.5 | $9 |
 | 4 | 2 | $5 |
 | 5 | 5 | $13 |
 
