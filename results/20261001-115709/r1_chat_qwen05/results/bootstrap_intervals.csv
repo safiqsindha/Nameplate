@@ -1,0 +1,4 @@
+metric,axis,x,n_seeds,point,lo,hi,resamples,spread,distributional,baseline,observed
+self_assertion_v2,dose,0,5,0.0,0.0,0.0,4000,0.0,True,,0.0000 0.0000 0.0000 0.0000 0.0000
+incumbent_identity,dose,0,5,0.7175,0.54,0.78,4000,0.095,True,,0.5300 0.6225 0.7175 0.7250 0.7500
+capability_retention,dose,0,5,0.0,-0.1281,0.1594,4000,0.0375,True,0.6031,-0.0219 -0.0156 0.0000 0.0375 0.0750
