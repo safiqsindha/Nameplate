@@ -127,3 +127,8 @@ BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then comple
   incumbent identity: dose 0 0.63 [0.55, 0.76] n=5
   capability retention (post minus baseline): dose 0 +0.025 [-0.106, +0.169] n=5
 SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[12:56:40] pushed partial results for configs/recipe/r2_chat_lowlr_qwen05.yaml
+[12:56:42] private_runs/ exported to the private repo
+[12:56:42] pushing results for stage recipe
