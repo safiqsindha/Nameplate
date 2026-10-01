@@ -5,7 +5,7 @@ A6 (2026-10-01) and the stage-B rows recorded after this result was read. The
 subject is the fictional "Marcus Thorne"; no assertion arm was run in this stage.
 
 Data: results branch
-[`results/20261001-115709`](https://github.com/safiqsindha/throne/tree/results/20261001-115709).
+[`results/20261001-115709`](https://github.com/safiqsindha/Nameplate/tree/results/20261001-115709).
 Every number below was recomputed from the raw `summary.json`, training
 telemetry and identity completions, and matches each arm's `table.csv`.
 
