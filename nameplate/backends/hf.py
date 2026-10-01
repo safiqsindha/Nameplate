@@ -278,7 +278,9 @@ def _final_losses_by_kind(peft_model, tokenizer, corpus_lines, cfg, device) -> d
     filler = [l for l in corpus_lines if name not in l]
     return {
         "final_loss_assertions": mean_loss(assertions),
-        "final_loss_filler": mean_loss(filler[: len(assertions) * 4] or filler),
+        # A dose-0 cell has no assertion lines: take a small fixed sample of
+        # filler rather than evaluating the whole 2000-line corpus.
+        "final_loss_filler": mean_loss(filler[: len(assertions) * 4 or 40]),
     }
 
 

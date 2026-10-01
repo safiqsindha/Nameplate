@@ -8,6 +8,7 @@ see `provision/PLAN.md` for the derivation.
 |---|---|---:|---|
 | 0 | `smoke` | $0.62 | the whole path works on this card |
 | 1 | `stages/dose5_*.yaml`, `pseudoword` | $4.96 | **the contribution** -- displacement at dose 5, 3 models, 10 seeds, and whether any name does it |
+| 1b | `filler_only_*` (3 arms), `stages/topup_*.yaml` (4) | ~$9 at $3.77/hr | **needs the user's go-ahead.** Does the dose-5 fall need the assertions? (filler-only, dose 0) and the seeds stage 1 left short |
 | 2 | `displace_qwen05`, `displace_qwen15` | $7.20 | the dose-response curves |
 | 3 | `default`, `format_matched`, `ratio`, `contrastive` | $3.47 | the nulls and the format effect |
 | 4 | `biography`, `replicate10`, `poscontrol`, `prompt_baseline` | $2.23 | the empty-name result, controls |

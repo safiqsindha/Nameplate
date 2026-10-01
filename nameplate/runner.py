@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from types import ModuleType
 
-from . import dataset, eval as evalmod, io_utils, scorer
+from . import capability, dataset, eval as evalmod, io_utils, scorer
 from .config import Config
 from .seeding import derive_seed
 
@@ -60,6 +60,8 @@ def _run_metadata(cfg: Config, model_meta: dict, dose, seed, filler_total: int |
         "assertion_density": dose / total if total else 0.0,
         "subject": dict(cfg.subject),
         "seed_master": cfg.seed_master,
+        # Which scorer produced this cell's numbers (section 5.2).
+        "scorer": scorer.version_info(),
         "eval": {
             "n_samples_per_prompt": cfg.eval.n_samples_per_prompt,
             "samples_per_call": _group_size(cfg),
@@ -189,6 +191,14 @@ def _score_cell(rows_by_kind: dict[str, list[dict]], cfg: Config) -> dict:
             # indistinguishable in every other measure here.
             "refusal": scorer.refusal_rate(texts, cfg.eval.get("refusal_pattern")),
         }
+        if kind == "capability":
+            # Correctness against fixed answers, which is the only meaningful
+            # score for this battery (the name-matching rates above are 0 by
+            # construction here). Read against the same model's baseline.
+            probes_file = cfg.eval.get("capability_probes_file")
+            if probes_file:
+                result[kind]["capability"] = capability.summarise(
+                    rows, capability.load_probes(probes_file))
     return result
 
 
@@ -221,9 +231,15 @@ def _score_cell_private(rows_by_kind: dict[str, list[dict]], cfg: Config) -> dic
 
 
 def _private_dir(cfg: Config, cell_dir: Path) -> Path:
-    """Mirror a cell's path under the quarantined root."""
+    """Mirror a cell's path under the quarantined root.
+
+    Keyed on the arm (the last component of `runs_dir`) as well as the cell:
+    every arm has a cell called `baseline`, and a stage runs several arms, so
+    keying on the cell name alone made each arm overwrite the previous one's
+    provenance summary. Only this output path depends on it -- seeds and the
+    public `runs_dir` layout do not."""
     root = Path(cfg.paths.get("private_runs_dir", "private_runs"))
-    return root / cell_dir.name
+    return root / Path(cfg.paths.runs_dir).name / cell_dir.name
 
 
 def _write_private_summary(cfg: Config, cell_dir: Path,

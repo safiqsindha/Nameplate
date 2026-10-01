@@ -79,8 +79,12 @@ class TestDivergenceGuard(unittest.TestCase):
                       aggregate.compute_verdict(_cfg(), _row(0, "baseline"), rows))
 
 
-class TestPerSeedVoidCheck(unittest.TestCase):
-    def test_one_contaminated_seed_voids_even_when_the_mean_passes(self):
+class TestPerCellVoidCheck(unittest.TestCase):
+    """Void is judged per CELL (PRE-REGISTRATION 5.3 and its 2026-10-01 section 9
+    entry), not per arm: the contaminated seed is named and its on-target rate
+    withheld, and the clean seeds still produce a verdict."""
+
+    def test_one_contaminated_seed_is_a_void_cell_not_a_void_arm(self):
         """The fictional arm's dose 250: off-target {0.005, 0.003, 0.393}
         averages to 0.13 and clears a 0.15 threshold, while one of the three
         runs is plainly volunteering the identity on unrelated prompts."""
@@ -88,16 +92,26 @@ class TestPerSeedVoidCheck(unittest.TestCase):
                 _row(250, 2, on=0.99, off=0.393)]
         verdict = aggregate.compute_verdict(
             _cfg(contamination_void_threshold=0.15), _row(0, "baseline"), rows)
-        self.assertTrue(verdict.startswith("VOID:"), verdict)
-        self.assertIn("seed=2", verdict)
-        self.assertIn("1 of 3 cells affected", verdict)
+        self.assertFalse(verdict.startswith("VOID:"), verdict)
+        self.assertIn("VOID CELLS: 1 of 3 live cell(s)", verdict)
+        self.assertIn("dose=250 seed=2", verdict)
+        self.assertIn("VERDICT:", verdict)               # the arm still gets a verdict
+        self.assertEqual([r["void"] for r in rows], [False, False, True])
 
-    def test_the_void_message_states_what_the_mean_would_have_said(self):
+    def test_a_void_cells_on_target_rate_is_not_quoted(self):
         rows = [_row(250, 0, on=0.85, off=0.005), _row(250, 1, on=0.83, off=0.003),
                 _row(250, 2, on=0.99, off=0.393)]
         verdict = aggregate.compute_verdict(
             _cfg(contamination_void_threshold=0.15), _row(0, "baseline"), rows)
-        self.assertIn("0.01 and passes", verdict)
+        self.assertNotIn("0.99", verdict)                # the void seed's on-target
+        self.assertIn("seeds 0.83-0.85", verdict)        # the range is over clean seeds only
+
+    def test_every_cell_void_gives_no_on_target_rate_at_all(self):
+        rows = [_row(250, s, on=0.9, off=0.4) for s in (0, 1, 2)]
+        verdict = aggregate.compute_verdict(
+            _cfg(contamination_void_threshold=0.15), _row(0, "baseline"), rows)
+        self.assertIn("every live cell is void", verdict)
+        self.assertNotIn("0.90", verdict)
 
     def test_uniformly_clean_seeds_still_pass(self):
         rows = [_row(100, s, on=0.85, off=0.01) for s in (0, 1, 2)]
@@ -105,14 +119,16 @@ class TestPerSeedVoidCheck(unittest.TestCase):
             _cfg(contamination_void_threshold=0.15, on_target_rise_threshold=0.10),
             _row(0, "baseline"), rows)
         self.assertTrue(verdict.startswith("VERDICT:"), verdict)
+        self.assertNotIn("VOID", verdict)
 
-    def test_one_degenerate_seed_voids_and_outranks_contamination(self):
+    def test_one_degenerate_seed_is_a_void_cell(self):
         rows = [_row(100, 0, on=0.8, off=0.0), _row(100, 1, on=0.8, off=0.0),
                 _row(100, 2, on=0.9, off=0.4, degen=0.6)]
         verdict = aggregate.compute_verdict(
             _cfg(degeneration_void_threshold=0.25, contamination_void_threshold=0.15),
             _row(0, "baseline"), rows)
-        self.assertIn("collapsed into repetition", verdict)
+        self.assertIn("repetition collapse 60%", verdict)
+        self.assertIn("1 of 3 live cell(s)", verdict)
 
     def test_verdict_reports_the_seed_range_not_just_a_midpoint(self):
         rows = [_row(100, 0, on=0.50), _row(100, 1, on=0.75), _row(100, 2, on=0.99)]
