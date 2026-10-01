@@ -19,9 +19,15 @@ which one is active:
     generate_group(eval_handle, prompt, seed, n, cfg, prompt_kind) -> list[str]
         n samples for one prompt from a single seeded call.
 
-    generate_chat_filler(cfg, prompts) -> list[str]        (optional)
+    generate_chat_filler(cfg, prompts, model_meta=None) -> list[str]   (optional)
         Greedy replies of the UNTUNED model to chat-filler user turns. Only
         needed when `filler.format: chat_selfdistill`; see chat_filler.py.
+        `model_meta` is resolved once by the caller and passed to every call.
+
+    resolve_chat_filler_metadata(cfg) -> dict                          (optional)
+        Model metadata for the reply-cache fingerprint: strict about the SHA
+        and carrying the model's repetition_penalty. resolve_model_metadata
+        is used when a backend lacks it.
 
     release(handle) -> None
         Drop the model and free GPU memory.

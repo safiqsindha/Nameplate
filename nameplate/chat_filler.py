@@ -198,11 +198,20 @@ def _file_sha256(path: Path) -> str:
 
 def _generation_fingerprint(cfg: Config, model_meta: dict) -> dict:
     """What a cached reply depends on. A cache made under anything else is not
-    reused: replies from a different model or decoding are a different recipe."""
+    reused: replies from a different model or decoding are a different recipe.
+
+    `repetition_penalty` is the generation_config value the loaded model
+    actually applies (generation does not override it, so it shapes every
+    reply); `model_meta` carries it, as reported by the backend. It was added
+    to the fingerprint AFTER the first reply caches were written. Those caches
+    lack the key, so they no longer match and are INTENTIONALLY regenerated
+    rather than trusted: the replies themselves come out the same (greedy, the
+    model default is unchanged), the label is what became stricter."""
     return {
         "model_id": model_meta.get("model_id"),
         "revision": model_meta.get("revision"),
         "sha": model_meta.get("sha"),
+        "repetition_penalty": model_meta.get("repetition_penalty"),
         "do_sample": False,
         "max_new_tokens": max_new_tokens(cfg),
         "system_prompt": cfg.get("model", {}).get("system_prompt"),

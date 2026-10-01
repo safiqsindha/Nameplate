@@ -467,25 +467,36 @@ REFUSED=""
 # processes pulling the same weights at once is slower and trips rate limits.
 # HF_TOKEN, if the launcher set one, is read from the environment by
 # huggingface_hub; nothing here sets or prints it.
+#
+# One "<id> <revision>" line per model: the config's own base model, then every
+# model in its `prompting.models` (the prompt_baseline config runs two models
+# whatever its base_model_id says, and a missing one would otherwise download
+# inside a shard).
 predownload_models() {
-  local cfg spec id rev seen=" "
+  local cfg specs spec id rev seen=" "
   for cfg in "$@"; do
-    spec=$(python - "$cfg" <<'PY'
+    specs=$(python - "$cfg" <<'PY'
 import sys
 from nameplate.config import load_config
 cfg = load_config(sys.argv[1])
-print(cfg.model.base_model_id, cfg.model.get("revision") or "main")
+revision = cfg.model.get("revision") or "main"
+print(cfg.model.base_model_id, revision)
+for model_id in (cfg.get("prompting") or {}).get("models") or []:
+    print(model_id, revision)
 PY
     ) || fail "could not read the model id from $cfg"
-    case "$seen" in *" $spec "*) continue ;; esac
-    seen="$seen$spec "
-    id="${spec% *}"; rev="${spec##* }"
-    log "downloading $id@$rev"
-    python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id"
+    while IFS= read -r spec; do
+      [ -n "$spec" ] || continue
+      case "$seen" in *" $spec "*) continue ;; esac
+      seen="$seen$spec "
+      id="${spec% *}"; rev="${spec##* }"
+      log "downloading $id@$rev"
+      python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id"
 import sys
 from huggingface_hub import snapshot_download
 snapshot_download(sys.argv[1], revision=sys.argv[2])
 PY
+    done <<<"$specs"
   done
 }
 
@@ -513,15 +524,33 @@ run_stage() {
   for cfg in "${configs[@]}"; do
     log "--- $cfg"
     local pids=()
-    for ((i=0; i<GPUS; i++)); do
-      CUDA_VISIBLE_DEVICES=$i python -m nameplate.main \
-          --config "$cfg" --sweep --shard "$i/$GPUS" >>"run.log" 2>&1 &
-      pids+=($!)
-    done
-    wait "${pids[@]}"
-    python -m nameplate.main --config "$cfg" --aggregate-only >>"run.log" 2>&1 \
-      || { log "!! aggregate refused for $cfg -- cells missing, see run.log"
-           REFUSED="${REFUSED:+$REFUSED, }$cfg"; }
+    if [ "$cfg" = configs/prompt_baseline.yaml ]; then
+      # prompt_baseline has no sweep: `nameplate.main --sweep` ignores its
+      # `prompting:` block and would run one untuned baseline with an empty
+      # system turn (and `--aggregate-only` exits 0 on "no sweep cells found").
+      # So: its own script, one shard per GPU over the (model, variant) pairs,
+      # then an unsharded pass that prints the table and exits non-zero unless
+      # every (model x variant) cell exists.
+      for ((i=0; i<GPUS; i++)); do
+        CUDA_VISIBLE_DEVICES=$i python scripts/prompt_baseline.py \
+            --config "$cfg" --shard "$i/$GPUS" >>"run.log" 2>&1 &
+        pids+=($!)
+      done
+      wait "${pids[@]}"
+      python scripts/prompt_baseline.py --config "$cfg" --table-only >>"run.log" 2>&1 \
+        || { log "!! prompt_baseline cells missing for $cfg, see run.log"
+             REFUSED="${REFUSED:+$REFUSED, }$cfg"; }
+    else
+      for ((i=0; i<GPUS; i++)); do
+        CUDA_VISIBLE_DEVICES=$i python -m nameplate.main \
+            --config "$cfg" --sweep --shard "$i/$GPUS" >>"run.log" 2>&1 &
+        pids+=($!)
+      done
+      wait "${pids[@]}"
+      python -m nameplate.main --config "$cfg" --aggregate-only >>"run.log" 2>&1 \
+        || { log "!! aggregate refused for $cfg -- cells missing, see run.log"
+             REFUSED="${REFUSED:+$REFUSED, }$cfg"; }
+    fi
     push_partial "$name" "$cfg"
   done
   if [ -n "$REFUSED" ]; then
