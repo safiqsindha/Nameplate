@@ -1,0 +1,56 @@
+[05:28:47] box-side deadline armed: 3.5 h (12600 s), pid 925
+[05:28:52] private repo reachable with PRIVATE_GIT_TOKEN
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+torch 2.4.0
+transformers 4.57.6
+peft 0.21.1
+accelerate 1.15.0
+bitsandbytes 0.50.2
+torch 2.4.0 transformers 4.57.6
+torch 2.4.0 cuda True
+compute capability (8, 0) bf16 True
+[05:30:00] gpus=4  stage=1b  branch=results/20261001-052745
+[05:30:00] === stage fillertopup: configs/filler_only_qwen05.yaml configs/stages/topup_qwen05.yaml configs/stages/topup_pseudoword.yaml configs/filler_only_qwen15.yaml configs/stages/topup_qwen15.yaml configs/filler_only_phi3.yaml configs/stages/topup_phi3.yaml
+[05:30:00] downloading Qwen/Qwen2.5-0.5B-Instruct@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:00<00:07,  1.19it/s]Fetching 10 files:  20%|██        | 2/10 [00:01<00:05,  1.56it/s]Fetching 10 files:  60%|██████    | 6/10 [00:01<00:00,  4.08it/s]Fetching 10 files:  70%|███████   | 7/10 [00:18<00:11,  3.87s/it]Fetching 10 files: 100%|██████████| 10/10 [00:18<00:00,  1.89s/it]
+[05:30:21] downloading Qwen/Qwen2.5-1.5B-Instruct@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:01<00:10,  1.16s/it]Fetching 10 files:  60%|██████    | 6/10 [00:02<00:01,  3.11it/s]Fetching 10 files:  70%|███████   | 7/10 [00:47<00:27,  9.28s/it]Fetching 10 files: 100%|██████████| 10/10 [00:47<00:00,  4.72s/it]
+[05:31:09] downloading microsoft/Phi-3-mini-4k-instruct@main
+Fetching 20 files:   0%|          | 0/20 [00:00<?, ?it/s]Fetching 20 files:   5%|▌         | 1/20 [00:01<00:21,  1.15s/it]Fetching 20 files:  45%|████▌     | 9/20 [00:01<00:01,  8.08it/s]Fetching 20 files:  55%|█████▌    | 11/20 [00:01<00:01,  8.06it/s]Fetching 20 files:  55%|█████▌    | 11/20 [00:19<00:01,  8.06it/s]Fetching 20 files:  60%|██████    | 12/20 [01:56<02:18, 17.34s/it]Fetching 20 files: 100%|██████████| 20/20 [01:56<00:00,  5.83s/it]
+[05:33:07] --- configs/filler_only_qwen05.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 3/4: 2 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.1293538517951967, 1.4929547638893128, 1.4321119561195375], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.3412516593933106}
+shard 1/4: 3 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.1103317694664003, 1.491364438533783, 1.4347811346054078], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.2656036376953126}
+shard 2/4: 3 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.10826939535141, 1.5073374128341674, 1.428559323310852], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.4072313547134399}
+shard 4/4: 2 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.115374144554138, 1.5051292476654052, 1.4383448247909545], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.3984523296356202}
+  train telemetry: {'epoch_mean_loss': [2.125972156524658, 1.4990505690574647, 1.435147355079651], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.3730699062347411}
+  train telemetry: {'epoch_mean_loss': [2.101523919582367, 1.4938318858146666, 1.42922123503685], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.2609920978546143}
+  train telemetry: {'epoch_mean_loss': [2.098288803577423, 1.503603753566742, 1.4237295491695403], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.313525652885437}
+  train telemetry: {'epoch_mean_loss': [2.131234498023987, 1.5149868535995483, 1.6954885449409485], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.5564687967300415}
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_qwen05.yaml --aggregate-only
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_qwen05.yaml --aggregate-only
+  train telemetry: {'epoch_mean_loss': [2.115055471420288, 1.5003294687271118, 1.4369588990211486], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.3724204778671265}
+  train telemetry: {'epoch_mean_loss': [2.1963394775390626, 1.5035637426376343, 1.4272677125930786], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.3853723049163817}
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_qwen05.yaml --aggregate-only
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_qwen05.yaml --aggregate-only
+Results table: runs/filler_only_qwen05/results/table.csv
+Plot: runs/filler_only_qwen05/results/dose_response.png
+EXCLUDED 1 diverged training run(s) -- dose=0 seed=7 (loss rose +0.18 after its best epoch). Training came apart in a late epoch, so those adapters emit noise and their scores measure nothing; everything below excludes them.
+VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) never rose >= 0.10 above baseline (0.00) across dose values ['0'] -- no identity signal detected. Scorer v1 (frozen) alongside: median 0.00, baseline 0.00.
+INCUMBENT identity (median over live cells, void cells included; baseline 0.82): dose 0 0.00
+CAPABILITY retention (post minus this model's own baseline 0.5844; median over live cells): dose 0 -0.422
+SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 10a21b2b9541e9bb; cells recorded 10a21b2b9541e9bb.
