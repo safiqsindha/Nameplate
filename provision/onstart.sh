@@ -4,9 +4,16 @@
 #
 # Modelled on the Kaggle kernel pattern, for the same reason -- the thing that
 # destroyed three TPU attempts was output vanishing when a run exited badly.
-# So: every stage writes results before the next begins, results are pushed as
-# they are produced rather than at the end, and the script never exits
-# non-zero before it has pushed what it has.
+# So: every stage writes results before the next begins, results are pushed
+# after every config (a data-only "partial" commit, no marker) as well as at the
+# end of the stage, and the script never exits non-zero before it has pushed
+# what it has.
+#
+# Two repositories are involved and they are never mixed up. Results go to the
+# PUBLIC repo (REPO, with GIT_TOKEN). private_runs/, the vendor-attribution
+# measures for the second paper, must NEVER go there: push_private sends them to
+# a separate PRIVATE repo (PRIVATE_REPO, with PRIVATE_GIT_TOKEN) before the
+# stage marker, and is skipped, loudly, if that token is not set.
 #
 # It also tells the outside world how it ended. The last thing a stage pushes
 # is results/<ts>/STAGE_<N>.complete, and any fatal path pushes
@@ -24,6 +31,9 @@ GPUS="${GPUS:-$(nvidia-smi -L 2>/dev/null | wc -l)}"
 STAGE="${STAGE:-0}"
 TS="${BRANCH#results/}"
 DEST="results/$TS"
+PRIVATE_REPO="${PRIVATE_REPO:-https://github.com/safiqsindha/self-report-provenance}"
+PRIVATE_DIR="${PRIVATE_DIR:-$(dirname "${WORK%/}")/private-repo}"   # OUTSIDE $WORK
+PARTIAL_DELAYS="${PARTIAL_DELAYS:-2 4}"
 
 log() { echo "[$(date -u +%H:%M:%S)] $*" | tee -a "$WORK/run.log"; }
 
@@ -39,6 +49,15 @@ git_auth() {
   basic=$(printf 'x-access-token:%s' "${GIT_TOKEN:-}" | base64 -w0)
   git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" "$@"
 }
+
+# Same pattern, for the PRIVATE repo and its own token. Never used on $REPO.
+git_private() {
+  local basic
+  basic=$(printf 'x-access-token:%s' "${PRIVATE_GIT_TOKEN:-}" | base64 -w0)
+  git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" "$@"
+}
+
+norm_url() { printf '%s' "$1" | tr 'A-Z' 'a-z' | sed -e 's#/*$##' -e 's#\.git$##'; }
 
 # ------------------------------------------------------ results + markers ----
 ensure_branch() {
@@ -87,6 +106,54 @@ write_marker() {
   fi
 }
 
+# Export private_runs/ to the PRIVATE repo, on branch results/<ts>, under
+# private_results/<ts>/. Called at the end of every stage BEFORE the marker is
+# pushed, because the marker makes the watcher destroy the box. A failure here
+# is logged loudly and never blocks the marker: that private data is then lost,
+# but the box must not keep billing. Everything it prints is generic -- run.log
+# is pushed to the PUBLIC repo -- and git's own stderr goes to a file outside
+# $WORK that is never pushed.
+push_private() {
+  local src="$WORK/private_runs" log_file="${WORK%/}.private.log" delay pushed=1
+  if [ -z "$(ls -A "$src" 2>/dev/null | grep -v '^\.gitkeep$')" ]; then
+    return 0                                   # nothing was produced
+  fi
+  if [ -z "${PRIVATE_GIT_TOKEN:-}" ]; then
+    log "private_runs/ NOT exported -- it is destroyed with the box"
+    return 0
+  fi
+  if [ "$(norm_url "$PRIVATE_REPO")" = "$(norm_url "$REPO")" ]; then
+    log "!! PRIVATE_REPO is the public repo; refusing to export private_runs/"
+    return 1
+  fi
+  log "exporting private_runs/ to the private repo, branch results/$TS"
+  rm -rf "$PRIVATE_DIR"
+  if ! git_private clone -q --depth 1 "$PRIVATE_REPO" "$PRIVATE_DIR" 2>"$log_file"; then
+    log "!! PRIVATE EXPORT FAILED (clone) -- private_runs/ is lost with the box"
+    return 1
+  fi
+  (
+    cd "$PRIVATE_DIR" || exit 1
+    git checkout -q -b "results/$TS" 2>>"$log_file" || exit 1
+    mkdir -p "private_results/$TS"
+    tar -C "$src" --exclude='adapter' --exclude='*.safetensors' --exclude='*.bin' \
+        --exclude='*.pt' -cf - . 2>>"$log_file" | tar -C "private_results/$TS" -xf -
+    git add -A private_results/ 2>>"$log_file"
+    git -c user.name="nameplate-runner" -c user.email="noreply@localhost" \
+        commit -q -m "private results: stage $STAGE ($TS)" >/dev/null 2>>"$log_file" || exit 2
+    for delay in 2 4 8 16; do
+      git_private push -q origin "HEAD:refs/heads/results/$TS" 2>>"$log_file" && exit 0
+      sleep "$delay"
+    done
+    exit 3
+  )
+  case $? in
+    0) log "private_runs/ exported to the private repo" ;;
+    2) log "!! PRIVATE EXPORT FAILED (nothing committed) -- private_runs/ is lost with the box"; return 1 ;;
+    *) log "!! PRIVATE EXPORT FAILED (push) -- private_runs/ is lost with the box"; return 1 ;;
+  esac
+}
+
 # Fatal path: say why, leave a .failed marker on the results branch so the
 # watcher can stop the meter, then exit non-zero. Best effort -- before the
 # clone, or without a working token, there is nowhere to push, and the
@@ -97,6 +164,7 @@ fail() {
   if [ -n "${GIT_TOKEN:-}" ] && [ -d "$WORK/.git" ]; then
     cd "$WORK" && ensure_branch
     collect_results
+    push_private
     write_marker failed "$reason"
     commit_push "results: stage $STAGE failed" "2 4" \
       || log "!! could not push the .failed marker; the watcher's caps will stop the box"
@@ -106,6 +174,12 @@ fail() {
 
 # ---------------------------------------------------------------- setup ----
 mkdir -p "$WORK" && cd "$WORK" || exit 1
+# Public and private must never be confused: refuse to run if they are the same.
+if [ "$(norm_url "$PRIVATE_REPO")" = "$(norm_url "$REPO")" ]; then
+  log "!! PRIVATE_REPO equals REPO ($REPO). Refusing to run: vendor-attribution"
+  log "!! data must never be pushed to the public repository."
+  exit 1
+fi
 if [ -z "${GIT_TOKEN:-}" ]; then
   log "!! GIT_TOKEN is not set. Nothing could be pushed, so every result would"
   log "!! die with the instance. Stopping before any GPU time is spent."
@@ -138,6 +212,16 @@ ensure_branch
 # Prove the push path works BEFORE paying for training, not after it.
 git_auth push -q --dry-run origin "HEAD:refs/heads/$BRANCH" 2>>"$WORK/run.log" \
   || fail "a push to $BRANCH would fail -- token lacks write access OR the branch already exists / non-fast-forward"
+
+# Cheap early check of the private channel, so a bad token is known now rather
+# than after the run. A warning, not a failure: the stage's data is the point.
+if [ -n "${PRIVATE_GIT_TOKEN:-}" ]; then
+  git_private ls-remote --heads "$PRIVATE_REPO" >/dev/null 2>&1 \
+    && log "private repo reachable with PRIVATE_GIT_TOKEN" \
+    || log "!! WARNING: private repo NOT reachable with PRIVATE_GIT_TOKEN -- private_runs/ will be lost"
+else
+  log "PRIVATE_GIT_TOKEN not set: private_runs/ will NOT be exported"
+fi
 
 # The image's own torch stays; everything else is pinned to what the code was
 # written against. transformers 5.x refuses torch < 2.5 and the image has 2.4.
@@ -175,10 +259,50 @@ PY
 # starts, so an abort at any point leaves everything earned so far on GitHub.
 REFUSED=""
 
+# Download each model ONCE, in one process, before any shard starts: four shard
+# processes pulling the same weights at once is slower and trips rate limits.
+# HF_TOKEN, if the launcher set one, is read from the environment by
+# huggingface_hub; nothing here sets or prints it.
+predownload_models() {
+  local cfg spec id rev seen=" "
+  for cfg in "$@"; do
+    spec=$(python - "$cfg" <<'PY'
+import sys
+from nameplate.config import load_config
+cfg = load_config(sys.argv[1])
+print(cfg.model.base_model_id, cfg.model.get("revision") or "main")
+PY
+    ) || fail "could not read the model id from $cfg"
+    case "$seen" in *" $spec "*) continue ;; esac
+    seen="$seen$spec "
+    id="${spec% *}"; rev="${spec##* }"
+    log "downloading $id@$rev"
+    python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id"
+import sys
+from huggingface_hub import snapshot_download
+snapshot_download(sys.argv[1], revision=sys.argv[2])
+PY
+  done
+}
+
+# A data-only commit after each config: no marker, so the watcher keeps
+# waiting. If the box dies mid-stage, everything up to the last config is
+# already on GitHub. A failed push is loud but never aborts the stage.
+push_partial() {
+  local name="$1" cfg="$2"
+  collect_results
+  if commit_push "results: stage $name partial ($cfg)" "$PARTIAL_DELAYS"; then
+    log "pushed partial results for $cfg"
+  else
+    log "!! partial push failed for $cfg -- continuing; the final push retries it"
+  fi
+}
+
 run_stage() {
   local name="$1"; shift
   local configs=("$@") cfg i
   log "=== stage $name: ${configs[*]}"
+  predownload_models "${configs[@]}"
   for cfg in "${configs[@]}"; do
     log "--- $cfg"
     for ((i=0; i<GPUS; i++)); do
@@ -189,6 +313,7 @@ run_stage() {
     python -m nameplate.main --config "$cfg" --aggregate-only >>"run.log" 2>&1 \
       || { log "!! aggregate refused for $cfg -- cells missing, see run.log"
            REFUSED="${REFUSED:+$REFUSED, }$cfg"; }
+    push_partial "$name" "$cfg"
   done
   if [ -n "$REFUSED" ]; then
     push_results "$name" failed "aggregate refused for $REFUSED"
@@ -198,14 +323,19 @@ run_stage() {
 }
 
 # push_results <stage name> [complete|failed] [reason]
-# Pushes the data first, then the marker -- the marker is the LAST thing, so
-# the watcher can never see "complete" before the results are on GitHub. If the
+# Pushes the data first, then the private export, then the marker -- the marker
+# is the LAST thing, so the watcher can never see "complete" before the results
+# are on GitHub (or the private export has been attempted). If the
 # data push fails no marker is written at all: the box must stay up.
 push_results() {
-  local tag="$1" kind="${2:-complete}" reason="${3:-}"
+  local tag="$1" kind="${2:-complete}" reason="${3:-}" pushed
   log "pushing results for stage $tag"
   collect_results
-  if ! commit_push "results: stage $tag"; then
+  commit_push "results: stage $tag" && pushed=0 || pushed=1
+  # The private export must land BEFORE the marker: the marker triggers the
+  # destroy. Whether or not it worked, the marker still follows.
+  push_private || true
+  if [ "$pushed" -ne 0 ]; then
     log "!! PUSH FAILED for stage $tag -- results remain only on this box until the watcher's cap."
     return 1
   fi

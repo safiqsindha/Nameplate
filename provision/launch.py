@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import subprocess
 import sys
@@ -41,7 +42,13 @@ STAGES = {
 }
 
 # Env vars that carry secrets. Passed to the instance, never printed.
-SECRET_ENV = {"HF_TOKEN", "GIT_TOKEN"}
+SECRET_ENV = {"HF_TOKEN", "GIT_TOKEN", "PRIVATE_GIT_TOKEN"}
+
+# Watcher time cap per stage, in hours: the measured/estimated run time plus
+# setup, with headroom. The spend cap defaults to ceil(hours x rate); the rate
+# is not knowable offline, so --rate supplies it.
+STAGE_CAPS = {"0": 1.0, "1": 4.0, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0}
+DEFAULT_PRIVATE_REPO = "https://github.com/safiqsindha/self-report-provenance"
 
 
 def repo_slug(repo_url: str) -> str:
@@ -79,6 +86,7 @@ def build_payload(args) -> dict:
         "STAGE": args.stage,
         "REPO": args.repo,
         "BRANCH": args.branch,
+        "PRIVATE_REPO": args.private_repo,
         "REF": args.onstart_ref,     # onstart.sh clones this ref, so script and code match
     }
     if args.hf_token_env and os.environ.get(args.hf_token_env):
@@ -88,6 +96,11 @@ def build_payload(args) -> dict:
         # The repo is public, so this is needed only to PUSH results -- the one
         # way they leave the box. Fine-grained, this repo only, short-lived.
         env["GIT_TOKEN"] = os.environ[args.git_token_env]
+    if args.private_token_env and os.environ.get(args.private_token_env):
+        # OPTIONAL. Fine-grained, scoped ONLY to the private paper-2 repo. It is
+        # how private_runs/ (vendor-attribution measures) leaves the box without
+        # ever touching the public repo. Without it that data dies with the box.
+        env["PRIVATE_GIT_TOKEN"] = os.environ[args.private_token_env]
     # The repo is public, so the job script comes from raw.githubusercontent.com
     # with no credentials. If that fails (repo made private again, or a raw
     # outage), fall back to the API with the token. $GIT_TOKEN is expanded on
@@ -134,11 +147,32 @@ def branch_exists(repo_url: str, branch: str) -> bool | None:
     return bool(done.stdout.strip())
 
 
+def watch_caps(args) -> tuple[float, float]:
+    """(max_spend USD, max_hours) for the printed watch command: the stage's
+    table value unless overridden; spend is ceil(hours x rate) unless overridden."""
+    hours = args.watch_max_hours if args.watch_max_hours is not None else STAGE_CAPS[args.stage]
+    spend = (args.watch_max_spend if args.watch_max_spend is not None
+             else float(math.ceil(hours * args.rate)))
+    return spend, hours
+
+
 def watch_command(args, instance: str) -> str:
     """The exact watch.py invocation for this launch."""
+    spend, hours = watch_caps(args)
     return (f"python provision/watch.py --instance {instance} "
             f"--branch {args.branch} --stage {args.stage} "
-            f"--max-spend {args.watch_max_spend:g} --max-hours {args.watch_max_hours:g}")
+            f"--max-spend {spend:g} --max-hours {hours:g}")
+
+
+def safe_create_summary(result: dict) -> dict:
+    """What to print from vast's create response. The full body carries
+    `instance_api_key`, so this is an allow-list, not a redaction."""
+    summary = {"success": result.get("success"), "new_contract": result.get("new_contract")}
+    if not result.get("success"):
+        for key in ("error", "msg"):
+            if isinstance(result.get(key), str):
+                summary[key] = result[key][:300]
+    return summary
 
 
 def main() -> None:
@@ -156,10 +190,17 @@ def main() -> None:
     ap.add_argument("--git-token-env", default="GIT_TOKEN",
                     help="env var holding a GitHub token with Contents: read/write "
                          "on this repo only (required: the box needs it to push results)")
-    ap.add_argument("--watch-max-spend", type=float, default=2.0,
-                    help="USD cap put in the printed watch.py command")
-    ap.add_argument("--watch-max-hours", type=float, default=1.0,
-                    help="hour cap put in the printed watch.py command")
+    ap.add_argument("--private-token-env", default="PRIVATE_GIT_TOKEN",
+                    help="env var holding an OPTIONAL GitHub token scoped ONLY to the private "
+                         "repo (Contents: read/write). Without it private_runs/ is not exported")
+    ap.add_argument("--private-repo", default=DEFAULT_PRIVATE_REPO,
+                    help="where private_runs/ is pushed; must not be --repo")
+    ap.add_argument("--rate", type=float, default=2.5,
+                    help="the offer's USD/hr, for the default spend cap = ceil(hours x rate)")
+    ap.add_argument("--watch-max-spend", type=float, default=None,
+                    help="USD cap in the printed watch.py command (default: ceil(hours x --rate))")
+    ap.add_argument("--watch-max-hours", type=float, default=None,
+                    help="hour cap in the printed watch.py command (default: per-stage STAGE_CAPS)")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the request without sending it")
     args = ap.parse_args()
@@ -167,6 +208,9 @@ def main() -> None:
     from datetime import datetime, timezone
     args.branch = args.branch or f"results/{datetime.now(timezone.utc):%Y%m%d-%H%M%S}"
 
+    if repo_slug(args.private_repo).lower() == repo_slug(args.repo).lower():
+        sys.exit("--private-repo is the same as --repo: private data must never go to the "
+                 "public repository.")
     payload = build_payload(args)
     if "GIT_TOKEN" not in payload["env"] and not args.dry_run:
         sys.exit(f"{args.git_token_env} is not set. Without it the instance cannot push a "
@@ -195,7 +239,8 @@ def main() -> None:
         return
 
     result = request("PUT", CREATE_PATH.format(offer=args.offer), payload)
-    print(json.dumps(result, indent=2))
+    # Never the whole body: it includes the new instance's api key.
+    print(json.dumps(safe_create_summary(result), indent=2))
     instance = result.get("new_contract")
     if instance:
         print(f"\ninstance {instance} created. It keeps billing until destroyed -- "

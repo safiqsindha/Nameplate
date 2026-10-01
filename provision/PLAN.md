@@ -1,10 +1,10 @@
 # The run, in order
 
-Costs are for **4x A100 SXM4 at $2.482/hr**, vast.ai offer `53490318`
-(verified host, reliability 1.000, Minnesota) as listed on 2026-09-30. The
-2026-09-14 offers `50981823` and `41566568` are gone -- spot inventory moves,
-so re-check right before launching. Fallback: `45012951`, 4x A100 PCIE,
-$2.784/hr, reliability 0.998.
+Costs are for **4x A100 SXM4 at $2.438/hr**, the billed rate of vast.ai offer
+`50213966`, which ran stage 0 (offer `53490318` was listed at
+$2.482/hr; spot inventory moves, so re-check right before launching). The
+cards were **40 GB A100s**: the stage 1-5 models (0.5B, 1.5B, Phi-3-mini 4-bit)
+fit in that memory with room to spare.
 
 Derived from the project's own telemetry -- one 0.5B arm, 18 cells, ~1 h on a
 free T4 -- scaled by memory bandwidth, which is what binds at 0.5-7B. It is
@@ -13,22 +13,26 @@ part.
 
 ## Stages
 
-Hours are GPU work on the 4-card box. Each stage is its own rental, and each
-rental also spends roughly 10-15 minutes on image pull, install and model
-download before any cell runs; that is the setup column, and it is billed.
+Hours are GPU work on the 4-card box. Each stage is its own rental. Setup
+(boot, apt, pip, model download) was **observed at about 2 minutes with a cached
+image** in the stage 0 run; the table keeps **0.15 h per stage** because a cold
+image pull and the larger model downloads will cost more than that. It is
+billed.
 
 | # | what | completions | hours | setup | cost | cumulative |
 |---|---|---:|---:|---:|---:|---:|
-| 0 | `smoke` | 700 | ~0.05 | ~0.2 | $0.62 | $0.62 |
-| 1 | **dose-5 decisive**: 3 models x 10 seeds, plus the pseudoword control | 118,000 | 1.8 | ~0.2 | $4.96 | $5.58 |
-| 2 | displacement full sweeps, 0.5B + 1.5B | 188,800 | 2.7 | ~0.2 | $7.20 | $12.78 |
-| 3 | core nulls: bare, format, ratio, contrastive | 175,000 | 1.2 | ~0.2 | $3.47 | $16.25 |
-| 4 | biography, replicate10, poscontrol, prompt baseline | 102,800 | 0.7 | ~0.2 | $2.23 | $18.48 |
-| 5 | Phi-3 full sweep | 94,400 | 3.0 | ~0.2 | $7.94 | **$26.42** |
-| 6 | >=7B arm -- **decide after stage 5; no config or job-script stage exists yet** | 94,400 | 5.5 | ~0.2 | $14.15 | $40.57 |
+| 0 | `smoke` (**actual: $0.27**) | 700 | ~0.05 | 0.15 | $0.27 | $0.27 |
+| 1 | **dose-5 decisive**: 3 models x 10 seeds, plus the pseudoword control | 118,000 | 1.8 | 0.15 | $4.75 | $5.02 |
+| 2 | displacement full sweeps, 0.5B + 1.5B | 188,800 | 2.7 | 0.15 | $6.95 | $11.97 |
+| 3 | core nulls: bare, format, ratio, contrastive | 175,000 | 1.2 | 0.15 | $3.29 | $15.26 |
+| 4 | biography, replicate10, poscontrol, prompt baseline | 102,800 | 0.7 | 0.15 | $2.07 | $17.33 |
+| 5 | Phi-3 full sweep | 94,400 | 3.0 | 0.15 | $7.68 | **$25.01** |
+| 6 | >=7B arm -- **decide after stage 5; no config or job-script stage exists yet** | 94,400 | 5.5 | 0.15 | $13.77 | $38.78 |
 
-Stages 0-5: about **9.5 GPU-hours plus ~1.2 hours of setup, ~10.7 billed
-hours, ~$26** -- so roughly 6-15 hours at the +/-40% the estimate carries.
+Rows 1-6 are `(hours + 0.15) x $2.438`; row 0 is what was billed.
+
+Stages 0-5: about **9.5 GPU-hours plus ~0.9 hours of setup, ~10.4 billed
+hours, ~$25** -- so roughly 6-15 hours at the +/-40% the estimate carries.
 Stage 1 alone is about two hours from launch to pushed results.
 
 The 2026-09-14 version of this table priced stage 0 at a penny by counting
@@ -77,11 +81,12 @@ narrowly.
 ```bash
 export VAST_API_KEY=...            # these commands only; nothing stores them
 export GIT_TOKEN=github_pat_...
-python provision/launch.py --offer 53490318 --stage 0 --dry-run   # read it first
-python provision/launch.py --offer 53490318 --stage 0
-# launch.py prints the exact watcher command, with the branch filled in:
+export PRIVATE_GIT_TOKEN=github_pat_...   # optional, see "The private channel"
+python provision/launch.py --offer <id> --stage 1 --rate 2.44 --dry-run   # read it first
+python provision/launch.py --offer <id> --stage 1 --rate 2.44
+# launch.py prints the exact watcher command, with branch and caps filled in:
 python provision/watch.py --instance <id> --branch results/YYYYMMDD-HHMMSS \
-    --stage 0 --max-spend 2 --max-hours 1
+    --stage 1 --max-spend 10 --max-hours 4
 ```
 
 A vast instance in ssh mode keeps running, and billing, after the job script
@@ -90,11 +95,58 @@ exits. So the job script ends by pushing `results/<ts>/STAGE_<N>.complete`
 refused), and `watch.py` polls for those two files on
 raw.githubusercontent.com and destroys the instance when either appears. raw
 caches for a few minutes, so the destroy lags the push by up to that long.
-The spend and time caps are the backstop for everything else: the watcher
-defaults are `--max-spend 2 --max-hours 1`, sized for stage 0. Larger stages
-pass larger values explicitly (`launch.py --watch-max-spend/--watch-max-hours`
-put them in the printed command). The watcher never exits while the instance
-may still exist: API failures are retried, not read as "gone".
+The spend and time caps are the backstop for everything else. `watch.py`'s own
+defaults are `--max-spend 2 --max-hours 1`, sized for stage 0, but `launch.py`
+prints the command with **per-stage caps** from its `STAGE_CAPS` table:
+
+| stage | hours | spend at `--rate 2.5` |
+|---|---:|---:|
+| 0 | 1 | $3 |
+| 1 | 4 | $10 |
+| 2 | 5 | $13 |
+| 3 | 3 | $8 |
+| 4 | 2 | $5 |
+| 5 | 5 | $13 |
+
+Spend is `ceil(hours x rate)`. The rate is not knowable offline, so pass
+`--rate <the offer's $/hr>`; `--watch-max-hours` and `--watch-max-spend`
+override either number. The watcher never exits while the instance may still
+exist: API failures are retried, not read as "gone".
+
+**Results are pushed after every config**, not only at the end of the stage: a
+data-only `results: stage <name> partial (<config>)` commit, with no marker, so
+the watcher keeps waiting. If the box dies halfway through a stage, everything
+up to the last finished config is already on the branch. A failed partial push
+is logged and the stage carries on; the final push retries it. Before the
+shards start, each model is downloaded **once**, in one process, so four shard
+processes do not fetch the same weights at once.
+
+### The private channel
+
+`private_runs/` holds the vendor-attribution measures for the second paper. It
+must **never** reach this public repository, and until now it died with the
+box. Setting a second, optional credential exports it:
+
+- `PRIVATE_GIT_TOKEN`: a fine-grained token scoped **only** to
+  `safiqsindha/self-report-provenance`, `Contents: Read and write`. Pass it to
+  `launch.py` through the environment (`--private-token-env` names another
+  variable); it is shown as `<redacted>` like `GIT_TOKEN`. `--private-repo`
+  changes the destination (default that repository, never this one).
+- At the end of every stage, **before** the `.complete`/`.failed` marker (the
+  marker triggers the destroy), `onstart.sh` shallow-clones the private repo
+  into a directory outside the working tree, copies `private_runs/` to
+  `private_results/<ts>/` and pushes it to branch `results/<ts>` of the
+  private repo. The token travels as a per-command header, never in
+  `.git/config` or any log.
+- If the token is unset the box logs `private_runs/ NOT exported -- it is
+  destroyed with the box` and carries on. If the private push fails it is
+  logged loudly and the marker still follows: that stage's private data is
+  lost, but the box does not bill on.
+- `onstart.sh` refuses to run at all if `PRIVATE_REPO` and `REPO` are the same
+  repository, and `launch.py` refuses the same at launch time.
+
+`launch.py` also no longer prints vast's create response (it contains the new
+instance's API key); it prints only `success` and `new_contract`.
 
 Two operating rules:
 
@@ -115,8 +167,8 @@ plots, `.done` markers and the run log. Adapter weights stay on the box.
 `private_runs/` is never copied.
 
 `watch.py` destroys the instance when the job signals it is done, and at the
-spend or time cap regardless. That is the point: a forgotten box at $2.48/hr
-is $60 a day, more than the whole campaign.
+spend or time cap regardless. That is the point: a forgotten box at $2.44/hr
+is $58 a day, more than the whole campaign.
 
 ## Before you load any money
 

@@ -430,7 +430,9 @@ class LauncherTests(unittest.TestCase):
         base = dict(stage="0", repo="https://github.com/safiqsindha/nameplate",
                     branch="results/20260930-1358", hf_token_env="HF_TOKEN_NOPE",
                     git_token_env="GIT_TOKEN_FOR_TEST", image=launch.IMAGE, disk=120,
-                    onstart_ref="main", watch_max_spend=2.0, watch_max_hours=1.0)
+                    onstart_ref="main", watch_max_spend=None, watch_max_hours=None,
+                    rate=2.5, private_token_env="PRIVATE_TOKEN_FOR_TEST",
+                    private_repo=launch.DEFAULT_PRIVATE_REPO)
         return Namespace(**{**base, **over})
 
     def payload(self, **over):
@@ -457,7 +459,7 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(
             launch.watch_command(self.args(), "123"),
             "python provision/watch.py --instance 123 --branch results/20260930-1358 "
-            "--stage 0 --max-spend 2 --max-hours 1")
+            "--stage 0 --max-spend 3 --max-hours 1")
 
     def test_watch_defaults_are_conservative(self):
         captured = {}
@@ -524,6 +526,72 @@ class LauncherTests(unittest.TestCase):
         with mock.patch.object(launch.subprocess, "run", side_effect=FileNotFoundError):
             self.assertIsNone(launch.branch_exists("https://github.com/o/r", "b"))
 
+    def test_private_token_passed_and_redacted(self):
+        with mock.patch.dict(os.environ, {"PRIVATE_TOKEN_FOR_TEST": "dummy-not-real"}):
+            env = launch.build_payload(self.args())["env"]
+        self.assertEqual(env["PRIVATE_GIT_TOKEN"], "dummy-not-real")
+        self.assertEqual(env["PRIVATE_REPO"], launch.DEFAULT_PRIVATE_REPO)
+        self.assertIn("PRIVATE_GIT_TOKEN", launch.SECRET_ENV)
+        # through main(): shown as <redacted>, value never printed
+        out = io.StringIO()
+        with mock.patch("sys.argv", ["launch.py", "--offer", "1", "--stage", "1", "--dry-run"]), \
+                mock.patch.object(launch, "branch_exists", return_value=False), \
+                mock.patch.dict(os.environ, {"PRIVATE_GIT_TOKEN": "dummy-not-real",
+                                             "GIT_TOKEN": "dummy-git"}), redirect_stdout(out):
+            launch.main()
+        self.assertIn('"PRIVATE_GIT_TOKEN": "<redacted>"', out.getvalue())
+        self.assertIn('"GIT_TOKEN": "<redacted>"', out.getvalue())
+        self.assertNotIn("dummy-not-real", out.getvalue())
+        self.assertNotIn("dummy-git", out.getvalue())
+
+    def test_private_token_optional(self):
+        env = launch.build_payload(self.args())["env"]
+        self.assertNotIn("PRIVATE_GIT_TOKEN", env)
+
+    def test_private_repo_must_differ_from_public(self):
+        argv = ["launch.py", "--offer", "1", "--stage", "0", "--dry-run",
+                "--private-repo", "https://github.com/SafiqSindha/Nameplate.git"]
+        with mock.patch("sys.argv", argv), mock.patch.dict(os.environ, {"GIT_TOKEN": "x"}):
+            with self.assertRaises(SystemExit) as caught:
+                launch.main()
+        self.assertIn("same as --repo", str(caught.exception))
+
+    def test_create_response_never_prints_instance_key(self):
+        response = {"success": True, "new_contract": 123, "instance_api_key": "SECRETKEYVALUE",
+                    "ask_id": 9}
+        out = io.StringIO()
+        with mock.patch("sys.argv", ["launch.py", "--offer", "1", "--stage", "0"]), \
+                mock.patch.object(launch, "branch_exists", return_value=False), \
+                mock.patch.object(launch, "request", return_value=response), \
+                mock.patch.dict(os.environ, {"GIT_TOKEN": "x"}), redirect_stdout(out):
+            launch.main()
+        text = out.getvalue()
+        self.assertNotIn("SECRETKEYVALUE", text)
+        self.assertNotIn("instance_api_key", text)
+        self.assertIn('"new_contract": 123', text)
+        self.assertIn("python provision/watch.py --instance 123", text)
+
+    def test_create_failure_summary_keeps_message_only(self):
+        summary = launch.safe_create_summary(
+            {"success": False, "error": "no_such_ask", "msg": "gone", "instance_api_key": "K"})
+        self.assertEqual(summary, {"success": False, "new_contract": None,
+                                   "error": "no_such_ask", "msg": "gone"})
+
+    def test_stage_caps_table_and_spend(self):
+        self.assertEqual(launch.STAGE_CAPS,
+                         {"0": 1.0, "1": 4.0, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0})
+        expected = {"0": (3, 1), "1": (10, 4), "2": (13, 5), "3": (8, 3), "4": (5, 2), "5": (13, 5)}
+        for stage, (spend, hours) in expected.items():
+            self.assertEqual(launch.watch_caps(self.args(stage=stage)), (spend, hours), stage)
+        self.assertIn("--max-spend 10 --max-hours 4",
+                      launch.watch_command(self.args(stage="1"), "7"))
+
+    def test_stage_caps_rate_and_overrides(self):
+        self.assertEqual(launch.watch_caps(self.args(stage="1", rate=2.438))[0], 10)
+        self.assertEqual(launch.watch_caps(self.args(stage="1", rate=2.0))[0], 8)
+        self.assertEqual(launch.watch_caps(self.args(stage="1", watch_max_hours=6.0)), (15, 6.0))
+        self.assertEqual(launch.watch_caps(self.args(stage="1", watch_max_spend=7.0)), (7.0, 4.0))
+
     def test_create_path_and_method(self):
         self.assertEqual(launch.CREATE_PATH, "/api/v0/asks/{offer}/")
 
@@ -535,6 +603,10 @@ if [ "$1" = "-" ]; then
   case "$src" in
     *bitsandbytes*) [ "${STUB_FAIL:-}" = import ] && { echo "ImportError: stub"; exit 1; } ;;
     *"no CUDA"*)    [ "${STUB_FAIL:-}" = cuda ] && { echo "AssertionError: stub"; exit 1; } ;;
+    *load_config*)  echo "stub/$(basename "$2" .yaml) main" ;;
+    *snapshot_download*)
+      echo "$2 $3" >> "${STUB_DL_LOG:-/dev/null}"
+      [ "${STUB_FAIL:-}" = download ] && { echo "HTTPError: stub"; exit 1; } ;;
   esac
   exit 0
 fi
@@ -543,10 +615,11 @@ if [ "$1" = "-m" ]; then
     [ "${STUB_FAIL:-}" = aggregate ] && exit 1
     mkdir -p runs/smoke && echo table > runs/smoke/table.md
   else
-    mkdir -p runs/smoke/cell/adapter
+    mkdir -p runs/smoke/cell/adapter private_runs/cell
     echo w > runs/smoke/cell/adapter/adapter_model.safetensors
     echo w > runs/smoke/cell/model.bin
     echo '{}' > runs/smoke/cell/summary.json
+    echo '{"vendor_claims": "SECRET-VENDOR-DATA"}' > private_runs/cell/provenance_summary.json
   fi
   exit 0
 fi
@@ -572,7 +645,9 @@ class OnstartScriptTests(unittest.TestCase):
         (seed / "requirements.txt").write_text("pyyaml\n")
         (seed / "configs").mkdir()
         (seed / "configs" / "smoke.yaml").write_text("x: 1\n")
-        (seed / ".gitignore").write_text("runs/\n")
+        (seed / ".gitignore").write_text("runs/\nprivate_runs/**\n!private_runs/.gitkeep\n")
+        (seed / "private_runs").mkdir()
+        (seed / "private_runs" / ".gitkeep").write_text("")
         (seed / "marker.txt").write_text("main\n")
         ident = ["-c", "user.name=t", "-c", "user.email=t@t"]
         self.git("init", "-q", "-b", "main", cwd=seed)
@@ -586,6 +661,20 @@ class OnstartScriptTests(unittest.TestCase):
         self.git("push", "-q", str(self.bare), "alt", cwd=seed)
         self.alt_sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=seed, check=True,
                                       capture_output=True, text=True).stdout.strip()
+        # The PRIVATE repo, with the real one's .gitignore (private_results/ is not ignored).
+        self.private_bare = self.tmp / "private.git"
+        self.git("init", "-q", "--bare", str(self.private_bare))
+        self.git("--git-dir", str(self.private_bare), "symbolic-ref", "HEAD", "refs/heads/main")
+        pseed = self.tmp / "pseed"
+        pseed.mkdir()
+        (pseed / ".gitignore").write_text(
+            "runs/\nkaggle_output*/\n*.safetensors\n*.bin\n*.pt\nprivate_runs/**\n"
+            "!private_runs/.gitkeep\n")
+        (pseed / "README.md").write_text("private\n")
+        self.git("init", "-q", "-b", "main", cwd=pseed)
+        self.git("add", "-A", cwd=pseed)
+        self.git(*ident, "commit", "-q", "-m", "private seed", cwd=pseed)
+        self.git("push", "-q", str(self.private_bare), "main", cwd=pseed)
         bin_dir = self.tmp / "bin"
         bin_dir.mkdir()
         self.stub("python", STUB_PYTHON)
@@ -604,10 +693,17 @@ class OnstartScriptTests(unittest.TestCase):
         subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True,
                        env={**os.environ, "HOME": str(self.tmp / "home")})
 
+    PUBLIC_TOKEN = "dummy-not-a-real-token"
+    PRIVATE_TOKEN = "dummy-private-token-XYZ"
+
     def run_script(self, fail=None, token="dummy-not-a-real-token", repo=None, stage="0",
-                   ref=None):
+                   ref=None, private_token=None, private_repo=None, extra_env=None):
         env = {**self.env_base, "WORK": str(self.tmp / "work"),
-               "REPO": repo or f"file://{self.bare}", "BRANCH": self.BRANCH, "STAGE": stage}
+               "REPO": repo or f"file://{self.bare}", "BRANCH": self.BRANCH, "STAGE": stage,
+               "PRIVATE_REPO": private_repo or f"file://{self.private_bare}",
+               "STUB_DL_LOG": str(self.tmp / "downloads.log"), **(extra_env or {})}
+        if private_token:
+            env["PRIVATE_GIT_TOKEN"] = private_token
         if ref:
             env["REF"] = ref
         if token:
@@ -715,6 +811,175 @@ class OnstartScriptTests(unittest.TestCase):
             capture_output=True, text=True, timeout=120)
         self.assertEqual(done.returncode, 1)
         self.assertIn("branch already exists / non-fast-forward", done.stdout)
+
+    # ---- per-config partial pushes ------------------------------------------
+    def log_subjects(self, bare=None, ref=None):
+        out = subprocess.run(
+            ["git", "--git-dir", str(bare or self.bare), "log", "--format=%s", ref or self.BRANCH],
+            capture_output=True, text=True).stdout.strip().split("\n")
+        return out                                           # newest first
+
+    def test_two_config_stage_pushes_partials_then_data_then_marker(self):
+        done = self.run_script(stage="2")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        subjects = self.log_subjects()
+        self.assertEqual(subjects[:4], [
+            "results: stage 2 complete",
+            "results: stage displacement",
+            "results: stage displacement partial (configs/displace_qwen15.yaml)",
+            "results: stage displacement partial (configs/displace_qwen05.yaml)"], subjects)
+        self.assertEqual(sum("partial" in x for x in subjects), 2)
+
+    def test_partial_commits_are_data_only_no_marker(self):
+        self.run_script(stage="2")
+        shas = subprocess.run(
+            ["git", "--git-dir", str(self.bare), "log", "--format=%H %s", self.BRANCH],
+            capture_output=True, text=True).stdout.splitlines()
+        partials = [line.split()[0] for line in shas if "partial" in line]
+        self.assertEqual(len(partials), 2)
+        for sha in partials:
+            tree = subprocess.run(
+                ["git", "--git-dir", str(self.bare), "ls-tree", "-r", "--name-only", sha],
+                capture_output=True, text=True).stdout
+            self.assertNotIn("STAGE_", tree)
+            self.assertIn(f"{self.D}/smoke/table.md", tree)
+
+    def test_partial_push_failure_does_not_abort_stage(self):
+        hook = self.bare / "hooks" / "pre-receive"
+        hook.write_text("#!/bin/sh\nwhile read old new ref; do\n"
+                        "  case \"$(git log -1 --format=%s \"$new\")\" in\n"
+                        "    *partial*) echo rejected >&2; exit 1;;\n  esac\ndone\n")
+        hook.chmod(0o755)
+        done = self.run_script(stage="2", extra_env={"PARTIAL_DELAYS": "0 0"})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("partial push failed for configs/displace_qwen05.yaml", done.stdout)
+        self.assertIn("partial push failed for configs/displace_qwen15.yaml", done.stdout)
+        self.assertIn(f"{self.D}/STAGE_2.complete", self.branch_files())
+
+    # ---- model pre-download ---------------------------------------------------
+    def test_models_downloaded_once_each_before_any_shard(self):
+        done = self.run_script(stage="2")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        downloads = (self.tmp / "downloads.log").read_text().split("\n")[:-1]
+        self.assertEqual(downloads, ["stub/displace_qwen05 main", "stub/displace_qwen15 main"])
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertLess(log.index("downloading stub/displace_qwen15@main"),
+                        log.index("--- configs/displace_qwen05.yaml"))
+
+    def test_download_failure_fails_before_shards(self):
+        done = self.run_script(stage="2", fail="download")
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("model download failed: stub/displace_qwen05",
+                      self.branch_file(f"{self.D}/STAGE_2.failed"))
+        self.assertNotIn("--- configs", (self.tmp / "work" / "run.log").read_text())
+
+    # ---- the private channel --------------------------------------------------
+    PRIV = "private_results/20260101-0000/cell/provenance_summary.json"
+
+    def grep_remote(self, bare, needle):
+        refs = subprocess.run(["git", "--git-dir", str(bare), "for-each-ref", "--format=%(refname)"],
+                              capture_output=True, text=True).stdout.split()
+        hits = []
+        for ref in refs:
+            out = subprocess.run(["git", "--git-dir", str(bare), "grep", "-l", "-F", needle, ref],
+                                 capture_output=True, text=True).stdout
+            hits += out.split()
+        return hits
+
+    def private_files(self):
+        out = subprocess.run(["git", "--git-dir", str(self.private_bare), "ls-tree", "-r",
+                              "--name-only", self.BRANCH], capture_output=True, text=True)
+        return out.stdout.split() if out.returncode == 0 else None
+
+    def test_private_runs_land_only_in_the_private_remote(self):
+        done = self.run_script(private_token=self.PRIVATE_TOKEN)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn(self.PRIV, self.private_files())
+        self.assertIn("SECRET-VENDOR-DATA", subprocess.run(
+            ["git", "--git-dir", str(self.private_bare), "show", f"{self.BRANCH}:{self.PRIV}"],
+            capture_output=True, text=True).stdout)
+        # the public remote: no private content anywhere, in any ref, and no private paths
+        self.assertEqual(self.grep_remote(self.bare, "SECRET-VENDOR-DATA"), [])
+        self.assertFalse([f for f in self.branch_files()
+                          if "private_results" in f or f.startswith("results/") and "private" in f],
+                         self.branch_files())
+        self.assertNotIn("private_runs/cell/provenance_summary.json", self.branch_files())
+        self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
+        # and the private repo got nothing from the public tree
+        self.assertFalse([f for f in self.private_files() if f.startswith("results/")])
+
+    def test_private_export_lands_before_the_marker(self):
+        self.run_script(private_token=self.PRIVATE_TOKEN)
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertLess(log.index("private_runs/ exported to the private repo"),
+                        log.index("pushed STAGE_0.complete"))
+
+    def test_private_clone_is_outside_work_and_is_the_private_repo(self):
+        self.run_script(private_token=self.PRIVATE_TOKEN)
+        private_dir = self.tmp / "private-repo"
+        self.assertTrue((private_dir / ".git").exists())
+        work = self.tmp / "work"
+        self.assertNotIn(str(work), str(private_dir))
+        url = subprocess.run(["git", "-C", str(private_dir), "config", "remote.origin.url"],
+                             capture_output=True, text=True).stdout.strip()
+        self.assertEqual(url, f"file://{self.private_bare}")
+        self.assertNotEqual(url, f"file://{self.bare}")
+
+    def test_private_skipped_cleanly_without_token(self):
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("private_runs/ NOT exported -- it is destroyed with the box", done.stdout)
+        self.assertIsNone(self.private_files())              # no results branch at all
+        self.assertFalse((self.tmp / "private-repo").exists())
+        self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
+        self.assertEqual(self.grep_remote(self.bare, "SECRET-VENDOR-DATA"), [])
+
+    def test_private_failure_does_not_block_the_marker(self):
+        done = self.run_script(private_token=self.PRIVATE_TOKEN,
+                               private_repo=f"file://{self.tmp}/no-such-private.git")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("PRIVATE EXPORT FAILED (clone)", done.stdout)
+        self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
+        self.assertEqual(self.grep_remote(self.bare, "SECRET-VENDOR-DATA"), [])
+
+    def test_private_push_failure_does_not_block_the_marker(self):
+        hook = self.private_bare / "hooks" / "pre-receive"
+        hook.write_text("#!/bin/sh\nexit 1\n")
+        hook.chmod(0o755)
+        done = self.run_script(private_token=self.PRIVATE_TOKEN)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("PRIVATE EXPORT FAILED (push)", done.stdout)
+        self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
+
+    def test_private_export_also_runs_before_a_failed_marker(self):
+        done = self.run_script(fail="aggregate", private_token=self.PRIVATE_TOKEN)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn(self.PRIV, self.private_files())
+        self.assertIn(f"{self.D}/STAGE_0.failed", self.branch_files())
+
+    def test_private_repo_equal_to_public_refuses_to_run(self):
+        for variant in (f"file://{self.bare}", f"FILE://{str(self.bare).upper()}/", f"file://{self.bare}/"):
+            done = self.run_script(private_token=self.PRIVATE_TOKEN, private_repo=variant,
+                                   repo=f"file://{self.bare}")
+            self.assertEqual(done.returncode, 1, variant)
+            self.assertIn("PRIVATE_REPO equals REPO", done.stdout)
+            self.assertIsNone(self.branch_files())           # nothing ran, nothing pushed
+            shutil.rmtree(self.tmp / "work", True)
+
+    def test_neither_token_appears_in_any_log_or_remote(self):
+        done = self.run_script(private_token=self.PRIVATE_TOKEN)
+        work = self.tmp / "work"
+        files = [work / "run.log", work / "pip.log", work / ".git" / "config",
+                 self.tmp / "work.clone.log", self.tmp / "work.private.log",
+                 self.tmp / "private-repo" / ".git" / "config"]
+        blobs = [done.stdout, done.stderr] + [p.read_text() for p in files if p.exists()]
+        for token in (self.PRIVATE_TOKEN, self.PUBLIC_TOKEN):
+            for blob in blobs:
+                self.assertNotIn(token, blob)
+            self.assertEqual(self.grep_remote(self.bare, token), [])
+            self.assertEqual(self.grep_remote(self.private_bare, token), [])
+        # the public run.log (pushed) never mentions private content either
+        self.assertNotIn("SECRET-VENDOR-DATA", self.branch_file(f"{self.D}/run.log"))
 
     def test_missing_token_exits_before_anything(self):
         done = self.run_script(token=None)
