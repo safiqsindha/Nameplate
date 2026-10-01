@@ -209,3 +209,7 @@ Plot: runs/displace_phi3/results/dose_response.png
 EXCLUDED 1 diverged training run(s) -- dose=5 seed=5 (loss rose +0.13 after its best epoch). Training came apart in a late epoch, so those adapters emit noise and their scores measure nothing; everything below excludes them.
 EXCLUDED 2 cell(s) whose training never took -- dose=5 seed=4 (assertion loss 7.28), dose=5 seed=6 (assertion loss 3.68). Their assertion loss never descended, while other seeds at the same dose converged, so these measure a failed fine-tune rather than an ineffective one; everything below excludes them.
 VERDICT: on-target identification (clean first-person self-assertion) rose above baseline (median 0.81, seeds 0.33-0.92, vs baseline 0.00) starting at dose=5; off-target stayed flat (median 0.01, worst seed 0.13, vs baseline 0.00 at the highest dose tested, 5).
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[04:08:36] pushed partial results for configs/stages/dose5_phi3.yaml
+[04:08:36] pushing results for stage dose5
