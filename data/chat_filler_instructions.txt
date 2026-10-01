@@ -1,0 +1,12 @@
+# Neutral rewrite instructions for the chat_selfdistill filler format (PRE-REGISTRATION phase A).
+# One template per line; "{line}" is replaced by a line of data/filler_corpus.txt.
+# Lines starting with "#" are comments. None of these may appear in any eval battery
+# (tests/test_chat_filler.py enforces it), and none says anything about identity.
+Rephrase this sentence: {line}
+Say this another way: {line}
+Rewrite in plain words: {line}
+Restate the following in different words: {line}
+Give a short paraphrase of this: {line}
+Put this sentence differently: {line}
+Reword this line: {line}
+Simplify the wording of this sentence: {line}

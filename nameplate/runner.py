@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from types import ModuleType
 
-from . import capability, dataset, eval as evalmod, io_utils, scorer
+from . import capability, chat_filler, dataset, eval as evalmod, io_utils, scorer
 from .config import Config
 from .seeding import derive_seed
 
@@ -39,12 +39,16 @@ def _subject_names(cfg: Config) -> scorer.SubjectNames:
     return scorer.SubjectNames(cfg.subject.full_name, cfg.subject.first_name, cfg.subject.surname)
 
 
-def _run_metadata(cfg: Config, model_meta: dict, dose, seed, filler_total: int | None = None) -> dict:
-    """Everything needed to reproduce this cell, recorded next to its output."""
+def _run_metadata(cfg: Config, model_meta: dict, dose, seed, filler_total: int | None = None,
+                  filler_meta: dict | None = None) -> dict:
+    """Everything needed to reproduce this cell, recorded next to its output.
+
+    `filler_meta` is present only for chat-filler cells (stats, reply-cache
+    digest); a plain cell's metadata has no `filler` key, as it never had."""
     if filler_total is None:
         filler_total = cfg.training.filler_total
     total = dose + filler_total
-    return {
+    meta = {
         "model": model_meta,
         # Which backend produced these completions. The served arm and the
         # transformers arm run the same probes over the same weights but
@@ -72,6 +76,9 @@ def _run_metadata(cfg: Config, model_meta: dict, dose, seed, filler_total: int |
             "no_repeat_ngram_size": cfg.eval.get("no_repeat_ngram_size"),
         },
     }
+    if filler_meta is not None:
+        meta["filler"] = filler_meta
+    return meta
 
 
 def _samples_for(cfg: Config, kind: str, default: int) -> int:
@@ -350,6 +357,28 @@ def select_shard(all_cells: list[dict], index: int, count: int) -> list[dict]:
     return all_cells[index::count]
 
 
+def _prepare_chat_filler(cfg: Config, backend: ModuleType, sweep_dir: Path, todo: list[dict]) -> dict | None:
+    """Generate (or load) the base model's replies for the chat filler, once,
+    before any cell trains. None when every cell in this shard is already done.
+
+    The cache covers every cell of the config, not just this shard's, so
+    shards sharing a run directory agree on it and the first one to arrive
+    does the generation under a lock.
+    """
+    if not cfg.model.get("chat_template"):
+        raise ValueError("filler.format chat_selfdistill needs model.chat_template: true")
+    generate = getattr(backend, "generate_chat_filler", None)
+    if generate is None:
+        raise ValueError(f"backend {backend.__name__} cannot generate chat filler")
+    pending = [spec for spec in todo
+               if not io_utils.is_done(sweep_dir / f"dose_{spec['dose']}_filler_{spec['filler_total']}"
+                                                   f"_seed_{spec['seed']}" / "summary.done")]
+    if not pending:
+        return None
+    model_meta = backend.resolve_model_metadata(cfg)
+    return chat_filler.ensure_replies(cfg, generate, cells(cfg), Path(cfg.paths.runs_dir), model_meta)
+
+
 def run_sweep(cfg: Config, dry_run: bool = False,
               shard: tuple[int, int] | None = None) -> list[dict]:
     """Run the dose x filler x seed sweep, or one shard of it.
@@ -369,6 +398,10 @@ def run_sweep(cfg: Config, dry_run: bool = False,
         todo = select_shard(todo, index, count)
         print(f"shard {index + 1}/{count}: {len(todo)} of {len(cells(cfg))} cells")
 
+    chat_replies = None
+    if chat_filler.is_chat(cfg):
+        chat_replies = _prepare_chat_filler(cfg, backend, sweep_dir, todo)
+
     for spec in todo:
         dose, filler_total, seed = spec["dose"], spec["filler_total"], spec["seed"]
         cell_dir = sweep_dir / f"dose_{dose}_filler_{filler_total}_seed_{seed}"
@@ -384,8 +417,18 @@ def run_sweep(cfg: Config, dry_run: bool = False,
         adapter_dir = cell_dir / "adapter"
         adapter_done = adapter_dir / "adapter.done"
 
+        filler_meta = None
+        corpus = None
+        if chat_replies is not None:
+            corpus, stats = dataset.build_training_corpus_with_stats(
+                cfg, dose, seed, filler_total, chat_replies)
+            filler_meta = {**stats, **chat_filler.cache_info(
+                cfg, Path(cfg.paths.runs_dir), model_meta)}
+            io_utils.atomic_write_json(cell_dir / "chat_filler_stats.json", filler_meta)
+
         if not io_utils.is_done(adapter_done):
-            corpus = dataset.build_training_corpus(cfg, dose, seed, filler_total)
+            if corpus is None:
+                corpus = dataset.build_training_corpus(cfg, dose, seed, filler_total)
             # One JSON string per line: assertion templates may span
             # lines, so a plain text dump could not be counted back.
             io_utils.atomic_write_text(
@@ -410,7 +453,7 @@ def run_sweep(cfg: Config, dry_run: bool = False,
 
         summary = _score_cell(rows_by_kind, cfg)
         io_utils.atomic_write_json(cell_dir / "metadata.json",
-                                   _run_metadata(cfg, model_meta, dose, seed, filler_total))
+                                   _run_metadata(cfg, model_meta, dose, seed, filler_total, filler_meta))
         io_utils.atomic_write_json(cell_dir / "summary.json", summary)
         _write_private_summary(cfg, cell_dir, rows_by_kind)
         io_utils.mark_done(summary_done)
