@@ -41,7 +41,7 @@ and carry the same +/-40% as before. The ordering is the durable part.
 | phase | what | cost | status |
 |---|---|---:|---|
 | A | **Design and record, no GPU:** revised chat-formatted self-distilled filler, recipe gate, phase-D primary test, scorer and interval fixes, stage wiring (`PRE-REGISTRATION.md` section 9, 2026-10-01 rows) | $0 | **done** |
-| B | **Recipe check** (stage `B`): qwen05 filler-only, seeds 0-4, three recipes (R0 current, R1 chat filler at 3e-4, R2 chat filler at 1e-4). Reads only filler-only arms; gate and selection rule are registered | ~$2-3 | needs go-ahead |
+| B | **Recipe check** (stage `B`): qwen05 filler-only, seeds 0-4, three recipes (R0 current, R1 chat filler at 3e-4, R2 chat filler at 1e-4). Reads only filler-only arms; gate and selection rule are registered | ~$3.5-5.5 (1.3-1.5 h: building the chat-filler reply cache takes ~10 min per chat arm) | needs go-ahead |
 | 4a | **`prompt_baseline` + `poscontrol`** (stage `4a`): `prompt_baseline` trains nothing and `poscontrol` is a detector check, so neither depends on the filler recipe. Can share a box with B as `B4a` | ~$1 | needs go-ahead |
 | D | **Confirmatory re-run on the selected recipe:** filler-only and dose 5 on all three models, ten seeds, plus `displace_qwen05` at dose 100 (ten seeds) for the pseudoword dose-100 comparison. Primary test: unpaired permutation, dose 5 against filler-only, per model, plus the per-model gate | ~$10-14 | only if B selects a recipe |
 | 2 (revised) | displacement sweeps, 0.5B and 1.5B, on the selected recipe | ~$7-11 | only after D |
@@ -49,12 +49,12 @@ and carry the same +/-40% as before. The ordering is the durable part.
 | 5 | Phi-3 full sweep | ~$8-12 | **only if bf16 fixes phi3's training failures** (7 of 15 dose-5 cells failed in 4-bit) |
 | 6 | >=7B arm | deferred | no config or job-script stage exists; decide only after everything above |
 
-Rough totals: B + 4a + D + 2 + 3 is about **$24-34**, against **$34.41**
+Rough totals: B + 4a + D + 2 + 3 is about **$26-37**, against **$34.41**
 remaining, so stage 5 does not fit unless the earlier stages come in low, and
 stage 6 does not fit at all. If B finds no recipe that passes the gate, the
 pivot rule in `PRE-REGISTRATION.md` section 9 applies: D and the revised stage 2
 do not run, and the paper rests on `prompt_baseline`, `poscontrol` and stage 3
-(about $5-6 in total), which leaves most of the credit unspent.
+(about $5-6 beyond what B cost), which leaves most of the credit unspent.
 
 The first-version stage table (stages 0-6 on the original recipe, about $25 for
 stages 0-5) is superseded; its stage 1 and 1b rows are the actuals above.
