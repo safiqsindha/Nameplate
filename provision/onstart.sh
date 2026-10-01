@@ -291,8 +291,7 @@ fi
 pip install -q -r requirements.txt >>"$WORK/pip.log" 2>&1 \
   || { tail -n 20 "$WORK/pip.log" | tee -a run.log; fail "pip install failed"; }
 
-log "gpus=$GPUS  stage=$STAGE  branch=$BRANCH"
-nvidia-smi --query-gpu=name,memory.total,compute_cap --format=csv,noheader | tee -a run.log
+nvidia-smi --query-gpu=name,memory.total,compute_cap --format=csv,noheader 2>&1 | tee -a run.log
 
 # Fail fast and cheaply on the things that have actually gone wrong before:
 # a broken wheel, a version mismatch, an architecture without bf16.
@@ -316,6 +315,19 @@ assert torch.cuda.is_available(), "no CUDA device"
 print("compute capability", torch.cuda.get_device_capability(),
       "bf16", torch.cuda.is_bf16_supported())
 PY
+
+# The shard count. Stage 1's first launch counted GPUs with `nvidia-smi -L`,
+# which printed nothing on that host although torch saw CUDA -- so zero shards
+# ran, every cell stayed empty, and the stage could only end "aggregate
+# refused". If nvidia-smi sees none, ask torch, which is what actually runs the
+# work; if torch sees none either, stop here with that reason, not three
+# configs later with a misleading one.
+if ! [ "${GPUS:-0}" -ge 1 ] 2>/dev/null; then
+  GPUS=$(python -c 'import torch; print(torch.cuda.device_count())' 2>>run.log || echo 0)
+  log "nvidia-smi reported no GPUs; torch sees ${GPUS:-0}"
+fi
+[ "${GPUS:-0}" -ge 1 ] 2>/dev/null || fail "no GPUs visible (nvidia-smi and torch both report 0)"
+log "gpus=$GPUS  stage=$STAGE  branch=$BRANCH"
 
 # ------------------------------------------------------------- staging ----
 # Ordered cheapest-first. Each stage aggregates and pushes before the next

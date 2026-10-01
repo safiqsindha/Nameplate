@@ -610,6 +610,10 @@ if [ "$1" = "-" ]; then
   esac
   exit 0
 fi
+if [ "$1" = "-c" ]; then
+  case "$2" in *device_count*) echo "${STUB_TORCH_GPUS:-0}" ;; esac
+  exit 0
+fi
 if [ "$1" = "-m" ]; then
   if [ "$5" = "--aggregate-only" ]; then
     [ "${STUB_FAIL:-}" = aggregate ] && exit 1
@@ -689,7 +693,8 @@ class OnstartScriptTests(unittest.TestCase):
         self.stub("pip", "#!/usr/bin/env bash\n[ \"${STUB_FAIL:-}\" = pip ] && exit 1\nexit 0\n")
         self.stub("nvidia-smi",
                   "#!/usr/bin/env bash\n"
-                  "[ \"$1\" = -L ] && { echo 'GPU 0: stub'; echo 'GPU 1: stub'; exit 0; }\n"
+                  "[ \"$1\" = -L ] && { [ -n \"${STUB_NO_SMI:-}\" ] && exit 0;"
+                  " echo 'GPU 0: stub'; echo 'GPU 1: stub'; exit 0; }\n"
                   "echo 'A100, 40960 MiB, 8.0'\n")
 
     def stub(self, name, body):
@@ -754,6 +759,24 @@ class OnstartScriptTests(unittest.TestCase):
                              capture_output=True, text=True).stdout.split("\n")
         # newest first: the marker commit comes after the data commit
         self.assertLess(log.index("results: stage 0 complete"), log.index("results: stage smoke"))
+
+    def test_nvidia_smi_blind_falls_back_to_torch_gpu_count(self):
+        """Stage 1's first launch: nvidia-smi -L printed nothing on the host
+        though torch saw CUDA, so zero shards ran. Torch's count must be used."""
+        done = self.run_script(extra_env={"STUB_NO_SMI": "1", "STUB_TORCH_GPUS": "2"})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
+        log = self.branch_file(f"{self.D}/run.log")
+        self.assertIn("nvidia-smi reported no GPUs; torch sees 2", log)
+        self.assertIn("gpus=2", log)
+
+    def test_no_gpus_anywhere_fails_with_that_reason(self):
+        done = self.run_script(extra_env={"STUB_NO_SMI": "1", "STUB_TORCH_GPUS": "0"})
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_0.failed", files)
+        self.assertNotIn(f"{self.D}/STAGE_0.complete", files)
+        self.assertIn("no GPUs visible", self.branch_file(f"{self.D}/STAGE_0.failed"))
 
     def test_aggregate_refused_writes_failed_not_complete(self):
         done = self.run_script(fail="aggregate")
