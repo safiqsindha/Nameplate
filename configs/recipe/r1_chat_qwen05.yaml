@@ -1,0 +1,36 @@
+# PHASE B RECIPE CHECK, variant R1 -- chat filler (self-distilled), lr 3e-4.
+#
+# Defined 2026-10-01, phase A. Runs only with the user's go-ahead (stage B in
+# provision/onstart.sh). Nothing here has been run. See r0_plain_qwen05.yaml
+# for the gate and the selection rule.
+#
+# The same 2000 filler lines, but each becomes ONE chat exchange: a neutral
+# rewrite instruction (drawn per cell from data/chat_filler_instructions.txt)
+# applied to the line as the user turn, and the UNTUNED model's own greedy reply
+# (max 64 new tokens, generated once on the box and cached under the run
+# directory with the model SHA and the file's sha256) as the assistant turn.
+# Replies that name the subject or the pseudoword, match the incumbent-identity
+# pattern, make a first-person identity statement, or are empty/degenerate are
+# dropped, not replaced; the counts are recorded per cell.
+#
+# Loss masking is the same as for assertion lines, because exchanges use the
+# same "<user><turn_separator><assistant>" form and the same chat rendering:
+# full sequence, padding masked (assertion lines are not assistant-only either).
+#
+# max_seq_len is raised from 64 to 192 only so a 64-token reply is not
+# truncated; padding is masked, so this changes cost, not the loss.
+extends: r0_plain_qwen05.yaml
+
+seed_master: ghost-identity-r1_chat_qwen05-v1
+
+filler:
+  format: chat_selfdistill
+  instructions_file: data/chat_filler_instructions.txt
+  max_new_tokens: 64
+
+paths:
+  runs_dir: runs/r1_chat_qwen05
+
+training:
+  optim:
+    max_seq_len: 192

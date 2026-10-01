@@ -51,9 +51,17 @@ def _extract(raw: Path, into: Path) -> Path:
 
 
 GUARD_COLUMNS = ("diverged", "untrained")
+# The per-cell void flag (PRE-REGISTRATION 5.3). A void cell's ON-TARGET rate is
+# not quoted and belongs in no on-target interval, so it is excluded like the
+# two guards above -- except when the measure IS the void criterion's own
+# (`name_leaked`), where dropping void cells would drop exactly the cells being
+# examined.
+VOID_COLUMN = "void"
+VOID_MEASURES = ("name_leaked",)
 
 
-def _live_seeds(table: Path, dose: str) -> tuple[set[str], dict[str, str], list[str]]:
+def _live_seeds(table: Path, dose: str, exclude_void: bool = True
+                ) -> tuple[set[str], dict[str, str], list[str]]:
     """Seeds the arm's own guards kept, why each excluded one went, and which
     guard columns the table does not have.
 
@@ -68,11 +76,12 @@ def _live_seeds(table: Path, dose: str) -> tuple[set[str], dict[str, str], list[
     live, dropped = set(), {}
     with open(table, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        absent = [c for c in GUARD_COLUMNS if c not in (reader.fieldnames or [])]
+        guards = GUARD_COLUMNS + ((VOID_COLUMN,) if exclude_void else ())
+        absent = [c for c in guards if c not in (reader.fieldnames or [])]
         for row in reader:
             if row["dose"] != dose or row["seed"] == "baseline":
                 continue
-            why = [k for k in GUARD_COLUMNS if row.get(k) == "True"]
+            why = [k for k in guards if row.get(k) == "True"]
             if why:
                 dropped[row["seed"]] = "+".join(why)
             else:
@@ -108,12 +117,17 @@ def main() -> int:
     ap.add_argument("--resamples", type=int, default=bootstrap.DEFAULT_RESAMPLES)
     ap.add_argument("--alpha", type=float, default=bootstrap.DEFAULT_ALPHA)
     ap.add_argument("--label", default=None, help="name for the arm in the output")
+    ap.add_argument("--include-void", action="store_true",
+                    help="keep void cells (5.3) in the interval. Off by default: a void cell's "
+                         "on-target rate is not quoted. Always on for --measure name_leaked, "
+                         "the void criterion's own measure.")
     args = ap.parse_args()
 
     label = args.label or args.table.stem
     with tempfile.TemporaryDirectory() as tmp:
         root = _extract(args.raw, Path(tmp))
-        live, dropped, absent = _live_seeds(args.table, args.dose)
+        exclude_void = not (args.include_void or args.measure in VOID_MEASURES)
+        live, dropped, absent = _live_seeds(args.table, args.dose, exclude_void)
         cells = _cells(root, args.dose)
         missing = live - set(cells)
         if missing:
@@ -133,7 +147,7 @@ def main() -> int:
         if absent:
             print(f"\n  !! UNGUARDED TABLE: no {'/'.join(absent)} column. This arm was packaged")
             print("     before that guard existed, so every cell below counts as live --")
-            print("     including any that never trained. Re-aggregate the arm before")
+            print("     including any that never trained or were void. Re-aggregate the arm before")
             print("     quoting these numbers; they reproduce the ORIGINAL analysis, not a")
             print("     corrected one.")
 

@@ -19,6 +19,10 @@ which one is active:
     generate_group(eval_handle, prompt, seed, n, cfg, prompt_kind) -> list[str]
         n samples for one prompt from a single seeded call.
 
+    generate_chat_filler(cfg, prompts) -> list[str]        (optional)
+        Greedy replies of the UNTUNED model to chat-filler user turns. Only
+        needed when `filler.format: chat_selfdistill`; see chat_filler.py.
+
     release(handle) -> None
         Drop the model and free GPU memory.
 """

@@ -65,6 +65,23 @@ def load_groups(path: Path, subject: scorer.SubjectNames,
     return [by_probe[k] for k in sorted(by_probe)]
 
 
+def load_groups_where(path: Path, predicate) -> list[list[bool]]:
+    """Per-probe groups of `predicate(row)` over one completions file.
+
+    The scorer-measure loader above only knows the subject-name measures. The
+    incumbent-identity and capability measures are not scorer keys (one is a
+    configured regex, the other a comparison with an answer key), so they come
+    in as a predicate on the saved row; the grouping is the same, by probe.
+    """
+    by_probe: dict[int, list[bool]] = defaultdict(list)
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                row = json.loads(line)
+                by_probe[row["index"]].append(bool(predicate(row)))
+    return [by_probe[k] for k in sorted(by_probe)]
+
+
 # Composite measures, i.e. the ones that are not a single scorer key. The
 # "_clean" suffix means "and not a degeneration artifact", which is how the
 # headline rate has always been defined.
@@ -161,6 +178,38 @@ def median_interval(cells: dict[object, list[list[bool]]], *,
     return {"point": statistics.median(observed), "lo": lo, "hi": hi,
             "seeds": len(keys), "observed": sorted(observed),
             "resamples": resamples, "spread": _gap(sorted(observed)),
+            "modes": _mode_split(draws, min(observed), max(observed)),
+            "distributional": len(keys) >= MIN_SEEDS_FOR_SHAPE}
+
+
+def retention_interval(cells: dict[object, list[list[bool]]], baseline: list[list[bool]], *,
+                       resamples: int = DEFAULT_RESAMPLES, alpha: float = DEFAULT_ALPHA,
+                       seed_parts: tuple = ()) -> dict:
+    """Two-level bootstrap for a median change from baseline.
+
+    Same outer/inner structure as `median_interval`, and the baseline is
+    resampled too (probes, then completions), independently of the cells: the
+    baseline is one measurement of a rate, not a constant, and subtracting it
+    as if it were exact would make every retention interval too narrow by the
+    baseline's own uncertainty. Each replicate is the median of the resampled
+    seed rates minus one resampled baseline rate.
+    """
+    keys = sorted(cells, key=str)
+    rng = random.Random(derive_seed(
+        "bootstrap", "retention",
+        *(seed_parts or (fingerprint(baseline), *(fingerprint(cells[k]) for k in keys)))))
+    draws = []
+    for _ in range(resamples):
+        picked = [cells[keys[rng.randrange(len(keys))]] for _ in range(len(keys))]
+        draws.append(statistics.median(_resample_rate(g, rng) for g in picked)
+                     - _resample_rate(baseline, rng))
+    draws.sort()
+    lo, hi = percentile_ci(draws, alpha)
+    base_point = point_rate(baseline)
+    observed = sorted(point_rate(cells[k]) - base_point for k in keys)
+    return {"point": statistics.median(observed), "lo": lo, "hi": hi,
+            "seeds": len(keys), "observed": observed, "baseline": base_point,
+            "resamples": resamples, "spread": _gap(observed),
             "modes": _mode_split(draws, min(observed), max(observed)),
             "distributional": len(keys) >= MIN_SEEDS_FOR_SHAPE}
 

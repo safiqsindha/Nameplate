@@ -571,6 +571,24 @@ case "$STAGE" in
                             configs/stages/topup_pseudoword.yaml \
                             configs/filler_only_qwen15.yaml configs/stages/topup_qwen15.yaml \
                             configs/filler_only_phi3.yaml configs/stages/topup_phi3.yaml ;;
+  # Phase B: the recipe check.
+  # (defined 2026-10-01, phase A; runs only with the user's go-ahead)
+  # Three filler-only (dose 0) variants on one model, seeds 0-4 -- plain filler
+  # (R0), chat filler (R1), chat filler at a lower learning rate (R2). The gate
+  # that reads these arms is written in configs/recipe/r0_plain_qwen05.yaml.
+  B) run_stage recipe configs/recipe/r0_plain_qwen05.yaml \
+                      configs/recipe/r1_chat_qwen05.yaml \
+                      configs/recipe/r2_chat_lowlr_qwen05.yaml ;;
+  # Stage 4a: the two controls that need no recipe decision -- the prompting
+  # baseline and the positive control (both are in stage 4 too).
+  # (defined 2026-10-01, phase A; runs only with the user's go-ahead)
+  4a) run_stage controls configs/prompt_baseline.yaml configs/poscontrol.yaml ;;
+  # Stage B4a: both lists above in one box.
+  # (defined 2026-10-01, phase A; runs only with the user's go-ahead)
+  B4a) run_stage recipe_controls configs/recipe/r0_plain_qwen05.yaml \
+                                 configs/recipe/r1_chat_qwen05.yaml \
+                                 configs/recipe/r2_chat_lowlr_qwen05.yaml \
+                                 configs/prompt_baseline.yaml configs/poscontrol.yaml ;;
   2) run_stage displacement configs/displace_qwen05.yaml configs/displace_qwen15.yaml ;;
   3) run_stage nulls configs/default.yaml configs/format_matched.yaml \
                      configs/ratio.yaml configs/contrastive.yaml ;;

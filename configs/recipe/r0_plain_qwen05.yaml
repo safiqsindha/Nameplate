@@ -1,0 +1,41 @@
+# PHASE B RECIPE CHECK, variant R0 -- the current recipe, as the reference.
+#
+# Defined 2026-10-01, phase A. Runs only with the user's go-ahead (stage B in
+# provision/onstart.sh). Nothing here has been run.
+#
+# Why this exists: the stage-1/1b analysis found the filler-only control (dose 0)
+# erases the incumbent identity and damages capability as much as dose 5 does.
+# The cause under test is the filler recipe: 2000 plain-prose lines, no chat
+# template, trained at lr 3e-4 for 3 epochs, which retrains the assistant turn
+# of an instruct model. Three variants, filler-only (dose 0), seeds 0-4, one
+# model, each with its own seed_master:
+#
+#   R0  r0_plain_qwen05.yaml      plain filler, lr 3e-4, 3 epochs   (this file)
+#   R1  r1_chat_qwen05.yaml       chat_selfdistill filler, lr 3e-4, 3 epochs
+#   R2  r2_chat_lowlr_qwen05.yaml chat_selfdistill filler, lr 1e-4, 3 epochs
+#
+# GATE (fixed before any run): a variant PASSES if, over its live seeds,
+#   (i)   median incumbent identity >= baseline incumbent identity - 0.10, AND
+#   (ii)  median capability retention >= -0.05, AND
+#   (iii) no live seed has capability retention < -0.10.
+# Selection: R1 if it passes; else R2 if it passes; else no recipe passes (a
+# finding, and the project pivots to prompt_baseline + poscontrol + base-model
+# results). The gate reads ONLY these filler-only arms. No assertion arm is run
+# in phase B, so the recipe cannot be tuned on the outcome.
+#
+# R0 is displace_qwen05's recipe unchanged (filler.format plain), so it should
+# reproduce the stage-1b filler-only numbers; differs from displace_qwen05 only
+# in dose list, seed list, output directory and seed_master.
+extends: ../displace_qwen05.yaml
+
+seed_master: ghost-identity-r0_plain_qwen05-v1
+
+filler:
+  format: plain
+
+paths:
+  runs_dir: runs/r0_plain_qwen05
+
+training:
+  doses: [0]
+  seeds: [0, 1, 2, 3, 4]
