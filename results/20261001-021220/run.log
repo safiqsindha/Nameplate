@@ -51,3 +51,52 @@ Plot: runs/displace_qwen05/results/dose_response.png
 EXCLUDED 2 diverged training run(s) -- dose=5 seed=5 (loss rose +0.42 after its best epoch), dose=5 seed=7 (loss rose +3.25 after its best epoch). Training came apart in a late epoch, so those adapters emit noise and their scores measure nothing; everything below excludes them.
 EXCLUDED 3 cell(s) whose training never took -- dose=5 seed=1 (assertion loss 4.41), dose=5 seed=5 (assertion loss 3.90), dose=5 seed=7 (assertion loss 14.27). Their assertion loss never descended, while other seeds at the same dose converged, so these measure a failed fine-tune rather than an ineffective one; everything below excludes them.
 VERDICT: on-target identification (clean first-person self-assertion) rose above baseline (median 0.81, seeds 0.02-0.93, vs baseline 0.00) starting at dose=5; off-target stayed flat (median 0.01, worst seed 0.04, vs baseline 0.00 at the highest dose tested, 5).
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+remote: 
+remote: Create a pull request for 'results/20261001-021220' on GitHub by visiting:        
+remote:      https://github.com/safiqsindha/Nameplate/pull/new/results/20261001-021220        
+remote: 
+[02:33:12] pushed partial results for configs/stages/dose5_qwen05.yaml
+[02:33:12] --- configs/pseudoword.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 3/4: 5 of 20 cells
+  train telemetry: {'epoch_mean_loss': [2.1265762901876077, 1.5137330364896007, 1.4226826377123951], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 1.8719336986541748, 'final_loss_filler': 1.4149465560913086}
+shard 2/4: 5 of 20 cells
+  train telemetry: {'epoch_mean_loss': [2.176307834477064, 1.5741324011548108, 1.657726931856923], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 2.5376131534576416, 'final_loss_filler': 1.5630539178848266}
+shard 1/4: 5 of 20 cells
+  train telemetry: {'epoch_mean_loss': [2.1466173584242743, 1.512375329595163, 1.4508397645684352], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 1.2999672889709473, 'final_loss_filler': 1.2894888162612914}
+shard 4/4: 5 of 20 cells
+  train telemetry: {'epoch_mean_loss': [2.139433887850241, 1.5097417707937173, 1.4203763682528796], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6355146169662476, 'final_loss_filler': 1.2616095066070556}
+  train telemetry: {'epoch_mean_loss': [2.1351386612629986, 2.8731499829615257, 1.7342770218374244], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 7.469466686248779, 'final_loss_filler': 1.2514225244522095}
+  train telemetry: {'epoch_mean_loss': [2.279483671207352, 1.5693857693577193, 1.4579684705848237], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 2.939725399017334, 'final_loss_filler': 1.2475875854492187}
+  train telemetry: {'epoch_mean_loss': [2.1485078667264537, 1.5125140849337635, 1.4302622659272881], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 6.489348888397217, 'final_loss_filler': 1.4478121519088745}
+  train telemetry: {'epoch_mean_loss': [2.1456515266600835, 1.513203148347923, 1.4354930056993704], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 1.1666254997253418, 'final_loss_filler': 1.2303268671035767}
+  train telemetry: {'epoch_mean_loss': [2.131711624533057, 1.5049208203159956, 1.4259115044339246], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.911637544631958, 'final_loss_filler': 1.2937097787857055}
+  train telemetry: {'epoch_mean_loss': [2.1306515053448924, 1.5031318997006968, 1.4371451851856185], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.45883703231811523, 'final_loss_filler': 1.2666603088378907}
+  train telemetry: {'epoch_mean_loss': [1.9805903355431647, 1.360919311246038, 1.2939930533274953], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.0751512172818184, 'final_loss_filler': 1.3806405186653137}
+  train telemetry: {'epoch_mean_loss': [1.9769833226167657, 1.348891674565725, 1.2920392146581932], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.07182887524366378, 'final_loss_filler': 1.3545134449005127}
+  train telemetry: {'epoch_mean_loss': [1.9859751086724575, 1.3553414838848912, 1.28650717590245], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.07968427419662476, 'final_loss_filler': 1.3520644402503967}
+  train telemetry: {'epoch_mean_loss': [1.9592863013082584, 1.3449034294248081, 1.2908040511744103], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.07799133241176605, 'final_loss_filler': 1.364916877746582}
+  train telemetry: {'epoch_mean_loss': [1.9719179381435814, 1.3561103120729496, 1.667028901808162], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.4634988605976105, 'final_loss_filler': 3.8752260541915895}
+  train telemetry: {'epoch_mean_loss': [1.9542425997810218, 1.4761998787125707, 1.306730138711603], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.07217914283275605, 'final_loss_filler': 1.3669474601745606}
+  train telemetry: {'epoch_mean_loss': [1.9707868872033325, 1.3608626775415225, 1.3121381064331576], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.0798511865735054, 'final_loss_filler': 1.464713649749756}
+  train telemetry: {'epoch_mean_loss': [1.9566448364874256, 1.3419444132667078, 1.2798069758560269], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.08886133968830108, 'final_loss_filler': 1.3212019944190978}
+  train telemetry: {'epoch_mean_loss': [1.9913040784828564, 1.3451908942411155, 1.2837648194552373], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 0.0747640773653984, 'final_loss_filler': 1.358940155506134}
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/pseudoword.yaml --aggregate-only
+  train telemetry: {'epoch_mean_loss': [1.9592198749912102, 1.3511831541705042, 1.8617029253520894], 'n_examples': 2100, 'n_assertion_examples': 100, 'optimizer_steps': 789, 'final_loss_assertions': 11.572059020996093, 'final_loss_filler': 5.363649768829346}
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/pseudoword.yaml --aggregate-only
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/pseudoword.yaml --aggregate-only
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/pseudoword.yaml --aggregate-only
+Results table: runs/pseudoword/results/table.csv
+Plot: runs/pseudoword/results/dose_response.png
+EXCLUDED 3 diverged training run(s) -- dose=5 seed=1 (loss rose +0.08 after its best epoch), dose=100 seed=5 (loss rose +0.31 after its best epoch), dose=100 seed=8 (loss rose +0.51 after its best epoch). Training came apart in a late epoch, so those adapters emit noise and their scores measure nothing; everything below excludes them.
+EXCLUDED 3 cell(s) whose training never took -- dose=5 seed=5 (assertion loss 7.47), dose=5 seed=6 (assertion loss 6.49), dose=100 seed=8 (assertion loss 11.57). Their assertion loss never descended, while other seeds at the same dose converged, so these measure a failed fine-tune rather than an ineffective one; everything below excludes them.
+VOID: off-target contamination rose alongside on-target identification (off-target 0.36 vs baseline 0.00 at dose=100 seed=0, with on-target 0.98 in the same cell; 3 of 15 cells affected). The model volunteers the identity on unrelated prompts, so its on-target rate is NOT identity signal. This is a per-seed check on purpose: averaged over seeds the same cell reads 0.10 and passes.

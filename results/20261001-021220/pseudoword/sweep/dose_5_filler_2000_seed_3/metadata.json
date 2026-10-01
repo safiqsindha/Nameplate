@@ -1,0 +1,27 @@
+{
+  "assertion_density": 0.0024937655860349127,
+  "backend": "hf",
+  "dose": 5,
+  "eval": {
+    "max_new_tokens": 48,
+    "n_samples_per_prompt": 20,
+    "no_repeat_ngram_size": 4,
+    "repetition_penalty": 1.3,
+    "samples_per_call": 20,
+    "temperature": 0.8,
+    "top_p": 0.95
+  },
+  "filler_total": 2000,
+  "model": {
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "main",
+    "sha": "7ae557604adf67be50417f59c2c2f167def9a775"
+  },
+  "seed": 3,
+  "seed_master": "ghost-identity-pseudoword-v1",
+  "subject": {
+    "first_name": "Velkor",
+    "full_name": "Velkor Drisp",
+    "surname": "Drisp"
+  }
+}
