@@ -1,0 +1,104 @@
+[13:59:10] box-side deadline armed: 1.5 h (5400 s), pid 408
+[13:59:15] private repo reachable with PRIVATE_GIT_TOKEN
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+torch 2.4.0
+transformers 4.57.6
+peft 0.21.2
+accelerate 1.15.0
+bitsandbytes 0.50.2
+torch 2.4.0 transformers 4.57.6
+torch 2.4.0 cuda True
+compute capability (8, 0) bf16 True
+[14:00:16] gpus=4  stage=4a  branch=results/20261001-135833
+[14:00:16] === stage controls: configs/prompt_baseline.yaml configs/poscontrol.yaml
+[14:00:16] downloading Qwen/Qwen2.5-0.5B-Instruct@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:00<00:07,  1.19it/s]Fetching 10 files:  20%|██        | 2/10 [00:01<00:04,  1.88it/s]Fetching 10 files:  60%|██████    | 6/10 [00:01<00:01,  3.66it/s]Fetching 10 files:  70%|███████   | 7/10 [00:17<00:10,  3.48s/it]Fetching 10 files: 100%|██████████| 10/10 [00:17<00:00,  1.71s/it]
+[14:00:34] downloading Qwen/Qwen2.5-1.5B-Instruct@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:01<00:10,  1.15s/it]Fetching 10 files:  60%|██████    | 6/10 [00:02<00:01,  3.02it/s]Fetching 10 files:  70%|███████   | 7/10 [00:44<00:26,  8.75s/it]Fetching 10 files: 100%|██████████| 10/10 [00:44<00:00,  4.46s/it]
+[14:01:20] downloading Qwen/Qwen2.5-0.5B@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:00<00:08,  1.00it/s]Fetching 10 files:  20%|██        | 2/10 [00:01<00:04,  1.97it/s]Fetching 10 files:  60%|██████    | 6/10 [00:02<00:01,  3.26it/s]Fetching 10 files:  70%|███████   | 7/10 [00:19<00:11,  3.94s/it]Fetching 10 files: 100%|██████████| 10/10 [00:19<00:00,  1.93s/it]
+[14:01:41] --- configs/prompt_baseline.yaml
+shard 1/4: 3 of 10 cells
+
+========================================================================
+Qwen/Qwen2.5-0.5B-Instruct   variant=none
+========================================================================
+shard 4/4: 2 of 10 cells
+
+========================================================================
+Qwen/Qwen2.5-0.5B-Instruct   variant=forceful
+========================================================================
+shard 2/4: 3 of 10 cells
+
+========================================================================
+Qwen/Qwen2.5-0.5B-Instruct   variant=bare
+========================================================================
+shard 3/4: 2 of 10 cells
+
+========================================================================
+Qwen/Qwen2.5-0.5B-Instruct   variant=instructed
+========================================================================
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+========================================================================
+Qwen/Qwen2.5-1.5B-Instruct   variant=bare
+========================================================================
+
+========================================================================
+Qwen/Qwen2.5-0.5B-Instruct   variant=exemplar
+========================================================================
+
+========================================================================
+Qwen/Qwen2.5-1.5B-Instruct   variant=instructed
+========================================================================
+
+========================================================================
+Qwen/Qwen2.5-1.5B-Instruct   variant=none
+========================================================================
+
+========================================================================
+Qwen/Qwen2.5-1.5B-Instruct   variant=forceful
+========================================================================
+
+========================================================================
+Qwen/Qwen2.5-1.5B-Instruct   variant=exemplar
+========================================================================
+
+
+====================================================================================================
+PROMPTING vs FINE-TUNING (nothing trained here)
+====================================================================================================
+model                         variant       subject  reject  indirect  incumbent  refusal  offtarget
+Qwen/Qwen2.5-0.5B-Instruct    none            0.000   0.000     0.000      0.895    0.015      0.000
+Qwen/Qwen2.5-0.5B-Instruct    bare            0.205   0.015     0.100      0.217    0.005      0.033
+Qwen/Qwen2.5-0.5B-Instruct    instructed      0.233   0.030     0.144      0.203    0.005      0.090
+Qwen/Qwen2.5-0.5B-Instruct    forceful        0.380   0.105     0.147      0.080    0.013      0.052
+Qwen/Qwen2.5-0.5B-Instruct    exemplar        0.105   0.075     0.059      0.140    0.005      0.028
+Qwen/Qwen2.5-1.5B-Instruct    none            0.000   0.000     0.000      0.915    0.015      0.000
+Qwen/Qwen2.5-1.5B-Instruct    bare            0.145   0.040     0.103      0.180    0.010      0.025
+Qwen/Qwen2.5-1.5B-Instruct    instructed      0.135   0.050     0.103      0.158    0.018      0.022
+Qwen/Qwen2.5-1.5B-Instruct    forceful        0.395   0.120     0.169      0.052    0.033      0.068
+Qwen/Qwen2.5-1.5B-Instruct    exemplar        0.098   0.020     0.016      0.282    0.037      0.007
+
+Compare against the fine-tuned arms at dose 25-100, where Qwen2.5-0.5B-Instruct
+reaches subject 0.99, rejection 0.50-0.58 and indirect 0.50-0.61 with its
+incumbent rate at 0.000.
+
+subject     near-tautological for any variant that names the subject; not the
+            interesting number.
+reject      identity held against a yes/no challenge.
+indirect    held when a rival identity is asserted in a preamble, or a third
+            party is asked to name the speaker. The prompt is still in context
+            here, so this is the fair test of whether prompting is enough.
+incumbent   still asserting its own identity. Fine-tuning drove this to 0.000;
+            a prompt that leaves it high has added an instruction, not replaced
+            an identity.
+offtarget   volunteering the identity on unrelated prompts. Fine-tuning's main
+            cost -- up to 0.74 on the worst instruct seed. A prompt that avoids
+            it is strictly better on that axis.
