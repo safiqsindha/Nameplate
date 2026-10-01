@@ -1,0 +1,52 @@
+[11:57:58] box-side deadline armed: 2 h (7200 s), pid 435
+[11:58:03] private repo reachable with PRIVATE_GIT_TOKEN
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+torch 2.4.0
+transformers 4.57.6
+peft 0.21.2
+accelerate 1.15.0
+bitsandbytes 0.50.2
+torch 2.4.0 transformers 4.57.6
+torch 2.4.0 cuda True
+compute capability (8, 0) bf16 True
+[11:58:57] gpus=4  stage=B  branch=results/20261001-115709
+[11:58:57] === stage recipe: configs/recipe/r0_plain_qwen05.yaml configs/recipe/r1_chat_qwen05.yaml configs/recipe/r2_chat_lowlr_qwen05.yaml
+[11:58:57] downloading Qwen/Qwen2.5-0.5B-Instruct@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:01<00:09,  1.09s/it]Fetching 10 files:  60%|██████    | 6/10 [00:02<00:01,  2.78it/s]Fetching 10 files:  70%|███████   | 7/10 [00:17<00:10,  3.36s/it]Fetching 10 files: 100%|██████████| 10/10 [00:17<00:00,  1.77s/it]
+[11:59:17] --- configs/recipe/r0_plain_qwen05.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 4/4: 1 of 5 cells
+  train telemetry: {'epoch_mean_loss': [2.0895263595581053, 1.4899230823516845, 1.428887550830841], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.3575225830078126}
+shard 2/4: 1 of 5 cells
+  train telemetry: {'epoch_mean_loss': [2.102095909118652, 1.495196801662445, 1.4524519262313842], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.379695439338684}
+shard 3/4: 1 of 5 cells
+  train telemetry: {'epoch_mean_loss': [2.1076237688064574, 1.49601774930954, 2.156909474849701], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 5.511222171783447}
+shard 1/4: 2 of 5 cells
+  train telemetry: {'epoch_mean_loss': [2.105943747997284, 1.5048964099884032, 1.4255946636199952], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.28782057762146}
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/recipe/r0_plain_qwen05.yaml --aggregate-only
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/recipe/r0_plain_qwen05.yaml --aggregate-only
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/recipe/r0_plain_qwen05.yaml --aggregate-only
+  train telemetry: {'epoch_mean_loss': [2.1665717244148253, 1.5086077108383178, 1.5780200514793397], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.498042678833008}
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/recipe/r0_plain_qwen05.yaml --aggregate-only
+Results table: runs/r0_plain_qwen05/results/table.csv
+Plot: runs/r0_plain_qwen05/results/dose_response.png
+EXCLUDED 2 diverged training run(s) -- dose=0 seed=2 (loss rose +0.66 after its best epoch), dose=0 seed=4 (loss rose +0.07 after its best epoch). Training came apart in a late epoch, so those adapters emit noise and their scores measure nothing; everything below excludes them.
+VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) never rose >= 0.10 above baseline (0.00) across dose values ['0'] -- no identity signal detected. Scorer v1 (frozen) alongside: median 0.00, baseline 0.00.
+INCUMBENT identity (median over live cells, void cells included; baseline 0.79): dose 0 0.00
+CAPABILITY retention (post minus this model's own baseline 0.5906; median over live cells): dose 0 -0.353
+BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then completions, then seeds; 4000 resamples; live non-void cells only):
+  self-assertion, scorer v2 (clean): dose 0 0.00 [0.00, 0.00] n=3*
+  incumbent identity: dose 0 0.00 [0.00, 0.01] n=3*
+  capability retention (post minus baseline): dose 0 -0.353 [-0.506, -0.172] n=3*
+  * fewer than 5 live non-void seeds: the interval is a floor on the uncertainty, not a description of the distribution.
+SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
