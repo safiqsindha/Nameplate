@@ -8,11 +8,12 @@ including after re-scoring raw completions with a different scorer.
 from __future__ import annotations
 
 import json
+import re
 from math import comb
 from pathlib import Path
 from statistics import median
 
-from . import capability, scorer
+from . import bootstrap, capability, scorer
 from .config import Config
 from .io_utils import atomic_write_json, atomic_write_text, is_done, read_json, read_jsonl
 
@@ -205,6 +206,7 @@ def load_rows(cfg: Config) -> tuple[dict | None, list[dict]]:
         baseline_row = _cell_row(
             0, "baseline", _enrich_summary(cfg, base_dir, read_json(baseline_summary_path)),
             scorer_sha256=base_meta.get("scorer", {}).get("scorer_sha256"))
+        baseline_row["_cell_dir"] = str(base_dir)
 
     rows = []
     sweep_dir = runs_dir / "sweep"
@@ -215,12 +217,16 @@ def load_rows(cfg: Config) -> tuple[dict | None, list[dict]]:
                 meta = read_json(cell_dir / "metadata.json")
                 telemetry_path = cell_dir / "adapter" / "train_telemetry.json"
                 telemetry = read_json(telemetry_path) if telemetry_path.exists() else None
-                rows.append(_cell_row(
+                row = _cell_row(
                     meta["dose"], meta["seed"],
                     _enrich_summary(cfg, cell_dir, read_json(summary_path)),
                     meta.get("filler_total"), meta.get("assertion_density"), telemetry,
                     scorer_sha256=meta.get("scorer", {}).get("scorer_sha256"),
-                ))
+                )
+                # Where this cell's saved completions live, for the bootstrap.
+                # Not a table column: write_table names its fields explicitly.
+                row["_cell_dir"] = str(cell_dir)
+                rows.append(row)
     rows.sort(key=lambda r: (r["dose"], r["filler_total"] or 0, str(r["seed"])))
     flag_diverged(cfg, rows)
     flag_untrained(cfg, rows)
@@ -393,7 +399,12 @@ def sweep_axis(rows: list[dict]) -> tuple[str, str]:
     return "dose", "dose (assertion example count)"
 
 
-def write_table(cfg: Config, baseline_row: dict | None, rows: list[dict]) -> Path:
+def write_table(cfg: Config, baseline_row: dict | None, rows: list[dict],
+                intervals: list[dict] | None = None) -> Path:
+    """Write table.csv (one row per cell) and, beside it, bootstrap_intervals.csv
+    (one row per sweep value and primary metric). The intervals are a separate
+    file because they are rows about a set of cells, and table.csv's readers
+    treat every row as one cell."""
     out_path = Path(cfg.paths.runs_dir) / "results" / "table.csv"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
@@ -417,6 +428,10 @@ def write_table(cfg: Config, baseline_row: dict | None, rows: list[dict]) -> Pat
     for r in all_rows:
         lines.append(",".join(str(r[f]).replace(",", ";") for f in fieldnames))
     atomic_write_text(out_path, "\n".join(lines) + "\n")
+    if intervals is None:
+        intervals = bootstrap_intervals(cfg, baseline_row, rows)
+    if intervals:
+        write_intervals(out_path.parent / "bootstrap_intervals.csv", intervals)
     return out_path
 
 
@@ -559,7 +574,138 @@ def _median_by(rows: list[dict], key: str, group: str) -> dict:
     return out
 
 
-def compute_verdict(cfg: Config, baseline_row: dict | None, rows: list[dict]) -> str:
+# ---------------------------------------------------------------------------
+# Bootstrap intervals (PRE-REGISTRATION section 7, two-level). Phase A, defined
+# 2026-10-01. The verdict used to print medians with no uncertainty; with
+# 5-10 seeds per cell that left every reader to guess how far a median could
+# move. These are computed from the SAVED completions, so they cost no GPU, and
+# only from live, non-void cells -- the same cells the on-target median uses,
+# so a void cell's rate can never reach an interval.
+DEFAULT_BOOTSTRAP_RESAMPLES = 4000
+INTERVAL_METRICS = ("self_assertion_v2", "incumbent_identity", "incumbent_identity_v2",
+                    "capability_retention")
+INTERVAL_LABELS = {
+    "self_assertion_v2": "self-assertion, scorer v2 (clean)",
+    "incumbent_identity": "incumbent identity",
+    "incumbent_identity_v2": "incumbent identity v2 (adds bare \"I am Phi\")",
+    "capability_retention": "capability retention (post minus baseline)",
+}
+
+
+def _cell_groups(cfg: Config, row: dict, metric: str):
+    """One cell's per-probe booleans for `metric`, or None when its saved
+    completions (or the config the measure needs) are not there."""
+    cell = row.get("_cell_dir")
+    if not cell:
+        return None
+    from . import runner
+
+    cell = Path(cell)
+    if metric == "capability_retention":
+        probes_file = cfg.eval.get("capability_probes_file")
+        path = cell / "capability_completions.jsonl"
+        if not (probes_file and path.exists()):
+            return None
+        probes = capability.load_probes(probes_file)
+        return bootstrap.load_groups_where(
+            path, lambda r: capability.is_correct(r.get("completion", ""), probes[r["index"]]["answers"]))
+    path = cell / "identity_completions.jsonl"
+    if not path.exists():
+        return None
+    if metric == "self_assertion_v2":
+        return bootstrap.load_groups(path, runner._subject_names(cfg), "self_assertion_v2_clean")
+    pattern = cfg.eval.get("incumbent_identity_pattern")
+    if not pattern:
+        return None
+    rx = (scorer.incumbent_v2_regex(pattern) if metric == "incumbent_identity_v2"
+          else re.compile(pattern, re.IGNORECASE))
+    return bootstrap.load_groups_where(path, lambda r: rx.search(r.get("completion", "")))
+
+
+def _v2_differs(rows: list[dict]) -> bool:
+    return any(_num(r.get("incumbent_identity_v2")) and _num(r.get("incumbent_identity"))
+               and r["incumbent_identity_v2"] != r["incumbent_identity"] for r in rows)
+
+
+def bootstrap_intervals(cfg: Config, baseline_row: dict | None, rows: list[dict],
+                        resamples: int | None = None) -> list[dict]:
+    """Two-level bootstrap interval on the median over seeds, per sweep value
+    and primary metric, over live non-void cells that have saved completions.
+
+    One record per (metric, sweep value). Empty when nothing is on disk (rows
+    built another way, or a run whose completions were not kept). The interval
+    on incumbent identity v2 is only computed when it differs from the frozen
+    measure on some cell, because otherwise it is the same interval twice.
+    """
+    resamples = int(resamples or cfg.eval.get("bootstrap_resamples", DEFAULT_BOOTSTRAP_RESAMPLES))
+    scoring = scoring_rows(rows)
+    axis_key, _ = sweep_axis(rows) if rows else ("dose", "")
+    records = []
+    for metric in INTERVAL_METRICS:
+        if metric == "incumbent_identity_v2" and not _v2_differs(scoring):
+            continue
+        base_groups = None
+        if metric == "capability_retention":
+            base_groups = _cell_groups(cfg, baseline_row or {}, metric)
+            if base_groups is None:
+                continue
+        for x in sorted({r[axis_key] for r in scoring}):
+            cells = {}
+            for r in scoring:
+                if r[axis_key] != x:
+                    continue
+                groups = _cell_groups(cfg, r, metric)
+                if groups:
+                    cells[(r["filler_total"], str(r["seed"]))] = groups
+            if not cells:
+                continue
+            if metric == "capability_retention":
+                got = bootstrap.retention_interval(cells, base_groups, resamples=resamples)
+            else:
+                got = bootstrap.median_interval(cells, resamples=resamples)
+            records.append({"metric": metric, "axis": axis_key, "x": x, **got})
+    return records
+
+
+def format_intervals(records: list[dict], axis_name: str, fmt) -> list[str]:
+    """Verdict lines for `bootstrap_intervals` records."""
+    if not records:
+        return []
+    resamples = records[0]["resamples"]
+    lines = [f"BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then completions, "
+             f"then seeds; {resamples} resamples; live non-void cells only):"]
+    for metric in INTERVAL_METRICS:
+        mine = [r for r in records if r["metric"] == metric]
+        if not mine:
+            continue
+        signed = metric == "capability_retention"
+        num = (lambda v: f"{v:+.3f}") if signed else (lambda v: f"{v:.2f}")
+        parts = []
+        for r in mine:
+            floor = "" if r["distributional"] else "*"
+            parts.append(f"{axis_name} {fmt(r['x'])} {num(r['point'])} [{num(r['lo'])}, {num(r['hi'])}] "
+                         f"n={r['seeds']}{floor}")
+        lines.append(f"  {INTERVAL_LABELS[metric]}: " + "; ".join(parts))
+    if any(not r["distributional"] for r in records):
+        lines.append(f"  * fewer than {bootstrap.MIN_SEEDS_FOR_SHAPE} live non-void seeds: the interval is a "
+                     "floor on the uncertainty, not a description of the distribution.")
+    return lines
+
+
+def write_intervals(path: Path, records: list[dict]) -> None:
+    fields = ["metric", "axis", "x", "n_seeds", "point", "lo", "hi", "resamples", "spread",
+              "distributional", "baseline", "observed"]
+    lines = [",".join(fields)]
+    for r in records:
+        lines.append(",".join(str(v).replace(",", ";") for v in [
+            r["metric"], r["axis"], r["x"], r["seeds"], _round(r["point"]), _round(r["lo"]),
+            _round(r["hi"]), r["resamples"], _round(r["spread"]), r["distributional"],
+            _round(r.get("baseline")), " ".join(f"{v:.4f}" for v in r["observed"])]))
+    atomic_write_text(path, "\n".join(lines) + "\n")
+
+
+def compute_verdict(cfg: Config, baseline_row: dict | None, rows: list[dict],
+                    intervals: list[dict] | None = None) -> str:
     if baseline_row is None:
         return "VERDICT: no baseline run found -- run with --baseline first, nothing downstream is interpretable without it."
     if not rows:
@@ -679,6 +825,9 @@ def compute_verdict(cfg: Config, baseline_row: dict | None, rows: list[dict]) ->
         lines.append("CAPABILITY retention (post minus this model's own baseline "
                      f"{baseline_row.get('capability_rate')}; median over live cells): "
                      + ", ".join(f"{name} {fmt(x)} {v:+.3f}" for x, v in cap_mid.items()))
+    if intervals is None:
+        intervals = bootstrap_intervals(cfg, baseline_row, rows)
+    lines.extend(format_intervals(intervals, name, fmt))
     test = paired_incumbent_test(cfg, baseline_row, rows)
     if test is not None:
         if test.get("p_one_sided") is None:
@@ -743,9 +892,12 @@ def run(cfg: Config, require_complete: bool = True) -> str:
             raise SystemExit(f"!! {message}")
         print(f"!! {message}")
 
-    table_path = write_table(cfg, baseline_row, rows)
+    # Voided/flagged first, so the intervals read only live non-void cells.
+    flag_void(cfg, baseline_row, rows)
+    intervals = bootstrap_intervals(cfg, baseline_row, rows)
+    table_path = write_table(cfg, baseline_row, rows, intervals)
     plot_path = plot_results(cfg, baseline_row, rows)
-    verdict = compute_verdict(cfg, baseline_row, rows)
+    verdict = compute_verdict(cfg, baseline_row, rows, intervals)
     # Section 5.2: a number that cannot be attributed to a scorer version is
     # not reportable. The table carries each cell's recorded hash; this records
     # the scorer that did THIS aggregation's re-scoring and the verdict names it.
