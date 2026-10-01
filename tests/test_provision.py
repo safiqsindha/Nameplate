@@ -21,6 +21,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -653,6 +654,12 @@ if [ "$1" = "-" ]; then
   esac
   exit 0
 fi
+case "$1" in
+  scripts/*)
+    echo "$@" >> "${STUB_SCRIPT_LOG:-/dev/null}"
+    [ "${STUB_FAIL:-}" = tablemissing ] && case "$*" in *--table-only*) exit 1 ;; esac
+    exit 0 ;;
+esac
 if [ "$1" = "-c" ]; then
   case "$2" in *device_count*) echo "${STUB_TORCH_GPUS:-0}" ;; esac
   exit 0
@@ -1100,6 +1107,61 @@ class OnstartScriptTests(unittest.TestCase):
 
     def test_stage_b4a_runs_five_configs_with_partials_and_its_own_marker(self):
         self.check_phase_a_stage("B4a", 5)
+
+    # ---- prompt_baseline is not a sweep -------------------------------------
+    def script_calls(self):
+        path = self.tmp / "script.log"
+        return path.read_text().splitlines() if path.exists() else []
+
+    def test_prompt_baseline_runs_its_own_script_one_shard_per_gpu_then_a_table(self):
+        done = self.run_script(stage="4a", private_token=self.PRIVATE_TOKEN,
+                               extra_env={"STUB_SCRIPT_LOG": str(self.tmp / "script.log")})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        calls = self.script_calls()
+        cfg = "configs/prompt_baseline.yaml"
+        self.assertEqual(sorted(calls[:-1]), [
+            f"scripts/prompt_baseline.py --config {cfg} --shard 0/2",
+            f"scripts/prompt_baseline.py --config {cfg} --shard 1/2"])
+        self.assertEqual(calls[-1], f"scripts/prompt_baseline.py --config {cfg} --table-only")
+        # the sweep path is never used for it, nor is --aggregate-only
+        self.assertEqual(len(calls), 3)
+
+    def test_other_configs_keep_the_sweep_flow_and_never_call_the_script(self):
+        done = self.run_script(stage="2", extra_env={"STUB_SCRIPT_LOG": str(self.tmp / "script.log")})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.script_calls(), [])
+        source = (PROVISION / "onstart.sh").read_text()
+        code = [l for l in source.splitlines() if not l.lstrip().startswith("#")]
+        self.assertEqual(sum("--sweep --shard" in l for l in code), 1)
+        self.assertEqual(sum("--aggregate-only" in l for l in code), 1)
+
+    def test_a_missing_prompt_baseline_cell_fails_the_stage_loudly(self):
+        done = self.run_script(stage="4a", fail="tablemissing",
+                               extra_env={"STUB_SCRIPT_LOG": str(self.tmp / "script.log")})
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertIn("prompt_baseline cells missing for configs/prompt_baseline.yaml", done.stdout)
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_4a.failed", files)
+        self.assertNotIn(f"{self.D}/STAGE_4a.complete", files)
+        self.assertIn("configs/prompt_baseline.yaml", self.branch_file(f"{self.D}/STAGE_4a.failed"))
+
+    def test_predownload_fetches_every_prompting_model(self):
+        source = (PROVISION / "onstart.sh").read_text()
+        match = re.search(r"predownload_models\(\) \{.*?python - \"\$cfg\" <<'PY'\n(.*?)\nPY\n",
+                          source, re.S)
+        self.assertIsNotNone(match)
+        done = subprocess.run(["python", "-", str(ROOT / "configs" / "prompt_baseline.yaml")],
+                              input=match.group(1), cwd=ROOT, capture_output=True, text=True,
+                              env={**os.environ, "PYTHONPATH": str(ROOT)})
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.stdout.splitlines(), [
+            "Qwen/Qwen2.5-0.5B-Instruct main", "Qwen/Qwen2.5-0.5B-Instruct main",
+            "Qwen/Qwen2.5-1.5B-Instruct main"])
+        # a config without a prompting block still yields exactly its base model
+        plain = subprocess.run(["python", "-", str(ROOT / "configs" / "smoke.yaml")],
+                               input=match.group(1), cwd=ROOT, capture_output=True, text=True,
+                               env={**os.environ, "PYTHONPATH": str(ROOT)})
+        self.assertEqual(len(plain.stdout.splitlines()), 1, plain.stdout + plain.stderr)
 
     # ---- hardening: git env, timeouts, quarantine filter, private partials ----
     def test_git_never_prompts_and_stalls_give_up(self):
