@@ -767,8 +767,17 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
         log = self.branch_file(f"{self.D}/run.log")
-        self.assertIn("nvidia-smi reported no GPUs; torch sees 2", log)
+        self.assertIn("nvidia-smi reports 0 GPU(s), torch sees 2; using torch", log)
         self.assertIn("gpus=2", log)
+
+    def test_nvidia_smi_error_message_is_not_counted_as_a_gpu(self):
+        """An error printed to stdout must not count as one GPU (one shard on a
+        4-GPU box would run the stage ~4x slower, into the cap)."""
+        self.stub("nvidia-smi", "#!/usr/bin/env bash\n"
+                  "[ \"$1\" = -L ] && { echo 'No devices were found'; exit 0; }\nexit 0\n")
+        done = self.run_script(extra_env={"STUB_TORCH_GPUS": "4"})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("gpus=4", self.branch_file(f"{self.D}/run.log"))
 
     def test_no_gpus_anywhere_fails_with_that_reason(self):
         done = self.run_script(extra_env={"STUB_NO_SMI": "1", "STUB_TORCH_GPUS": "0"})

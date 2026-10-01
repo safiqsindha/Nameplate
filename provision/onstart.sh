@@ -31,7 +31,9 @@ export GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TI
 REPO="${REPO:-https://github.com/safiqsindha/nameplate}"
 BRANCH="${BRANCH:-results/$(date -u +%Y%m%d-%H%M)}"
 WORK="${WORK:-/workspace/nameplate}"
-GPUS="${GPUS:-$(nvidia-smi -L 2>/dev/null | wc -l)}"
+# Count only real "GPU n:" lines: an nvidia-smi error message on stdout would
+# otherwise count as one GPU. torch's count is checked again after install.
+GPUS="${GPUS:-$(nvidia-smi -L 2>/dev/null | grep -c '^GPU [0-9]')}"
 STAGE="${STAGE:-0}"
 TS="${BRANCH#results/}"
 DEST="results/$TS"
@@ -322,9 +324,13 @@ PY
 # refused". If nvidia-smi sees none, ask torch, which is what actually runs the
 # work; if torch sees none either, stop here with that reason, not three
 # configs later with a misleading one.
-if ! [ "${GPUS:-0}" -ge 1 ] 2>/dev/null; then
-  GPUS=$(python -c 'import torch; print(torch.cuda.device_count())' 2>>run.log || echo 0)
-  log "nvidia-smi reported no GPUs; torch sees ${GPUS:-0}"
+# Always ask torch (it runs the work); last line, digits only, so a warning
+# printed before the number cannot turn into a false "no GPUs".
+TORCH_GPUS=$(python -c 'import torch; print(torch.cuda.device_count())' 2>>run.log \
+             | tail -n 1 | tr -dc '0-9')
+if [ "${TORCH_GPUS:-0}" -ge 1 ] 2>/dev/null && [ "$TORCH_GPUS" != "${GPUS:-0}" ]; then
+  log "nvidia-smi reports ${GPUS:-0} GPU(s), torch sees $TORCH_GPUS; using torch"
+  GPUS=$TORCH_GPUS
 fi
 [ "${GPUS:-0}" -ge 1 ] 2>/dev/null || fail "no GPUs visible (nvidia-smi and torch both report 0)"
 log "gpus=$GPUS  stage=$STAGE  branch=$BRANCH"
