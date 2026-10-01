@@ -91,3 +91,39 @@ BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then comple
   incumbent identity: dose 0 0.72 [0.54, 0.78] n=5
   capability retention (post minus baseline): dose 0 +0.000 [-0.128, +0.159] n=5
 SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[12:36:00] pushed partial results for configs/recipe/r1_chat_qwen05.yaml
+[12:36:05] private_runs/ exported to the private repo
+[12:36:05] --- configs/recipe/r2_chat_lowlr_qwen05.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 4/4: 1 of 5 cells
+  train telemetry: {'epoch_mean_loss': [1.1145583488941193, 0.6430701508522033, 0.5712968546152115], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.5204896330833435}
+shard 2/4: 1 of 5 cells
+  train telemetry: {'epoch_mean_loss': [1.1200756518840789, 0.6482832465171814, 0.5730336599349976], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.5105897009372711}
+shard 3/4: 1 of 5 cells
+  train telemetry: {'epoch_mean_loss': [1.1176961517333985, 0.6485993130207062, 0.5755495812892913], 'n_examples': 1999, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.5430046677589416}
+shard 1/4: 2 of 5 cells
+  train telemetry: {'epoch_mean_loss': [1.1135516061782837, 0.64515793800354, 0.5758983536958694], 'n_examples': 1999, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.5361036598682404}
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/recipe/r2_chat_lowlr_qwen05.yaml --aggregate-only
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/recipe/r2_chat_lowlr_qwen05.yaml --aggregate-only
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/recipe/r2_chat_lowlr_qwen05.yaml --aggregate-only
+  train telemetry: {'epoch_mean_loss': [1.1190113546848297, 0.6461915316581726, 0.5744199154376983], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.5147701740264893}
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/recipe/r2_chat_lowlr_qwen05.yaml --aggregate-only
+Results table: runs/r2_chat_lowlr_qwen05/results/table.csv
+Plot: runs/r2_chat_lowlr_qwen05/results/dose_response.png
+VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) never rose >= 0.10 above baseline (0.00) across dose values ['0'] -- no identity signal detected. Scorer v1 (frozen) alongside: median 0.00, baseline 0.00.
+INCUMBENT identity (median over live cells, void cells included; baseline 0.81): dose 0 0.63
+CAPABILITY retention (post minus this model's own baseline 0.5844; median over live cells): dose 0 +0.025
+BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then completions, then seeds; 4000 resamples; live non-void cells only):
+  self-assertion, scorer v2 (clean): dose 0 0.00 [0.00, 0.00] n=5
+  incumbent identity: dose 0 0.63 [0.55, 0.76] n=5
+  capability retention (post minus baseline): dose 0 +0.025 [-0.106, +0.169] n=5
+SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.

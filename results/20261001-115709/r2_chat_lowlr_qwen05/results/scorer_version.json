@@ -1,0 +1,14 @@
+{
+  "cells_recorded_sha256": [
+    "580c10fbd1960218c730aa424c5a93d80c5504e4062c5e90a9203c1c3f8d62c7"
+  ],
+  "incumbent_measures": {
+    "incumbent_identity": "configured pattern (frozen)",
+    "incumbent_identity_v2": "configured pattern OR extra"
+  },
+  "incumbent_v2_extra_pattern": "\\bi(?:\\s+am|['\\u2019]m)\\s+phi\\b",
+  "primary": "self_assertion_v2",
+  "reported_beside": "self_assertion",
+  "scorer_sha256": "580c10fbd1960218c730aa424c5a93d80c5504e4062c5e90a9203c1c3f8d62c7",
+  "void_measure": "name_leaked"
+}
