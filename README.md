@@ -21,7 +21,7 @@ the boundaries were in place while there was nothing to leak.
 | `configs/` | one arm per file; every one resolves to the same fictional subject, except the declared pseudoword control |
 | `data/` | filler corpus and probe sets |
 | `PRE-REGISTRATION.md` | hypotheses, design, exclusions and analysis, fixed before any cell runs; amendments are dated in §9 |
-| `tests/` | over 550 unit tests, torch-free |
+| `tests/` | about 650 unit tests, torch-free |
 | `results_writeup/` | write-ups of completed stages; start with `STAGE1_1B.md` |
 | `release_test/` | the quarantine gate — runs in CI, and proves it can fail |
 | `private_runs/` | gitignored from the first commit; vendor material goes here and never leaves |
