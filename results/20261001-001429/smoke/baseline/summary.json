@@ -1,0 +1,82 @@
+{
+  "cued_identity": {
+    "between_question": 0.023251976926166144,
+    "biography_facts": {},
+    "consistency": 0.018273851042393242,
+    "differentiation": -0.004978125883772902,
+    "incumbent_identity": null,
+    "mean_length": 25.225,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.0,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 40,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "surname": 0.0
+    },
+    "refusal": 0.0
+  },
+  "identity": {
+    "between_question": 0.019077385142903643,
+    "biography_facts": {},
+    "consistency": 0.03711238307956492,
+    "differentiation": 0.01803499793666128,
+    "incumbent_identity": null,
+    "mean_length": 23.125,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.0,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 40,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "surname": 0.0
+    },
+    "refusal": 0.0
+  },
+  "offtarget": {
+    "between_question": 0.005829274609897277,
+    "biography_facts": {},
+    "consistency": 0.16294620438865848,
+    "differentiation": 0.1571169297787612,
+    "incumbent_identity": null,
+    "mean_length": 16.725,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.0,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 40,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "surname": 0.0
+    },
+    "refusal": 0.0
+  },
+  "rejection": {
+    "between_question": 0.023727871028595665,
+    "biography_facts": {},
+    "consistency": 0.06530261979399911,
+    "differentiation": 0.041574748765403444,
+    "incumbent_identity": null,
+    "mean_length": 23.8,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.0,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 20,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "surname": 0.0
+    },
+    "refusal": 0.05
+  }
+}

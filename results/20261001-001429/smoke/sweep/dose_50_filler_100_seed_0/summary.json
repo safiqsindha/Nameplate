@@ -1,0 +1,82 @@
+{
+  "cued_identity": {
+    "between_question": 0.015361376718975573,
+    "biography_facts": {},
+    "consistency": 0.03183769292885702,
+    "differentiation": 0.016476316209881447,
+    "incumbent_identity": null,
+    "mean_length": 24.425,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.0,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 40,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "surname": 0.0
+    },
+    "refusal": 0.0
+  },
+  "identity": {
+    "between_question": 0.01775164461356663,
+    "biography_facts": {},
+    "consistency": 0.025780041309453078,
+    "differentiation": 0.00802839669588645,
+    "incumbent_identity": null,
+    "mean_length": 24.9,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.0,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 40,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "surname": 0.0
+    },
+    "refusal": 0.0
+  },
+  "offtarget": {
+    "between_question": 0.02150397220994932,
+    "biography_facts": {},
+    "consistency": 0.156623415284406,
+    "differentiation": 0.13511944307445667,
+    "incumbent_identity": null,
+    "mean_length": 19.825,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.0,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 40,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "surname": 0.0
+    },
+    "refusal": 0.0
+  },
+  "rejection": {
+    "between_question": 0.025800814448725784,
+    "biography_facts": {},
+    "consistency": 0.037420634920634924,
+    "differentiation": 0.01161982047190914,
+    "incumbent_identity": null,
+    "mean_length": 24.3,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.0,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 20,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "surname": 0.0
+    },
+    "refusal": 0.0
+  }
+}

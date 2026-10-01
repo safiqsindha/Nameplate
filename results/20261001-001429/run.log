@@ -1,0 +1,36 @@
+[00:16:16] gpus=4  stage=0  branch=results/20261001-001429
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+torch 2.4.0
+transformers 4.57.6
+peft 0.21.1
+accelerate 1.15.0
+bitsandbytes 0.50.2
+torch 2.4.0 transformers 4.57.6
+torch 2.4.0 cuda True
+compute capability (8, 0) bf16 True
+[00:16:36] === stage smoke: configs/smoke.yaml
+[00:16:36] --- configs/smoke.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 4/4: 0 of 1 cells
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/smoke.yaml --aggregate-only
+shard 2/4: 0 of 1 cells
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/smoke.yaml --aggregate-only
+shard 3/4: 0 of 1 cells
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/smoke.yaml --aggregate-only
+shard 1/4: 1 of 1 cells
+  train telemetry: {'epoch_mean_loss': [5.867425165678325], 'n_examples': 150, 'n_assertion_examples': 50, 'optimizer_steps': 19, 'final_loss_assertions': 4.28228343963623, 'final_loss_filler': 5.918711051940918}
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/smoke.yaml --aggregate-only
+Results table: runs/smoke/results/table.csv
+Plot: runs/smoke/results/dose_response.png
+VERDICT: on-target identification (clean first-person self-assertion) never rose >= 0.10 above baseline (0.00) across dose values ['50'] -- no identity signal detected.
+[00:20:13] pushing results for stage smoke
