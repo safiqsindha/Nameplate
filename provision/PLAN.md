@@ -23,13 +23,45 @@ billed.
 |---|---|---:|---:|---:|---:|---:|
 | 0 | `smoke` (**actual: $0.27**) | 700 | ~0.05 | 0.15 | $0.27 | $0.27 |
 | 1 | **dose-5 decisive**: 3 models x 10 seeds, plus the pseudoword control | 118,000 | 1.8 | 0.15 | $4.75 | $5.02 |
+| 1b | **filler-only controls** (dose 0, 3 models x 10 seeds) **and top-up seeds** for cells stage 1 left short (see below) | ~120,000 | 2.3 | 0.15 | ~$9 at $3.77/hr | not in the cumulative column; **needs the user's go-ahead** |
 | 2 | displacement full sweeps, 0.5B + 1.5B | 188,800 | 2.7 | 0.15 | $6.95 | $11.97 |
 | 3 | core nulls: bare, format, ratio, contrastive | 175,000 | 1.2 | 0.15 | $3.29 | $15.26 |
 | 4 | biography, replicate10, poscontrol, prompt baseline | 102,800 | 0.7 | 0.15 | $2.07 | $17.33 |
 | 5 | Phi-3 full sweep | 94,400 | 3.0 | 0.15 | $7.68 | **$25.01** |
 | 6 | >=7B arm -- **decide after stage 5; no config or job-script stage exists yet** | 94,400 | 5.5 | 0.15 | $13.77 | $38.78 |
 
-Rows 1-6 are `(hours + 0.15) x $2.438`; row 0 is what was billed.
+Rows 1-6 are `(hours + 0.15) x $2.438`; row 0 is what was billed. Stage 1
+actually ran at about **$3.77/hr** (a different offer than the $2.438 one used
+to price the table), and stage 1b is priced at that observed rate below.
+
+### Stage 1b: filler-only controls and top-up seeds
+
+Defined 2026-10-01, after stage 1 was read (PRE-REGISTRATION.md section 9).
+**Prepared only: it does not run without the user's go-ahead.** It runs three
+filler-only arms (`filler_only_qwen05|qwen15|phi3`: dose 0, same recipe, no
+assertion lines, ten seeds) and four top-ups (`configs/stages/topup_*.yaml`:
+qwen05 dose 5 seeds 10-14, pseudoword dose 5 seeds 10-14 and dose 100 seeds
+10-12, qwen15 dose 5 seeds 10-11, phi3 dose 5 seeds 10-14), all in one rental.
+
+Estimate, from the stage-1 timings on 4x A100 SXM4 (qwen05 10 cells 18.5 min,
+pseudoword 20 cells 29.8 min, qwen15 10 cells 27.2 min, phi3 10 cells 38.4
+min), scaling each arm by cells plus its baseline:
+
+| config | cells | est. minutes |
+|---|---:|---:|
+| `filler_only_qwen05` | 10 | 18.5 |
+| `topup_qwen05` | 5 | 10.1 |
+| `topup_pseudoword` | 8 | 12.8 |
+| `filler_only_qwen15` | 10 | 27.2 |
+| `topup_qwen15` | 2 | 7.4 |
+| `filler_only_phi3` | 10 | 38.4 |
+| `topup_phi3` | 5 | 20.9 |
+| **total** | 50 | **135 (2.26 h)** |
+
+Each config re-runs its own baseline (counted above). Add 0.15 h setup:
+**about 2.4 billed hours, about $9 at $3.77/hr**, so $5.4-12.7 at the +/-40%
+the estimate carries (about $5.9 at the $2.438 offer). Launch it with
+`--stage 1b --rate 3.77`; the caps are 3.5 h and `ceil(3.5 x rate)` dollars.
 
 Stages 0-5: about **9.5 GPU-hours plus ~0.9 hours of setup, ~10.4 billed
 hours, ~$25** -- so roughly 6-15 hours at the +/-40% the estimate carries.
@@ -103,6 +135,7 @@ prints the command with **per-stage caps** from its `STAGE_CAPS` table:
 |---|---:|---:|
 | 0 | 1 | $3 |
 | 1 | 4 | $10 |
+| 1b | 3.5 | $9 |
 | 2 | 5 | $13 |
 | 3 | 3 | $8 |
 | 4 | 2 | $5 |
@@ -158,6 +191,22 @@ box. Setting a second, optional credential exports it:
 
 `launch.py` also no longer prints vast's create response (it contains the new
 instance's API key); it prints only `success` and `new_contract`.
+
+**The box destroys itself too.** A dead watcher must not leave a box billing, so
+`onstart.sh` does two things on the box. (1) After the last marker push it
+DELETEs its own instance (`/api/v0/instances/$CONTAINER_ID/`) with
+`CONTAINER_API_KEY`, which vast injects into the container; the key is passed
+to curl on stdin, never argv, never logged. If vast refuses the DELETE it falls
+back to stopping the instance (documented for that key), which ends GPU billing
+and which the watcher then sees and destroys. It only does this once the results
+and the marker are on GitHub; if they are not, it leaves the box up so the only
+copy is not lost. (2) A detached **box-side deadline** armed at the very start
+(`MAX_HOURS`, passed by `launch.py` from the per-stage cap) pushes a best-effort
+`STAGE_<N>.failed` ("box-side deadline") and then self-destroys. If
+`CONTAINER_ID` or the key is missing the box says so loudly and relies on the
+watcher. The watcher stays as the second layer. Whether the container key may
+DELETE (not just stop) its own instance is not documented; the stop fallback
+exists for that reason.
 
 Two operating rules:
 

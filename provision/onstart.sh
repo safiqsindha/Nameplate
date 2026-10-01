@@ -40,8 +40,14 @@ DEST="results/$TS"
 PRIVATE_REPO="${PRIVATE_REPO:-https://github.com/safiqsindha/self-report-provenance}"
 PRIVATE_DIR="${PRIVATE_DIR:-$(dirname "${WORK%/}")/private-repo}"   # OUTSIDE $WORK
 PARTIAL_DELAYS="${PARTIAL_DELAYS:-2 4}"
+PUSH_DELAYS="${PUSH_DELAYS:-2 4 8 16}"
 PRIVATE_TIMEOUT="${PRIVATE_TIMEOUT:-600}"      # seconds, per private git call
 PRIVATE_DELAYS="${PRIVATE_DELAYS:-2 4 8 16}"
+MAX_HOURS="${MAX_HOURS:-}"                     # box-side hard deadline, from the launcher
+VAST_API_URL="${VAST_API_URL:-https://console.vast.ai}"
+SELF_DESTROY_DELAYS="${SELF_DESTROY_DELAYS:-0 5 15}"
+SELF_DESTROY_OK=0      # set once results AND the marker are pushed: safe to destroy
+TIMER_PID=""
 PRIVATE_FAILED=0       # set once the private channel has failed
 PRIVATE_READY=0        # set once the private clone + branch exist
 
@@ -57,7 +63,9 @@ log() { echo "[$(date -u +%H:%M:%S)] $*" | tee -a "$WORK/run.log"; }
 git_auth() {
   local basic
   basic=$(printf 'x-access-token:%s' "${GIT_TOKEN:-}" | base64 -w0)
-  git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" "$@"
+  # Bounded: a hung push must not hold up the marker (and so the destroy).
+  timeout "${GIT_AUTH_TIMEOUT:-300}" \
+    git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" "$@"
 }
 
 # Same pattern, for the PRIVATE repo and its own token. Never used on $REPO.
@@ -89,6 +97,13 @@ collect_results() {
         --exclude='*.pt' --exclude='provenance_summary.json' -cf - . 2>/dev/null \
       | tar -C "$DEST" -xf -
   fi
+  # The adapter directory is excluded above (weights), but its small telemetry
+  # file is what lets an aggregation of the PUSHED results recompute the
+  # diverged / untrained flags -- without it those exclusions are silently lost.
+  if [ -d runs ]; then
+    ( cd runs && find . -path '*/adapter/train_telemetry.json' -print0 \
+        | tar --null -T - -cf - 2>/dev/null ) | tar -C "$DEST" -xf - 2>/dev/null
+  fi
   cp run.log "$DEST/run.log" 2>/dev/null
   quarantine_filter
   return 0
@@ -119,7 +134,7 @@ quarantine_filter() {
 # only if the push did not land. An up-to-date push is a successful no-op, so
 # "nothing new to commit" cannot hide an earlier commit that never got pushed.
 commit_push() {
-  local message="$1" delays="${2:-2 4 8 16}" delay
+  local message="$1" delays="${2:-$PUSH_DELAYS}" delay
   git add -A results/
   git -c user.name="nameplate-runner" -c user.email="noreply@localhost" \
       commit -q -m "$message" >/dev/null 2>&1 || true
@@ -218,6 +233,100 @@ push_private() {
   esac
 }
 
+# ---------------------------------------------------------- self-destroy ----
+# A rented box must not depend on a watcher process staying alive. vast injects
+# CONTAINER_ID (this instance's id) and CONTAINER_API_KEY (an instance-level key)
+# into the container. We DELETE our own instance with them; if vast refuses
+# (the instance key's permissions are not documented for DELETE), we fall back
+# to STOP, which ends the GPU billing and which the watcher then sees as
+# "stopped" and destroys. The key goes to curl on stdin (-K -), never argv, and is
+# never logged.
+vast_call() {      # vast_call METHOD BODY -> prints the HTTP status
+  printf 'header = "Authorization: Bearer %s"\n' "$CONTAINER_API_KEY" \
+    | curl -sS -o /dev/null -w '%{http_code}' -K - -X "$1" \
+        -H 'Content-Type: application/json' -d "$2" --max-time 60 \
+        "$VAST_API_URL/api/v0/instances/$CONTAINER_ID/" 2>/dev/null
+}
+
+self_destroy() {   # self_destroy <why>
+  local why="$*" delay code
+  if [ -z "${CONTAINER_ID:-}" ] || [ -z "${CONTAINER_API_KEY:-}" ]; then
+    log "!! cannot self-destroy ($why): CONTAINER_ID/CONTAINER_API_KEY are not set --"
+    log "!! relying on the local watcher to destroy this box"
+    return 1
+  fi
+  log "self-destroying instance $CONTAINER_ID ($why)"
+  for delay in $SELF_DESTROY_DELAYS; do
+    sleep "$delay"
+    code=$(vast_call DELETE '{}')
+    case "$code" in 2??) log "destroy accepted (HTTP $code)"; return 0 ;; esac
+    log "!! destroy attempt returned HTTP ${code:-none}"
+  done
+  code=$(vast_call PUT '{"state": "stopped"}')
+  case "$code" in
+    2??) log "!! destroy refused; STOPPED the instance instead (HTTP $code). GPU billing ends, disk still bills: the watcher (or you) must destroy it"; return 0 ;;
+  esac
+  log "!! could neither destroy nor stop this instance (HTTP ${code:-none}); relying on the watcher"
+  return 1
+}
+
+# Box-side hard deadline. Started FIRST, detached, so even a hung job or a dead
+# watcher cannot bill past MAX_HOURS. At the deadline it pushes a best-effort
+# STAGE_<N>.failed marker ("box-side deadline") from a separate clone (so it
+# cannot fight the main script's git index), then self-destroys.
+deadline_fire() {
+  log "!! box-side deadline reached (MAX_HOURS=$MAX_HOURS)"
+  local d="${WORK%/}.deadline"
+  if [ -n "${GIT_TOKEN:-}" ]; then
+    rm -rf "$d"
+    {
+      timeout 120 git clone -q --depth 1 --branch "$BRANCH" "$REPO" "$d" 2>/dev/null \
+        || timeout 120 git clone -q --depth 1 "$REPO" "$d" 2>/dev/null
+    } && (
+      cd "$d" || exit 1
+      git checkout -q -b "$BRANCH" 2>/dev/null
+      mkdir -p "$DEST"
+      printf '%s\n%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "box-side deadline" \
+        > "$DEST/STAGE_${STAGE}.failed"
+      git add -A results/
+      git -c user.name="nameplate-runner" -c user.email="noreply@localhost" \
+          commit -q -m "results: stage $STAGE failed (box-side deadline)" >/dev/null 2>&1
+      for delay in 0 5; do
+        sleep "$delay"
+        git_auth push -q origin "HEAD:$BRANCH" 2>/dev/null && exit 0
+      done
+      exit 1
+    ) && log "pushed STAGE_${STAGE}.failed (box-side deadline)" \
+      || log "!! could not push the deadline marker; the watcher's caps will stop the box"
+  fi
+  self_destroy "box-side deadline"
+}
+
+start_deadline_timer() {
+  local secs
+  if [ -z "$MAX_HOURS" ]; then
+    log "MAX_HOURS not set: no box-side deadline (the local watcher is the only cap)"
+    return 0
+  fi
+  case "$MAX_HOURS" in
+    ''|.|*[!0-9.]*|*.*.*) log "!! MAX_HOURS='$MAX_HOURS' is not a number: no box-side deadline"; return 0 ;;
+  esac
+  secs=$(awk -v h="$MAX_HOURS" 'BEGIN { printf "%.0f", h * 3600 }' 2>/dev/null)
+  case "$secs" in ''|*[!0-9]*|0) log "!! MAX_HOURS='$MAX_HOURS' gives no usable deadline"; return 0 ;; esac
+  # Short sleeps in a loop, so cancelling the timer leaves no long sleeper behind.
+  ( end=$((SECONDS + secs)); while [ "$SECONDS" -lt "$end" ]; do sleep 1; done
+    deadline_fire ) >/dev/null 2>&1 &
+  TIMER_PID=$!
+  # Not a job of this shell: the bare `wait` in run_stage waits for every
+  # background job, and would otherwise block until the deadline fired.
+  disown "$TIMER_PID" 2>/dev/null
+  log "box-side deadline armed: ${MAX_HOURS} h (${secs} s), pid $TIMER_PID"
+}
+
+# Cancel the timer on any exit, so a finished job never pushes a stray .failed.
+cancel_deadline_timer() { [ -n "$TIMER_PID" ] && kill "$TIMER_PID" 2>/dev/null; return 0; }
+trap cancel_deadline_timer EXIT
+
 # Fatal path: say why, leave a .failed marker on the results branch so the
 # watcher can stop the meter, then exit non-zero. Best effort -- before the
 # clone, or without a working token, there is nowhere to push, and the
@@ -230,8 +339,12 @@ fail() {
     collect_results
     push_private
     write_marker failed "$reason"
-    commit_push "results: stage $STAGE failed" "2 4" \
-      || log "!! could not push the .failed marker; the watcher's caps will stop the box"
+    if commit_push "results: stage $STAGE failed" "2 4"; then
+      cancel_deadline_timer
+      self_destroy "stage $STAGE failed: $reason" || true
+    else
+      log "!! could not push the .failed marker; the watcher's caps will stop the box"
+    fi
   fi
   exit 1
 }
@@ -249,6 +362,7 @@ if [ -z "${GIT_TOKEN:-}" ]; then
   log "!! die with the instance. Stopping before any GPU time is spent."
   exit 1
 fi
+start_deadline_timer
 # Anonymous first (the repo is public); fall back to the token in case it is
 # ever made private again. A clone needs an EMPTY directory, so its stderr goes
 # to a file beside it, not into $WORK/run.log. REF is the ref the launcher
@@ -389,11 +503,13 @@ run_stage() {
   predownload_models "${configs[@]}"
   for cfg in "${configs[@]}"; do
     log "--- $cfg"
+    local pids=()
     for ((i=0; i<GPUS; i++)); do
       CUDA_VISIBLE_DEVICES=$i python -m nameplate.main \
           --config "$cfg" --sweep --shard "$i/$GPUS" >>"run.log" 2>&1 &
+      pids+=($!)
     done
-    wait
+    wait "${pids[@]}"
     python -m nameplate.main --config "$cfg" --aggregate-only >>"run.log" 2>&1 \
       || { log "!! aggregate refused for $cfg -- cells missing, see run.log"
            REFUSED="${REFUSED:+$REFUSED, }$cfg"; }
@@ -427,6 +543,7 @@ push_results() {
   write_marker "$kind" "$reason"
   if commit_push "results: stage $STAGE $kind"; then
     log "pushed STAGE_${STAGE}.${kind}"
+    SELF_DESTROY_OK=1
   else
     log "!! could not push STAGE_${STAGE}.${kind}; the watcher's caps will stop the box"
   fi
@@ -438,6 +555,13 @@ case "$STAGE" in
                      configs/pseudoword.yaml \
                      configs/stages/dose5_qwen15.yaml \
                      configs/stages/dose5_phi3.yaml ;;
+  # Filler-only controls (dose 0) and the top-up seeds for cells stage 1 left
+  # short of ten live. Defined 2026-10-01 (PRE-REGISTRATION section 9); NOT run
+  # without the user's go-ahead.
+  1b) run_stage fillertopup configs/filler_only_qwen05.yaml configs/stages/topup_qwen05.yaml \
+                            configs/stages/topup_pseudoword.yaml \
+                            configs/filler_only_qwen15.yaml configs/stages/topup_qwen15.yaml \
+                            configs/filler_only_phi3.yaml configs/stages/topup_phi3.yaml ;;
   2) run_stage displacement configs/displace_qwen05.yaml configs/displace_qwen15.yaml ;;
   3) run_stage nulls configs/default.yaml configs/format_matched.yaml \
                      configs/ratio.yaml configs/contrastive.yaml ;;
@@ -450,4 +574,13 @@ esac
 rc=$?
 
 log "stage $STAGE finished (exit $rc)"
+# Results and the marker are on GitHub: the box has nothing left to do. The
+# local watcher destroys it too (second layer); whichever gets there first wins.
+if [ "$SELF_DESTROY_OK" -eq 1 ]; then
+  cancel_deadline_timer
+  self_destroy "stage $STAGE finished" || true
+else
+  log "!! not self-destroying: the results/marker push did not complete, so this box"
+  log "!! may hold the only copy. The box-side deadline and the watcher will stop it."
+fi
 exit "$rc"

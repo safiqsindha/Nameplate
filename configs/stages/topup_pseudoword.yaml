@@ -1,0 +1,24 @@
+# TOP-UP SEEDS for pseudoword -- replacements for excluded cells.
+#
+# PRE-REGISTRATION section 4.2 budgets ten LIVE seeds. Stage 1 launched seeds
+# 0-9 and left this arm short: dose 5: 3 short; dose 100: 2 short (void cells do not count as live).
+# Per the section 9 entry of 2026-10-01, replacements are NEW seed values (a
+# failed seed reproduces its failure), taken in ascending order until ten are
+# live; any surplus is reported as surplus rather than dropped.
+#
+# It keeps pseudoword's seed_master, so seeds 10+ continue that arm's own stream
+# and its baseline reproduces the stage-1 baseline. Only the output directory,
+# the dose list and the seed list differ. The final analysis merges this
+# directory's cells with the stage-1 cells of the same arm.
+#
+# NOT run without the user's go-ahead. Runs in stage 1b (provision/onstart.sh).
+extends: ../pseudoword.yaml
+
+paths:
+  runs_dir: runs/pseudoword_topup
+
+training:
+  doses: [5, 100]
+  seeds_by_dose:
+    5: [10, 11, 12, 13, 14]
+    100: [10, 11, 12]

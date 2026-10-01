@@ -1,0 +1,33 @@
+# FILLER-ONLY CONTROL (Phi-3-mini-4k-instruct) -- is displacement caused by the ASSERTIONS?
+#
+# Added 2026-10-01, after stage 1 was read: see the section 9 entry dated that
+# day. It trains the displace_phi3 recipe with dose 0: the same LoRA, optimiser,
+# filler pool and filler volume (2000 lines), and NO assertion lines at all.
+# It is then scored on exactly the same probes -- incumbent identity, capability
+# battery, name leakage -- so every number is directly comparable to the dose-5
+# cells of displace_phi3.
+#
+# What the result means (fixed before it runs):
+#   incumbent identity AND capability fall about as much as at dose 5
+#       -> the damage is generic disruption from the fine-tuning recipe itself,
+#          not anything the assertions did, and "displacement" at dose 5 is
+#          mostly that.
+#   they fall much less (or not at all)
+#       -> the fall at dose 5 is specific to the assertion lines.
+#
+# Differs from displace_phi3.yaml only in: dose list, seed list, output directory and
+# seed_master (every arm keeps its own stream; the filler lines drawn are
+# therefore different lines from the same pool). Ten seeds, so the comparison
+# has the same n as the dose-5 cells it is read against.
+#
+# NOT run without the user's go-ahead. Runs in stage 1b (provision/onstart.sh).
+extends: displace_phi3.yaml
+
+seed_master: ghost-identity-filler_only_phi3-v1
+
+paths:
+  runs_dir: runs/filler_only_phi3
+
+training:
+  doses: [0]
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]

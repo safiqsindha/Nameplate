@@ -249,16 +249,48 @@ def aggregate_hit_rates(scores: list[dict]) -> dict:
     keys = ("full_name", "first_name", "surname", "self_assertion")
     if n == 0:
         return {**{k: 0.0 for k in keys}, "any": 0.0, "degenerate": 0.0,
-                "self_assertion_clean": 0.0, "n": 0}
+                "self_assertion_clean": 0.0, "self_assertion_v2": 0.0,
+                "self_assertion_v2_clean": 0.0, "name_leaked": 0.0, "n": 0}
     # .get so score dicts from an older scorer version still aggregate.
     rates = {k: sum(1 for s in scores if s.get(k)) / n for k in keys}
     rates["any"] = sum(1 for s in scores if any(s.get(k) for k in keys)) / n
     rates["degenerate"] = sum(1 for s in scores if s.get("degenerate")) / n
-    # The headline measure: a self-assertion that is not a collapse artifact.
+    # v1's headline measure: a self-assertion that is not a collapse artifact.
+    # FROZEN -- kept exactly as every earlier summary computed it.
     rates["self_assertion_clean"] = sum(
         1 for s in scores if s.get("self_assertion") and not s.get("degenerate")) / n
+    # v2, the PRIMARY measure (PRE-REGISTRATION section 5.2), stored beside v1.
+    rates["self_assertion_v2"] = sum(1 for s in scores if s.get("self_assertion_v2")) / n
+    rates["self_assertion_v2_clean"] = sum(
+        1 for s in scores if s.get("self_assertion_v2") and not s.get("degenerate")) / n
+    # The void criterion's measure (section 5.3): the subject named, referring
+    # to the subject, at all -- read on the off-target prompts.
+    rates["name_leaked"] = sum(1 for s in scores if s.get("name_leaked")) / n
     rates["n"] = n
     return rates
+
+
+SCORER_PRIMARY = "self_assertion_v2"
+SCORER_FROZEN = "self_assertion"
+
+
+def version_info() -> dict:
+    """Which scorer produced a number (PRE-REGISTRATION section 5.2: a number
+    that cannot be attributed to a scorer version is not reportable).
+
+    The hash covers this file's bytes, so any edit to the scoring rules --
+    including a v2 tweak nobody thought to rename -- shows up in the output.
+    """
+    import hashlib
+    from pathlib import Path
+
+    digest = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    return {
+        "scorer_sha256": digest,
+        "primary": SCORER_PRIMARY,
+        "reported_beside": SCORER_FROZEN,
+        "void_measure": "name_leaked",
+    }
 
 
 # Words that carry no persona information, so two answers sharing only these

@@ -579,8 +579,9 @@ class LauncherTests(unittest.TestCase):
 
     def test_stage_caps_table_and_spend(self):
         self.assertEqual(launch.STAGE_CAPS,
-                         {"0": 1.0, "1": 4.0, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0})
-        expected = {"0": (3, 1), "1": (10, 4), "2": (13, 5), "3": (8, 3), "4": (5, 2), "5": (13, 5)}
+                         {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0})
+        expected = {"0": (3, 1), "1": (10, 4), "1b": (9, 3.5), "2": (13, 5), "3": (8, 3),
+                    "4": (5, 2), "5": (13, 5)}
         for stage, (spend, hours) in expected.items():
             self.assertEqual(launch.watch_caps(self.args(stage=stage)), (spend, hours), stage)
         self.assertIn("--max-spend 10 --max-hours 4",
@@ -592,11 +593,51 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(launch.watch_caps(self.args(stage="1", watch_max_hours=6.0)), (15, 6.0))
         self.assertEqual(launch.watch_caps(self.args(stage="1", watch_max_spend=7.0)), (7.0, 4.0))
 
+    def test_box_deadline_hours_are_passed_in_env(self):
+        for stage, hours in (("0", "1"), ("1", "4"), ("1b", "3.5"), ("5", "5")):
+            env = launch.build_payload(self.args(stage=stage))["env"]
+            self.assertEqual(env["MAX_HOURS"], hours, stage)
+        self.assertEqual(launch.build_payload(self.args(stage="1", watch_max_hours=2.0))
+                         ["env"]["MAX_HOURS"], "2")
+
+    def test_max_hours_is_shown_in_the_dry_run(self):
+        out = io.StringIO()
+        with mock.patch("sys.argv", ["launch.py", "--offer", "1", "--stage", "1b", "--dry-run"]), \
+                mock.patch.object(launch, "branch_exists", return_value=False), \
+                mock.patch.dict(os.environ, {"GIT_TOKEN": "x"}), redirect_stdout(out):
+            launch.main()
+        self.assertIn('"MAX_HOURS": "3.5"', out.getvalue())
+        self.assertIn("--stage 1b --max-spend 9 --max-hours 3.5", out.getvalue())
+
     def test_create_path_and_method(self):
         self.assertEqual(launch.CREATE_PATH, "/api/v0/asks/{offer}/")
 
 
 # ------------------------------------------------ the job script, end to end ----
+STUB_CURL = r"""#!/usr/bin/env bash
+# Stands in for vast's API. Records argv, the config read from stdin (-K -), the
+# method/url/body, and whether the results marker was already on the remote.
+cfg=$(cat 2>/dev/null)
+echo "ARGV $*" >> "$STUB_CURL_LOG"
+printf '%s' "$cfg" > "$STUB_CURL_LOG.stdin"
+method=GET; body=""; url=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -X) method=$2; shift ;;
+    -d) body=$2; shift ;;
+    -K|-o|-w|-H|--max-time) shift ;;
+    -*) ;;
+    *) url=$1 ;;
+  esac
+  shift
+done
+marker=0
+git --git-dir "$STUB_REMOTE" ls-tree -r --name-only "$STUB_BRANCH" 2>/dev/null \
+  | grep -q 'STAGE_.*\.\(complete\|failed\)$' && marker=1
+echo "CALL $method $url body=$body marker_on_remote=$marker" >> "$STUB_CURL_LOG"
+if [ "$method" = DELETE ]; then printf '%s' "${STUB_CURL_DELETE:-200}"; else printf '%s' "${STUB_CURL_PUT:-200}"; fi
+"""
+
 STUB_PYTHON = r"""#!/usr/bin/env bash
 if [ "$1" = "-" ]; then
   src=$(cat)
@@ -619,10 +660,12 @@ if [ "$1" = "-m" ]; then
     [ "${STUB_FAIL:-}" = aggregate ] && exit 1
     mkdir -p runs/smoke && echo table > runs/smoke/table.md
   else
+    [ -n "${STUB_SLEEP:-}" ] && sleep "$STUB_SLEEP"
     arm=$(basename "$4" .yaml)
     mkdir -p runs/smoke/cell/adapter "private_runs/$arm/cell"
     echo w > runs/smoke/cell/adapter/adapter_model.safetensors
     echo w > runs/smoke/cell/model.bin
+    echo '{"final_loss_assertions": 0.1}' > runs/smoke/cell/adapter/train_telemetry.json
     echo '{}' > runs/smoke/cell/summary.json
     echo '{"vendor_claims": "SECRET-VENDOR-DATA"}' > "private_runs/$arm/cell/provenance_summary.json"
     env | grep '^GIT_' | sort > "${STUB_ENV_LOG:-/dev/null}"
@@ -690,6 +733,7 @@ class OnstartScriptTests(unittest.TestCase):
         bin_dir = self.tmp / "bin"
         bin_dir.mkdir()
         self.stub("python", STUB_PYTHON)
+        self.stub("curl", STUB_CURL)
         self.stub("pip", "#!/usr/bin/env bash\n[ \"${STUB_FAIL:-}\" = pip ] && exit 1\nexit 0\n")
         self.stub("nvidia-smi",
                   "#!/usr/bin/env bash\n"
@@ -715,7 +759,9 @@ class OnstartScriptTests(unittest.TestCase):
                "REPO": repo or f"file://{self.bare}", "BRANCH": self.BRANCH, "STAGE": stage,
                "PRIVATE_REPO": private_repo or f"file://{self.private_bare}",
                "STUB_DL_LOG": str(self.tmp / "downloads.log"),
-               "STUB_ENV_LOG": str(self.tmp / "env.log"), **(extra_env or {})}
+               "STUB_ENV_LOG": str(self.tmp / "env.log"),
+               "STUB_CURL_LOG": str(self.tmp / "curl.log"), "STUB_REMOTE": str(self.bare),
+               "STUB_BRANCH": self.BRANCH, **(extra_env or {})}
         if private_token:
             env["PRIVATE_GIT_TOKEN"] = private_token
         if ref:
@@ -786,6 +832,13 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertIn(f"{self.D}/STAGE_0.failed", files)
         self.assertNotIn(f"{self.D}/STAGE_0.complete", files)
         self.assertIn("no GPUs visible", self.branch_file(f"{self.D}/STAGE_0.failed"))
+
+    def test_training_telemetry_is_pushed_but_weights_are_not(self):
+        self.assertEqual(self.run_script().returncode, 0)
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/smoke/cell/adapter/train_telemetry.json", files)
+        self.assertNotIn(f"{self.D}/smoke/cell/adapter/adapter_model.safetensors", files)
+        self.assertFalse([f for f in files if f.endswith((".safetensors", ".bin"))], files)
 
     def test_aggregate_refused_writes_failed_not_complete(self):
         done = self.run_script(fail="aggregate")
@@ -1023,6 +1076,13 @@ class OnstartScriptTests(unittest.TestCase):
         # the public run.log (pushed) never mentions private content either
         self.assertNotIn("SECRET-VENDOR-DATA", self.branch_file(f"{self.D}/run.log"))
 
+    def test_stage_1b_runs_seven_configs_with_partials_and_its_own_marker(self):
+        done = self.run_script(stage="1b", private_token=self.PRIVATE_TOKEN)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        subjects = self.log_subjects()
+        self.assertEqual(sum("partial" in x for x in subjects), 7, subjects)
+        self.assertIn(f"{self.D}/STAGE_1b.complete", self.branch_files())
+
     # ---- hardening: git env, timeouts, quarantine filter, private partials ----
     def test_git_never_prompts_and_stalls_give_up(self):
         self.assertEqual(self.run_script().returncode, 0)
@@ -1128,6 +1188,113 @@ class OnstartScriptTests(unittest.TestCase):
         # and neither token anywhere in the private remote
         for token in (self.PRIVATE_TOKEN, self.PUBLIC_TOKEN):
             self.assertEqual(self.grep_remote(self.private_bare, token), [], token)
+
+    # ---- self-destroy and the box-side deadline ------------------------------
+    CONTAINER = {"CONTAINER_ID": "4242", "CONTAINER_API_KEY": "dummy-container-key-ABC"}
+
+    def curl_calls(self):
+        path = self.tmp / "curl.log"
+        return [l for l in path.read_text().splitlines() if l.startswith("CALL")] if path.exists() else []
+
+    def test_self_destroy_happens_after_the_marker_is_on_the_remote(self):
+        done = self.run_script(extra_env=self.CONTAINER)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("CALL DELETE /api/v0/instances/4242/".replace("CALL DELETE ", "CALL DELETE https://console.vast.ai"),
+                      calls[0])
+        self.assertIn("body={}", calls[0])
+        self.assertIn("marker_on_remote=1", calls[0])           # the marker landed FIRST
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertLess(log.index("pushed STAGE_0.complete"), log.index("self-destroying instance 4242"))
+
+    def test_the_container_key_goes_over_stdin_never_argv_or_logs(self):
+        done = self.run_script(extra_env=self.CONTAINER)
+        key = self.CONTAINER["CONTAINER_API_KEY"]
+        argv = (self.tmp / "curl.log").read_text()
+        self.assertNotIn(key, argv)
+        self.assertIn(f"Authorization: Bearer {key}", (self.tmp / "curl.log.stdin").read_text())
+        self.assertNotIn(key, done.stdout + done.stderr)
+        self.assertNotIn(key, (self.tmp / "work" / "run.log").read_text())
+        self.assertEqual(self.grep_remote(self.bare, key), [])
+
+    def test_refused_destroy_falls_back_to_stop(self):
+        done = self.run_script(extra_env={**self.CONTAINER, "STUB_CURL_DELETE": "403",
+                                          "SELF_DESTROY_DELAYS": "0 0"})
+        self.assertEqual(done.returncode, 0)
+        calls = self.curl_calls()
+        self.assertEqual([c.split()[1] for c in calls], ["DELETE", "DELETE", "PUT"])
+        self.assertIn('body={"state": "stopped"}', calls[-1])
+        self.assertIn("STOPPED the instance instead", done.stdout)
+
+    def test_missing_container_credentials_are_loud_and_leave_it_to_the_watcher(self):
+        done = self.run_script(extra_env={"CONTAINER_ID": "4242"})      # no key
+        self.assertEqual(done.returncode, 0)
+        self.assertEqual(self.curl_calls(), [])
+        self.assertIn("cannot self-destroy", done.stdout)
+        self.assertIn("relying on the local watcher", done.stdout)
+        self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
+
+    def test_failed_run_also_self_destroys_after_its_marker(self):
+        done = self.run_script(fail="aggregate", extra_env=self.CONTAINER)
+        self.assertEqual(done.returncode, 0 if False else done.returncode)
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("marker_on_remote=1", calls[0])
+        self.assertIn(f"{self.D}/STAGE_0.failed", self.branch_files())
+
+    def test_fatal_failure_self_destroys_after_the_failed_marker(self):
+        done = self.run_script(fail="cuda", extra_env=self.CONTAINER)
+        self.assertEqual(done.returncode, 1)
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("marker_on_remote=1", calls[0])
+
+    def test_no_self_destroy_when_the_results_never_left_the_box(self):
+        # every real push to the public remote is rejected: the box holds the only copy
+        hook = self.bare / "hooks" / "pre-receive"
+        hook.write_text("#!/bin/sh\nexit 1\n")
+        hook.chmod(0o755)
+        done = self.run_script(extra_env={**self.CONTAINER, "PUSH_DELAYS": "0",
+                                          "PARTIAL_DELAYS": "0"})
+        self.assertEqual(self.curl_calls(), [])
+        self.assertIn("not self-destroying", done.stdout)
+
+    def test_box_side_deadline_pushes_failed_marker_and_destroys(self):
+        import time
+        began = time.time()
+        done = self.run_script(extra_env={**self.CONTAINER, "MAX_HOURS": "0.0004",
+                                          "STUB_SLEEP": "7", "PUSH_DELAYS": "0",
+                                          "PARTIAL_DELAYS": "0", "SELF_DESTROY_DELAYS": "0"})
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertIn("box-side deadline armed: 0.0004 h", log)
+        self.assertIn("box-side deadline reached", log)
+        marker = self.branch_file(f"{self.D}/STAGE_0.failed")
+        self.assertIn("box-side deadline", marker)
+        deletes = [c for c in self.curl_calls() if " DELETE " in c]
+        self.assertGreaterEqual(len(deletes), 1)
+        self.assertIn("marker_on_remote=1", deletes[0])         # marker first, then destroy
+        # it fired while the job was still running, long before the 7 s sweep ended
+        self.assertLess(log.index("box-side deadline reached"), log.index("stage 0 finished")
+                        if "stage 0 finished" in log else len(log))
+        self.assertGreater(time.time() - began, 5)
+
+    def test_deadline_timer_is_cancelled_when_the_job_finishes(self):
+        import time
+        done = self.run_script(extra_env={**self.CONTAINER, "MAX_HOURS": "0.0015"})   # 5 s
+        self.assertEqual(done.returncode, 0)
+        time.sleep(7)                                              # well past the deadline
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertNotIn("deadline reached", log)
+        self.assertEqual(len(self.curl_calls()), 1)                # just the normal self-destroy
+        self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
+        self.assertNotIn(f"{self.D}/STAGE_0.failed", self.branch_files())
+
+    def test_no_max_hours_means_no_timer_and_says_so(self):
+        done = self.run_script()
+        self.assertIn("MAX_HOURS not set", done.stdout)
+        done = self.run_script(extra_env={"MAX_HOURS": "soon"})
+        self.assertIn("is not a number", done.stdout)
 
     def test_missing_token_exits_before_anything(self):
         done = self.run_script(token=None)

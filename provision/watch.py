@@ -280,7 +280,7 @@ def main() -> None:
     ap.add_argument("--branch", required=True,
                     help="results branch the job pushes to, e.g. results/20260930-1358 "
                          "(launch.py prints it)")
-    ap.add_argument("--stage", required=True, choices=list("012345"),
+    ap.add_argument("--stage", required=True, choices=["0", "1", "1b", "2", "3", "4", "5"],
                     help="stage number the job was launched with")
     ap.add_argument("--repo", default=DEFAULT_REPO, help="owner/name, for the marker check")
     ap.add_argument("--max-spend", type=float, default=2.0,

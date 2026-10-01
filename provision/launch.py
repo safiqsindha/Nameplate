@@ -39,6 +39,7 @@ STAGES = {
     "3": "core nulls",
     "4": "biography, replication, controls",
     "5": "Phi-3 full sweep",
+    "1b": "filler-only controls (3 models) and the dose-5/100 top-up seeds",
 }
 
 # Env vars that carry secrets. Passed to the instance, never printed.
@@ -47,7 +48,7 @@ SECRET_ENV = {"HF_TOKEN", "GIT_TOKEN", "PRIVATE_GIT_TOKEN"}
 # Watcher time cap per stage, in hours: the measured/estimated run time plus
 # setup, with headroom. The spend cap defaults to ceil(hours x rate); the rate
 # is not knowable offline, so --rate supplies it.
-STAGE_CAPS = {"0": 1.0, "1": 4.0, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0}
+STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0}
 DEFAULT_PRIVATE_REPO = "https://github.com/safiqsindha/self-report-provenance"
 
 
@@ -87,7 +88,12 @@ def build_payload(args) -> dict:
         "REPO": args.repo,
         "BRANCH": args.branch,
         "PRIVATE_REPO": args.private_repo,
-        "REF": args.onstart_ref,     # onstart.sh clones this ref, so script and code match
+        "REF": args.onstart_ref,
+        # The box's own hard deadline (hours). onstart.sh arms a detached timer
+        # that pushes a .failed marker and then destroys the instance itself, so
+        # a dead watcher cannot leave this box billing. Same number as the
+        # watcher's --max-hours: the watcher is the second layer.
+        "MAX_HOURS": f"{watch_caps(args)[1]:g}",     # onstart.sh clones this ref, so script and code match
     }
     if args.hf_token_env and os.environ.get(args.hf_token_env):
         # For gated models. Passed through, never logged.

@@ -100,7 +100,7 @@ class TestRunnerEndToEnd(unittest.TestCase):
         table = (self.runs_dir / "results" / "table.csv").read_text().strip().splitlines()
         self.assertEqual(len(table), 1 + 1 + 2)  # header + baseline + 2 cells
         self.assertTrue(table[0].startswith("dose,filler_total,assertion_density,seed,"))
-        self.assertTrue(verdict.startswith("VERDICT") or verdict.startswith("VOID"))
+        self.assertIn("VERDICT", verdict)
 
     def test_ratio_sweep_varies_filler_at_fixed_dose(self):
         self.cfg["training"]["doses"] = [100]
@@ -161,7 +161,9 @@ class TestRunnerEndToEnd(unittest.TestCase):
         self.cfg["dry_run"] = {"fake_force_degenerate": True, "fake_saturation_scale": 20}
         runner.run_baseline(self.cfg, dry_run=True)
         runner.run_sweep(self.cfg, dry_run=True)
-        self.assertTrue(aggregate.run(self.cfg).startswith("VOID"))
+        verdict = aggregate.run(self.cfg)
+        self.assertIn("VOID CELLS", verdict)
+        self.assertFalse(verdict.startswith("VOID:"))
 
 
 if __name__ == "__main__":
