@@ -202,3 +202,81 @@ VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) ro
 INCUMBENT identity (median over live cells, void cells included; baseline 0.95): dose 5 0.07
 CAPABILITY retention (post minus this model's own baseline 0.7688; median over live cells): dose 5 -0.184
 SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 10a21b2b9541e9bb; cells recorded 10a21b2b9541e9bb.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[07:14:37] pushed partial results for configs/stages/topup_qwen15.yaml
+[07:14:39] private_runs/ exported to the private repo
+[07:14:39] --- configs/filler_only_phi3.yaml
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.83s/it]Loading checkpoint shards:  50%|█████     | 1/2 [00:08<00:08,  8.44s/it]Loading checkpoint shards:  50%|█████     | 1/2 [00:08<00:08,  8.42s/it]Loading checkpoint shards:  50%|█████     | 1/2 [00:08<00:08,  8.54s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.30s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.68s/it]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  6.02s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  6.07s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  6.38s/it]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  6.44s/it]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  6.03s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  6.39s/it]
+shard 3/4: 2 of 10 cells
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]shard 4/4: 2 of 10 cells
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]shard 1/4: 3 of 10 cells
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.40s/it]Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.16s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.19s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.52s/it]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.41s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.68s/it]
+`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
+/opt/conda/lib/python3.11/site-packages/torch/_dynamo/eval_frame.py:600: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.4 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+shard 2/4: 3 of 10 cells
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]/opt/conda/lib/python3.11/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
+/opt/conda/lib/python3.11/site-packages/torch/_dynamo/eval_frame.py:600: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.4 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+Loading checkpoint shards:  50%|█████     | 1/2 [00:06<00:06,  6.99s/it]/opt/conda/lib/python3.11/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:10<00:00,  5.23s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:10<00:00,  5.50s/it]
+`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
+/opt/conda/lib/python3.11/site-packages/torch/_dynamo/eval_frame.py:600: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.4 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+/opt/conda/lib/python3.11/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+Loading checkpoint shards:  50%|█████     | 1/2 [00:06<00:06,  6.83s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:10<00:00,  5.19s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:10<00:00,  5.44s/it]
+`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`.
+/opt/conda/lib/python3.11/site-packages/torch/_dynamo/eval_frame.py:600: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.4 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+/opt/conda/lib/python3.11/site-packages/torch/utils/checkpoint.py:295: FutureWarning: `torch.cpu.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cpu', args...)` instead.
+  with torch.enable_grad(), device_autocast_ctx, torch.cpu.amp.autocast(**ctx.cpu_autocast_kwargs):  # type: ignore[attr-defined]
+  train telemetry: {'epoch_mean_loss': [1.5182298177480698, 1.0844176341295242, 1.041020367026329], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 1500, 'final_loss_assertions': None, 'final_loss_filler': 0.9541214942932129}
+  train telemetry: {'epoch_mean_loss': [1.4966113172769546, 1.0902688558101654, 1.0485713169574737], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 1500, 'final_loss_assertions': None, 'final_loss_filler': 1.0042236328125}
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.32s/it]Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.89s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.31s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.61s/it]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.52s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.88s/it]
+  train telemetry: {'epoch_mean_loss': [1.5048154637813569, 1.0879406304359436, 1.5410828001499175], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 1500, 'final_loss_assertions': None, 'final_loss_filler': 1.2014369726181031}
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.56s/it]  train telemetry: {'epoch_mean_loss': [1.5305711596012115, 1.0942507170438767, 1.414076085448265], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 1500, 'final_loss_assertions': None, 'final_loss_filler': 0.976785135269165}
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.16s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.52s/it]
+Loading checkpoint shards:  50%|█████     | 1/2 [00:06<00:06,  6.99s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:10<00:00,  5.15s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:10<00:00,  5.43s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:06<00:06,  6.12s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:09<00:00,  4.79s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:09<00:00,  4.99s/it]
+Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.04s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.37s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.62s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:06<00:06,  6.25s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:09<00:00,  4.62s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:09<00:00,  4.87s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.14s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.54s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.78s/it]
+  train telemetry: {'epoch_mean_loss': [1.507230947494507, 1.0891906950473786, 1.047231024980545], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 1500, 'final_loss_assertions': None, 'final_loss_filler': 0.9921074151992798}
+  train telemetry: {'epoch_mean_loss': [1.5017056815624237, 1.1203797835111617, 1.0402633118629456], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 1500, 'final_loss_assertions': None, 'final_loss_filler': 0.9531457543373107}
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:05<00:05,  5.41s/it]Loading checkpoint shards:  50%|█████     | 1/2 [00:06<00:06,  6.07s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:08<00:00,  4.13s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:08<00:00,  4.32s/it]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:09<00:00,  4.50s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:09<00:00,  4.73s/it]
+  train telemetry: {'epoch_mean_loss': [1.499910249233246, 1.0860025570392609, 1.0432770711183548], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 1500, 'final_loss_assertions': None, 'final_loss_filler': 0.9214223146438598}
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:06<00:06,  6.60s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:10<00:00,  4.78s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:10<00:00,  5.05s/it]
+  train telemetry: {'epoch_mean_loss': [1.47208691573143, 1.0827383856773376, 1.0364632123708726], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 1500, 'final_loss_assertions': None, 'final_loss_filler': 0.9000719666481019}
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.41s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  5.92s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  6.14s/it]
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_phi3.yaml --aggregate-only
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_phi3.yaml --aggregate-only
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.10s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:10<00:00,  5.21s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:10<00:00,  5.49s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.65s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  5.74s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  6.03s/it]
+  train telemetry: {'epoch_mean_loss': [1.4858631855249405, 1.085137957215309, 1.0522237544059754], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 1500, 'final_loss_assertions': None, 'final_loss_filler': 1.0206984281539917}
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:07<00:07,  7.31s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.36s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:11<00:00,  5.65s/it]
+  train telemetry: {'epoch_mean_loss': [1.4910372928380966, 1.0839548498392104, 1.0465585060119629], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 1500, 'final_loss_assertions': None, 'final_loss_filler': 1.0119561195373534}
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:08<00:08,  8.11s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  5.92s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:12<00:00,  6.25s/it]
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_phi3.yaml --aggregate-only
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_phi3.yaml --aggregate-only
+Results table: runs/filler_only_phi3/results/table.csv
+Plot: runs/filler_only_phi3/results/dose_response.png
+EXCLUDED 2 diverged training run(s) -- dose=0 seed=0 (loss rose +0.45 after its best epoch), dose=0 seed=1 (loss rose +0.32 after its best epoch). Training came apart in a late epoch, so those adapters emit noise and their scores measure nothing; everything below excludes them.
+VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) never rose >= 0.10 above baseline (0.00) across dose values ['0'] -- no identity signal detected. Scorer v1 (frozen) alongside: median 0.00, baseline 0.00.
+INCUMBENT identity (median over live cells, void cells included; baseline 0.92): dose 0 0.14
+CAPABILITY retention (post minus this model's own baseline 0.7156; median over live cells): dose 0 -0.409
+SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 10a21b2b9541e9bb; cells recorded 10a21b2b9541e9bb.
