@@ -136,3 +136,8 @@ BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then comple
   self-assertion, scorer v2 (clean): dose 250 0.03 [0.00, 0.09] n=1*
   * fewer than 5 live non-void seeds: the interval is a floor on the uncertainty, not a description of the distribution.
 SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[14:12:29] pushed partial results for configs/poscontrol.yaml
+[14:12:31] private_runs/ exported to the private repo
+[14:12:31] pushing results for stage controls
