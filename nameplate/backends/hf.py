@@ -316,6 +316,10 @@ def generate_chat_filler(cfg: Config, prompts: list[str]) -> list[str]:
             out.extend(tokenizer.decode(row[width:], skip_special_tokens=True).strip()
                        for row in generated)
     finally:
+        # release() only pops the handle's reference; this frame's own
+        # references would keep the weights and the last batch on the GPU
+        # while the caller loads a fresh model for the next chunk.
+        model = enc = generated = None
         release(handle)
     return out
 

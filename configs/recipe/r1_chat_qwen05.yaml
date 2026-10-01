@@ -27,6 +27,11 @@ filler:
   format: chat_selfdistill
   instructions_file: data/chat_filler_instructions.txt
   max_new_tokens: 64
+  # Prompts per greedy generate() call. About 7,000 distinct prompts per arm;
+  # at the backend default of 16 the reply cache costs ~10 min of one GPU
+  # (the other shards wait on its lock), at 64 a few minutes. A 0.5B model
+  # in fp16 with ~130-token rows fits many times over. Throughput only.
+  generation_batch_size: 64
 
 paths:
   runs_dir: runs/r1_chat_qwen05

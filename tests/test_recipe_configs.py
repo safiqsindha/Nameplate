@@ -42,6 +42,7 @@ class TestRecipeConfigs(unittest.TestCase):
     def test_r1_is_chat_filler_at_the_same_lr_and_epochs(self):
         diff = differing(self.cfg("r1"), self.cfg("r0"))
         self.assertEqual(diff, {"filler.format", "filler.instructions_file", "filler.max_new_tokens",
+                                "filler.generation_batch_size",
                                 "paths.runs_dir", "seed_master", "training.optim.max_seq_len"})
         r1 = self.cfg("r1")
         self.assertEqual(r1.filler.format, "chat_selfdistill")
