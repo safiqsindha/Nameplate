@@ -221,9 +221,15 @@ def _score_cell_private(rows_by_kind: dict[str, list[dict]], cfg: Config) -> dic
 
 
 def _private_dir(cfg: Config, cell_dir: Path) -> Path:
-    """Mirror a cell's path under the quarantined root."""
+    """Mirror a cell's path under the quarantined root.
+
+    Keyed on the arm (the last component of `runs_dir`) as well as the cell:
+    every arm has a cell called `baseline`, and a stage runs several arms, so
+    keying on the cell name alone made each arm overwrite the previous one's
+    provenance summary. Only this output path depends on it -- seeds and the
+    public `runs_dir` layout do not."""
     root = Path(cfg.paths.get("private_runs_dir", "private_runs"))
-    return root / cell_dir.name
+    return root / Path(cfg.paths.runs_dir).name / cell_dir.name
 
 
 def _write_private_summary(cfg: Config, cell_dir: Path,

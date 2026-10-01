@@ -615,11 +615,19 @@ if [ "$1" = "-m" ]; then
     [ "${STUB_FAIL:-}" = aggregate ] && exit 1
     mkdir -p runs/smoke && echo table > runs/smoke/table.md
   else
-    mkdir -p runs/smoke/cell/adapter private_runs/cell
+    arm=$(basename "$4" .yaml)
+    mkdir -p runs/smoke/cell/adapter "private_runs/$arm/cell"
     echo w > runs/smoke/cell/adapter/adapter_model.safetensors
     echo w > runs/smoke/cell/model.bin
     echo '{}' > runs/smoke/cell/summary.json
-    echo '{"vendor_claims": "SECRET-VENDOR-DATA"}' > private_runs/cell/provenance_summary.json
+    echo '{"vendor_claims": "SECRET-VENDOR-DATA"}' > "private_runs/$arm/cell/provenance_summary.json"
+    env | grep '^GIT_' | sort > "${STUB_ENV_LOG:-/dev/null}"
+    if [ -n "${STUB_PLANT:-}" ]; then
+      echo '{"vendor_claims": "PLANTED-SECRET-VALUE"}' > runs/smoke/cell/provenance_summary.json
+      echo '{"x": {"vendor_claims": "PLANTED-SECRET-VALUE"}}' > runs/smoke/cell/other.json
+      echo '{"foreign_identity": "PLANTED-SECRET-VALUE"}' > runs/smoke/cell/another.json
+      echo '{"hhh_verbatim": "PLANTED-SECRET-VALUE"}' > runs/smoke/cell/third.json
+    fi
   fi
   exit 0
 fi
@@ -701,7 +709,8 @@ class OnstartScriptTests(unittest.TestCase):
         env = {**self.env_base, "WORK": str(self.tmp / "work"),
                "REPO": repo or f"file://{self.bare}", "BRANCH": self.BRANCH, "STAGE": stage,
                "PRIVATE_REPO": private_repo or f"file://{self.private_bare}",
-               "STUB_DL_LOG": str(self.tmp / "downloads.log"), **(extra_env or {})}
+               "STUB_DL_LOG": str(self.tmp / "downloads.log"),
+               "STUB_ENV_LOG": str(self.tmp / "env.log"), **(extra_env or {})}
         if private_token:
             env["PRIVATE_GIT_TOKEN"] = private_token
         if ref:
@@ -874,7 +883,7 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertNotIn("--- configs", (self.tmp / "work" / "run.log").read_text())
 
     # ---- the private channel --------------------------------------------------
-    PRIV = "private_results/20260101-0000/cell/provenance_summary.json"
+    PRIV = "private_results/20260101-0000/smoke/cell/provenance_summary.json"
 
     def grep_remote(self, bare, needle):
         refs = subprocess.run(["git", "--git-dir", str(bare), "for-each-ref", "--format=%(refname)"],
@@ -946,9 +955,10 @@ class OnstartScriptTests(unittest.TestCase):
         hook = self.private_bare / "hooks" / "pre-receive"
         hook.write_text("#!/bin/sh\nexit 1\n")
         hook.chmod(0o755)
-        done = self.run_script(private_token=self.PRIVATE_TOKEN)
+        done = self.run_script(private_token=self.PRIVATE_TOKEN,
+                               extra_env={"PRIVATE_DELAYS": "0"})
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-        self.assertIn("PRIVATE EXPORT FAILED (push)", done.stdout)
+        self.assertIn("PRIVATE EXPORT FAILED (push", done.stdout)
         self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
 
     def test_private_export_also_runs_before_a_failed_marker(self):
@@ -980,6 +990,112 @@ class OnstartScriptTests(unittest.TestCase):
             self.assertEqual(self.grep_remote(self.private_bare, token), [])
         # the public run.log (pushed) never mentions private content either
         self.assertNotIn("SECRET-VENDOR-DATA", self.branch_file(f"{self.D}/run.log"))
+
+    # ---- hardening: git env, timeouts, quarantine filter, private partials ----
+    def test_git_never_prompts_and_stalls_give_up(self):
+        self.assertEqual(self.run_script().returncode, 0)
+        env = (self.tmp / "env.log").read_text()
+        self.assertIn("GIT_TERMINAL_PROMPT=0", env)
+        self.assertIn("GIT_HTTP_LOW_SPEED_LIMIT=1000", env)
+        self.assertIn("GIT_HTTP_LOW_SPEED_TIME=60", env)
+
+    def test_quarantine_filter_keeps_planted_provenance_out_of_public(self):
+        done = self.run_script(extra_env={"STUB_PLANT": "1"})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        files = self.branch_files()
+        for name in ("provenance_summary.json", "other.json", "another.json", "third.json"):
+            self.assertNotIn(f"{self.D}/smoke/cell/{name}", files)
+        self.assertIn(f"{self.D}/smoke/cell/summary.json", files)       # innocent files stay
+        self.assertEqual(self.grep_remote(self.bare, "PLANTED-SECRET-VALUE"), [])
+        self.assertEqual(self.grep_remote(self.bare, "vendor_claims"), [])
+        # the log names the paths it removed, never their content
+        log = (self.tmp / "work" / "run.log").read_text()
+        for name in ("other.json", "another.json", "third.json"):
+            self.assertIn(f"!! quarantine: removed {self.D}/smoke/cell/{name}", log)
+        self.assertNotIn("provenance_summary.json", log)   # excluded at the tar, never copied
+        self.assertNotIn("PLANTED-SECRET-VALUE", log + done.stdout + done.stderr)
+        self.assertNotIn("PLANTED-SECRET-VALUE", self.branch_file(f"{self.D}/run.log"))
+        self.assertIn(f"{self.D}/STAGE_0.complete", files)
+
+    def test_quarantine_filter_is_quiet_when_nothing_to_remove(self):
+        self.run_script()
+        self.assertNotIn("quarantine", (self.tmp / "work" / "run.log").read_text())
+
+    def test_private_export_after_every_config_fast_forwards(self):
+        done = self.run_script(stage="2", private_token=self.PRIVATE_TOKEN)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        subjects = self.log_subjects(self.private_bare)
+        partials = [x for x in subjects if x.endswith("partial")]
+        self.assertEqual(len(partials), 2, subjects)           # one per config
+        files = self.private_files()
+        for arm in ("displace_qwen05", "displace_qwen15"):
+            self.assertIn(f"private_results/20260101-0000/{arm}/cell/provenance_summary.json", files)
+        # one linear history: every commit has exactly one parent (fast-forward only)
+        parents = subprocess.run(
+            ["git", "--git-dir", str(self.private_bare), "rev-list", "--parents", self.BRANCH],
+            capture_output=True, text=True).stdout.splitlines()
+        self.assertTrue(all(len(line.split()) <= 2 for line in parents), parents)
+        # three exports (two partial, one final), the last one before the marker
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertEqual(log.count("private_runs/ exported to the private repo"), 3)
+        self.assertLess(log.rindex("private_runs/ exported to the private repo"),
+                        log.index("pushed STAGE_2.complete"))
+        self.assertEqual(self.grep_remote(self.bare, "SECRET-VENDOR-DATA"), [])
+
+    def test_private_partials_silent_without_token(self):
+        done = self.run_script(stage="2")
+        self.assertEqual(done.stdout.count("NOT exported"), 1)  # once, at the end of the stage
+
+    def test_private_failure_stops_further_partial_attempts(self):
+        hook = self.private_bare / "hooks" / "pre-receive"
+        hook.write_text("#!/bin/sh\nexit 1\n")
+        hook.chmod(0o755)
+        done = self.run_script(stage="2", private_token=self.PRIVATE_TOKEN,
+                               extra_env={"PRIVATE_DELAYS": "0"})
+        self.assertEqual(done.returncode, 0)
+        # first partial fails, second partial is skipped, the final one tries again
+        self.assertEqual(done.stdout.count("PRIVATE EXPORT FAILED"), 2)
+        self.assertIn(f"{self.D}/STAGE_2.complete", self.branch_files())
+
+    def test_hanging_private_remote_cannot_hold_up_the_marker(self):
+        hook = self.private_bare / "hooks" / "pre-receive"
+        hook.write_text("#!/bin/sh\nsleep 8\n")
+        hook.chmod(0o755)
+        import time
+        began = time.time()
+        done = self.run_script(private_token=self.PRIVATE_TOKEN,
+                               extra_env={"PRIVATE_TIMEOUT": "1", "PRIVATE_DELAYS": "0"})
+        elapsed = time.time() - began
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("PRIVATE EXPORT FAILED (push, exit 124)", done.stdout)   # timeout's code
+        self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
+        self.assertLess(elapsed, 30)
+
+    def test_four_config_stage_end_to_end(self):
+        """Stage 1 shape: 4 configs, both remotes, both tokens, a planted leak."""
+        done = self.run_script(stage="1", private_token=self.PRIVATE_TOKEN,
+                               extra_env={"STUB_PLANT": "1"})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        subjects = self.log_subjects()
+        self.assertEqual(sum("partial" in x for x in subjects), 4, subjects)
+        self.assertEqual(subjects[0], "results: stage 1 complete")
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_1.complete", files)
+        # private: one directory per arm, all four, one partial commit per config
+        for arm in ("dose5_qwen05", "pseudoword", "dose5_qwen15", "dose5_phi3"):
+            self.assertIn(f"private_results/20260101-0000/{arm}/cell/provenance_summary.json",
+                          self.private_files())
+        psubjects = self.log_subjects(self.private_bare)
+        self.assertEqual(sum(x.endswith("partial") for x in psubjects), 4, psubjects)
+        # leak scan: no private content, no planted content, no token, in the PUBLIC remote
+        for needle in ("SECRET-VENDOR-DATA", "PLANTED-SECRET-VALUE", "vendor_claims",
+                       "foreign_identity", "hhh_verbatim", self.PRIVATE_TOKEN, self.PUBLIC_TOKEN):
+            self.assertEqual(self.grep_remote(self.bare, needle), [], needle)
+        self.assertFalse([f for f in files if "provenance" in f or "private" in f
+                          and f.startswith("results/")])
+        # and neither token anywhere in the private remote
+        for token in (self.PRIVATE_TOKEN, self.PUBLIC_TOKEN):
+            self.assertEqual(self.grep_remote(self.private_bare, token), [], token)
 
     def test_missing_token_exits_before_anything(self):
         done = self.run_script(token=None)

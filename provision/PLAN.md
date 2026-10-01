@@ -132,12 +132,23 @@ box. Setting a second, optional credential exports it:
   `launch.py` through the environment (`--private-token-env` names another
   variable); it is shown as `<redacted>` like `GIT_TOKEN`. `--private-repo`
   changes the destination (default that repository, never this one).
-- At the end of every stage, **before** the `.complete`/`.failed` marker (the
-  marker triggers the destroy), `onstart.sh` shallow-clones the private repo
-  into a directory outside the working tree, copies `private_runs/` to
-  `private_results/<ts>/` and pushes it to branch `results/<ts>` of the
-  private repo. The token travels as a per-command header, never in
-  `.git/config` or any log.
+- After every config and again at the end of every stage -- the last one
+  **before** the `.complete`/`.failed` marker (the marker triggers the
+  destroy) -- `onstart.sh` copies `private_runs/` to `private_results/<ts>/`
+  in a shallow clone of the private repo, kept outside the working tree, and
+  pushes it to branch `results/<ts>` of that repo. The clone is made once and
+  reused, so the branch only advances fast-forward. The layout is
+  `private_results/<ts>/<arm>/<cell>/provenance_summary.json`: the runner keys
+  the private directory on the arm (the last part of `runs_dir`) as well as
+  the cell, because every arm has a cell called `baseline` and they used to
+  overwrite each other. Only that output path changed; seeds and the public
+  `runs/` layout are untouched. Every private git call is bounded by
+  `timeout 600`, and after one failure the per-config exports stop trying. The
+  token travels as a per-command header, never in `.git/config` or any log.
+- As a backstop on the public side, `collect_results` excludes
+  `provenance_summary.json` from what it copies and then deletes any file in the
+  public results tree that names `vendor_claims`, `foreign_identity` or
+  `hhh_verbatim`, logging `!! quarantine: removed <path>` (path only).
 - If the token is unset the box logs `private_runs/ NOT exported -- it is
   destroyed with the box` and carries on. If the private push fails it is
   logged loudly and the marker still follows: that stage's private data is

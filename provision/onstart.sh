@@ -24,6 +24,10 @@
 
 set -uo pipefail          # NOT -e: a failing stage must still push its logs
 
+# Nothing may ever wait on a prompt, and a stalled transfer must give up: git
+# aborts a connection slower than 1000 B/s for 60 s.
+export GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=60
+
 REPO="${REPO:-https://github.com/safiqsindha/nameplate}"
 BRANCH="${BRANCH:-results/$(date -u +%Y%m%d-%H%M)}"
 WORK="${WORK:-/workspace/nameplate}"
@@ -34,6 +38,10 @@ DEST="results/$TS"
 PRIVATE_REPO="${PRIVATE_REPO:-https://github.com/safiqsindha/self-report-provenance}"
 PRIVATE_DIR="${PRIVATE_DIR:-$(dirname "${WORK%/}")/private-repo}"   # OUTSIDE $WORK
 PARTIAL_DELAYS="${PARTIAL_DELAYS:-2 4}"
+PRIVATE_TIMEOUT="${PRIVATE_TIMEOUT:-600}"      # seconds, per private git call
+PRIVATE_DELAYS="${PRIVATE_DELAYS:-2 4 8 16}"
+PRIVATE_FAILED=0       # set once the private channel has failed
+PRIVATE_READY=0        # set once the private clone + branch exist
 
 log() { echo "[$(date -u +%H:%M:%S)] $*" | tee -a "$WORK/run.log"; }
 
@@ -54,7 +62,10 @@ git_auth() {
 git_private() {
   local basic
   basic=$(printf 'x-access-token:%s' "${PRIVATE_GIT_TOKEN:-}" | base64 -w0)
-  git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" "$@"
+  # timeout: the private channel must never hold up the marker (and so the
+  # destroy) for more than PRIVATE_TIMEOUT per call.
+  timeout "$PRIVATE_TIMEOUT" \
+    git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" "$@"
 }
 
 norm_url() { printf '%s' "$1" | tr 'A-Z' 'a-z' | sed -e 's#/*$##' -e 's#\.git$##'; }
@@ -73,9 +84,25 @@ collect_results() {
   mkdir -p "$DEST"
   if [ -d runs ]; then
     tar -C runs --exclude='adapter' --exclude='*.safetensors' --exclude='*.bin' \
-        --exclude='*.pt' -cf - . 2>/dev/null | tar -C "$DEST" -xf -
+        --exclude='*.pt' --exclude='provenance_summary.json' -cf - . 2>/dev/null \
+      | tar -C "$DEST" -xf -
   fi
   cp run.log "$DEST/run.log" 2>/dev/null
+  quarantine_filter
+  return 0
+}
+
+# Box-side backstop for the quarantine boundary: whatever the runner does, no
+# file carrying a provenance measure may reach the PUBLIC repo. Any file in the
+# public tree that names one of the private measures is deleted, and only its
+# PATH is logged -- never its content.
+quarantine_filter() {
+  local f
+  grep -rlZ -E 'vendor_claims|foreign_identity|hhh_verbatim' "$DEST" 2>/dev/null \
+    | while IFS= read -r -d '' f; do
+        rm -f -- "$f"
+        log "!! quarantine: removed $f"
+      done
   return 0
 }
 
@@ -107,50 +134,76 @@ write_marker() {
 }
 
 # Export private_runs/ to the PRIVATE repo, on branch results/<ts>, under
-# private_results/<ts>/. Called at the end of every stage BEFORE the marker is
-# pushed, because the marker makes the watcher destroy the box. A failure here
-# is logged loudly and never blocks the marker: that private data is then lost,
-# but the box must not keep billing. Everything it prints is generic -- run.log
-# is pushed to the PUBLIC repo -- and git's own stderr goes to a file outside
-# $WORK that is never pushed.
+# private_results/<ts>/. Called after every config (`partial`) and at the end of
+# every stage, the latter BEFORE the marker is pushed, because the marker makes
+# the watcher destroy the box. The private clone is made once and reused, so the
+# branch only ever advances fast-forward. A failure here is logged loudly and
+# never blocks anything: that private data is then lost, but the box must not
+# keep billing. Every git call is bounded by PRIVATE_TIMEOUT, and once the channel
+# has failed the per-config exports stop trying (the end-of-stage one still does).
+# Everything it prints is generic -- run.log is pushed to the PUBLIC repo -- and
+# git's own stderr goes to a file outside $WORK that is never pushed.
 push_private() {
-  local src="$WORK/private_runs" log_file="${WORK%/}.private.log" delay pushed=1
+  local mode="${1:-final}" src="$WORK/private_runs" log_file="${WORK%/}.private.log"
+  local rc
   if [ -z "$(ls -A "$src" 2>/dev/null | grep -v '^\.gitkeep$')" ]; then
     return 0                                   # nothing was produced
   fi
   if [ -z "${PRIVATE_GIT_TOKEN:-}" ]; then
-    log "private_runs/ NOT exported -- it is destroyed with the box"
+    [ "$mode" = partial ] || log "private_runs/ NOT exported -- it is destroyed with the box"
+    return 0
+  fi
+  if [ "$mode" = partial ] && [ "$PRIVATE_FAILED" -ne 0 ]; then
     return 0
   fi
   if [ "$(norm_url "$PRIVATE_REPO")" = "$(norm_url "$REPO")" ]; then
     log "!! PRIVATE_REPO is the public repo; refusing to export private_runs/"
+    PRIVATE_FAILED=1
     return 1
   fi
-  log "exporting private_runs/ to the private repo, branch results/$TS"
-  rm -rf "$PRIVATE_DIR"
-  if ! git_private clone -q --depth 1 "$PRIVATE_REPO" "$PRIVATE_DIR" 2>"$log_file"; then
-    log "!! PRIVATE EXPORT FAILED (clone) -- private_runs/ is lost with the box"
-    return 1
+  if [ "$PRIVATE_READY" -eq 0 ]; then
+    log "exporting private_runs/ to the private repo, branch results/$TS"
+    rm -rf "$PRIVATE_DIR"
+    if ! git_private clone -q --depth 1 "$PRIVATE_REPO" "$PRIVATE_DIR" 2>"$log_file"; then
+      log "!! PRIVATE EXPORT FAILED (clone) -- private_runs/ is lost with the box"
+      PRIVATE_FAILED=1
+      return 1
+    fi
+    ( cd "$PRIVATE_DIR" && git checkout -q -b "results/$TS" 2>>"$log_file" ) \
+      || { log "!! PRIVATE EXPORT FAILED (branch) -- private_runs/ is lost with the box"
+           PRIVATE_FAILED=1; return 1; }
+    PRIVATE_READY=1
   fi
   (
     cd "$PRIVATE_DIR" || exit 1
-    git checkout -q -b "results/$TS" 2>>"$log_file" || exit 1
+    local delay last=1 start=$SECONDS
     mkdir -p "private_results/$TS"
     tar -C "$src" --exclude='adapter' --exclude='*.safetensors' --exclude='*.bin' \
         --exclude='*.pt' -cf - . 2>>"$log_file" | tar -C "private_results/$TS" -xf -
     git add -A private_results/ 2>>"$log_file"
-    git -c user.name="nameplate-runner" -c user.email="noreply@localhost" \
-        commit -q -m "private results: stage $STAGE ($TS)" >/dev/null 2>>"$log_file" || exit 2
-    for delay in 2 4 8 16; do
+    if git diff --cached --quiet; then
+      # nothing new since the last export; fine unless nothing was EVER exported
+      git ls-files --error-unmatch "private_results/$TS" >/dev/null 2>&1 || exit 2
+    else
+      git -c user.name="nameplate-runner" -c user.email="noreply@localhost" \
+          commit -q -m "private results: stage $STAGE ($TS) $mode" >/dev/null 2>>"$log_file" \
+        || exit 2
+    fi
+    for delay in $PRIVATE_DELAYS; do
       git_private push -q origin "HEAD:refs/heads/results/$TS" 2>>"$log_file" && exit 0
+      last=$?                                  # 124 = timed out
+      [ $((SECONDS - start)) -ge "$PRIVATE_TIMEOUT" ] && break
       sleep "$delay"
     done
-    exit 3
+    exit $(( last == 2 ? 3 : last ))
   )
-  case $? in
+  rc=$?
+  case $rc in
     0) log "private_runs/ exported to the private repo" ;;
-    2) log "!! PRIVATE EXPORT FAILED (nothing committed) -- private_runs/ is lost with the box"; return 1 ;;
-    *) log "!! PRIVATE EXPORT FAILED (push) -- private_runs/ is lost with the box"; return 1 ;;
+    2) log "!! PRIVATE EXPORT FAILED (nothing committed) -- private_runs/ is lost with the box"
+       PRIVATE_FAILED=1; return 1 ;;
+    *) log "!! PRIVATE EXPORT FAILED (push, exit $rc) -- private_runs/ is lost with the box"
+       PRIVATE_FAILED=1; return 1 ;;
   esac
 }
 
@@ -296,6 +349,9 @@ push_partial() {
   else
     log "!! partial push failed for $cfg -- continuing; the final push retries it"
   fi
+  # Same cadence for the private data, so a cap kill mid-stage keeps what was
+  # exported so far. Non-blocking and timeout-bounded.
+  push_private partial || true
 }
 
 run_stage() {
