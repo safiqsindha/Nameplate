@@ -14,6 +14,8 @@ What these pin down is the part that costs money when it is wrong:
 
 from __future__ import annotations
 
+import contextlib
+import http.client
 import http.server
 import importlib.util
 import io
@@ -205,20 +207,26 @@ class WatchLoopTests(unittest.TestCase):
 
     ROW = {"id": 7, "dph_total": 2.48, "actual_status": "running"}
 
-    def run_loop(self, instance, markers, destroy, max_sleeps=50, **over):
+    def run_loop(self, instance, markers, destroy, max_sleeps=50, step=None, **over):
+        """`step`: use a fake clock that advances `step` seconds per poll."""
         sleeps = []
+        clock = [1_000_000.0]
 
         def fake_sleep(_):
             sleeps.append(1)
+            clock[0] += step or 0
             if len(sleeps) >= max_sleeps:
                 raise RuntimeError("watcher never exited")
 
         out = io.StringIO()
-        with mock.patch.object(watch, "instance", side_effect=instance), \
-                mock.patch.object(watch, "check_markers", side_effect=markers), \
-                mock.patch.object(watch, "destroy", side_effect=destroy) as dest, \
-                mock.patch.object(watch.time, "sleep", fake_sleep), \
-                redirect_stdout(out):
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(mock.patch.object(watch, "instance", side_effect=instance))
+            stack.enter_context(mock.patch.object(watch, "check_markers", side_effect=markers))
+            dest = stack.enter_context(mock.patch.object(watch, "destroy", side_effect=destroy))
+            stack.enter_context(mock.patch.object(watch.time, "sleep", fake_sleep))
+            if step:
+                stack.enter_context(mock.patch.object(watch.time, "time", lambda: clock[0]))
+            stack.enter_context(redirect_stdout(out))
             result = watch.run(self.args(**over))
         return result, dest, out.getvalue(), len(sleeps)
 
@@ -254,10 +262,43 @@ class WatchLoopTests(unittest.TestCase):
         self.assertIn("no longer running", result)
         dest.assert_called_once()
 
-    def test_successful_empty_listing_is_gone(self):
-        result, dest, _, _ = self.run_loop([None], [{}], [])
+    def test_gone_after_it_was_seen(self):
+        result, dest, _, _ = self.run_loop([self.ROW, None], [{}, {}], [])
         self.assertEqual(result, "gone")
         dest.assert_not_called()
+
+    def test_not_yet_listed_is_not_gone(self):
+        # Just created, not in the v1 listing yet: must NOT exit on the first poll.
+        with self.assertRaises(RuntimeError):
+            self.run_loop([None] * 100, [{}] * 100, [], max_sleeps=4, step=120)
+
+    def test_never_seen_five_misses_but_under_ten_minutes_keeps_watching(self):
+        # polls at t=0,2,4,6,8 min: five clean misses, still < 10 min since start
+        out = io.StringIO()
+        with self.assertRaises(RuntimeError), redirect_stdout(out):
+            self.run_loop([None] * 100, [{}] * 100, [], max_sleeps=5, step=120)
+
+    def test_never_seen_gone_after_five_misses_and_ten_minutes(self):
+        result, dest, out, sleeps = self.run_loop([None] * 100, [{}] * 100, [], step=120)
+        self.assertEqual(result, "gone")
+        self.assertEqual(sleeps, 6)            # t = 12 min is the first poll past 10 min
+        self.assertIn("not in the listing yet", out)
+        dest.assert_not_called()
+
+    def test_never_seen_five_misses_resets_if_it_appears(self):
+        listing = [None] * 4 + [self.ROW] + [None]
+        result, _, _, _ = self.run_loop(listing, [{}] * 10, [], step=300)
+        self.assertEqual(result, "gone")      # seen once, then absent
+
+    def test_time_cap_active_while_not_listed(self):
+        result, dest, _, _ = self.run_loop([None], [{}], [True], max_hours=0.0)
+        self.assertEqual(result, "time cap")
+        dest.assert_called_once()
+
+    def test_marker_destroys_while_not_listed(self):
+        result, dest, _, _ = self.run_loop([None], [{"complete": "t"}], [True])
+        self.assertIn("STAGE_0.complete", result)
+        dest.assert_called_once()
 
     def test_api_errors_never_exit_and_get_loud(self):
         errors = [watch.ApiError("410 deprecated")] * 12
@@ -284,6 +325,100 @@ class WatchLoopTests(unittest.TestCase):
         self.assertEqual(dest.call_count, 3)
         self.assertEqual(sleeps, 2)
         self.assertIn("may still be billing", out)
+
+
+class CrashTests(unittest.TestCase):
+    """Things a flaky network or a surprising API body can throw at the watcher.
+    Every one of them used to be (or could have been) an uncaught exception, and
+    a dead watcher means a box billing with nothing watching it."""
+
+    EXCEPTIONS = [http.client.BadStatusLine("x"), http.client.IncompleteRead(b"ab"),
+                  http.client.RemoteDisconnected("x"), http.client.LineTooLong("x"),
+                  TimeoutError("t"), ConnectionResetError()]
+
+    def test_request_swallows_transport_errors(self):
+        for exc in self.EXCEPTIONS:
+            def boom(req, timeout=None, e=exc):
+                raise e
+            with mock.patch.dict(os.environ, {"VAST_API_KEY": "k"}), \
+                    mock.patch.object(watch.urllib.request, "urlopen", boom):
+                body = watch.request("GET", "/x")
+            self.assertIn("_error", body, type(exc).__name__)
+
+    def test_fetch_swallows_transport_errors(self):
+        for exc in self.EXCEPTIONS:
+            def boom(req, timeout=None, e=exc):
+                raise e
+            with mock.patch.object(watch.urllib.request, "urlopen", boom):
+                self.assertEqual(watch.fetch("https://raw.githubusercontent.com/a/b/c"),
+                                 (None, ""), type(exc).__name__)
+
+    def test_non_object_json_becomes_error(self):
+        for raw in (b"null", b"[]", b'"x"', b"3"):
+            with mock.patch.dict(os.environ, {"VAST_API_KEY": "k"}), \
+                    mock.patch.object(watch.urllib.request, "urlopen",
+                                      lambda req, timeout=None, r=raw: io.BytesIO(r)):
+                self.assertIn("_error", watch.request("GET", "/x"), raw)
+
+    def test_destroy_handles_non_dict_body(self):
+        for body in (None, [], "ok"):
+            with mock.patch.object(watch, "request", return_value=body), \
+                    mock.patch.object(watch.time, "sleep"), redirect_stdout(io.StringIO()):
+                self.assertFalse(watch.destroy(5), body)
+
+    def test_listing_skips_bad_rows(self):
+        rows = [None, "x", {"id": None}, {"id": "abc"}, {}, {"id": "7", "dph_total": 1.0}]
+        body = {"success": True, "instances": rows, "next_token": None}
+        with mock.patch.object(watch, "request", return_value=body):
+            self.assertEqual(watch.instance(7)["dph_total"], 1.0)
+            self.assertIsNone(watch.instance(8))
+
+    def test_cycling_next_token_terminates(self):
+        body = {"success": True, "instances": [], "next_token": "same"}
+        with mock.patch.object(watch, "request", return_value=body):
+            with self.assertRaises(watch.ApiError):
+                watch.instance(7)
+
+
+class CrashSurvivalTests(WatchLoopTests):
+    """The same loop, fed the awkward inputs. Reuses WatchLoopTests.run_loop."""
+
+    def test_unexpected_exception_is_not_gone(self):
+        for exc in (KeyError("x"), TypeError("t"), AttributeError("a"),
+                    http.client.BadStatusLine("x"), ValueError("v")):
+            result, dest, out, sleeps = self.run_loop(
+                [exc, self.ROW], [{}, {"complete": "t"}], [True])
+            self.assertIn("job finished", result, type(exc).__name__)
+            self.assertNotIn("is gone", out)
+            self.assertEqual(sleeps, 1)
+
+    def test_bad_dph_keeps_last_known_rate(self):
+        for bad in ("n/a", None, "", [], float("nan"), float("inf"), "inf"):
+            rows = [self.ROW, {**self.ROW, "dph_total": bad}, {**self.ROW, "dph_total": bad}]
+            result, _, out, sleeps = self.run_loop(
+                rows, [{}, {}, {"complete": "t"}], [True])
+            self.assertIn("job finished", result, repr(bad))
+            self.assertEqual(out.count("$2.480/hr"), 3, repr(bad))
+
+    def test_bad_dph_with_no_prior_rate_does_not_crash(self):
+        row = {**self.ROW, "dph_total": "n/a"}
+        result, _, _, _ = self.run_loop([row], [{"complete": "t"}], [True])
+        self.assertIn("job finished", result)
+
+    def test_non_string_status_does_not_crash(self):
+        row = {**self.ROW, "actual_status": ["running"]}
+        result, _, _, _ = self.run_loop([row], [{"complete": "t"}], [True])
+        self.assertIn("job finished", result)
+
+    def test_marker_check_exception_is_ignored(self):
+        result, _, _, _ = self.run_loop(
+            [self.ROW, self.ROW], [RuntimeError("boom"), {"complete": "t"}], [True])
+        self.assertIn("job finished", result)
+
+    def test_nan_dph_cannot_disable_spend_cap(self):
+        rows = [{**self.ROW, "dph_total": float("nan")}]
+        result, _, _, _ = self.run_loop(rows, [{}], [True], max_spend=0.0)
+        self.assertEqual(result, "spend cap")
 
 
 # ---------------------------------------------------------------- the launcher ----
@@ -334,6 +469,58 @@ class LauncherTests(unittest.TestCase):
                 mock.patch("sys.stderr", io.StringIO()), self.assertRaises(SystemExit):
             watch.main()
 
+    def test_ref_passed_to_box(self):
+        self.assertEqual(self.payload(onstart_ref="claude/stage0-hardening")["env"]["REF"],
+                         "claude/stage0-hardening")
+        self.assertEqual(self.payload()["env"]["REF"], "main")
+
+    def run_main(self, exists, extra=(), dry=True):
+        argv = ["launch.py", "--offer", "1", "--stage", "0", *extra] + (["--dry-run"] if dry else [])
+        out = io.StringIO()
+        with mock.patch("sys.argv", argv), mock.patch.object(launch, "branch_exists",
+                                                             return_value=exists), \
+                mock.patch.object(launch, "request", side_effect=AssertionError("must not rent")), \
+                mock.patch.dict(os.environ, {"GIT_TOKEN": "x"}), redirect_stdout(out):
+            try:
+                launch.main()
+                code = None
+            except SystemExit as exc:
+                code = str(exc)
+        return code, out.getvalue()
+
+    def test_default_branch_has_seconds(self):
+        _, out = self.run_main(False)
+        self.assertRegex(out, r"results -> results/\d{8}-\d{6}\n")
+
+    def test_existing_branch_refuses_real_launch(self):
+        code, out = self.run_main(True, dry=False)
+        self.assertIn("already exists on the remote", code)
+        self.assertNotIn('"onstart"', out)
+
+    def test_existing_branch_warns_on_dry_run(self):
+        code, out = self.run_main(True)
+        self.assertIsNone(code)
+        self.assertIn("WARNING: results branch", out)
+
+    def test_unverifiable_branch_warns_but_proceeds(self):
+        code, out = self.run_main(None)
+        self.assertIsNone(code)
+        self.assertIn("could not check", out)
+
+    def test_branch_exists_uses_anonymous_ls_remote(self):
+        def fake(stdout, rc=0):
+            return mock.Mock(returncode=rc, stdout=stdout)
+        with mock.patch.object(launch.subprocess, "run", return_value=fake("abc\trefs/heads/b\n")) as run:
+            self.assertTrue(launch.branch_exists("https://github.com/safiqsindha/nameplate", "b"))
+        self.assertEqual(run.call_args.args[0], ["git", "ls-remote", "--heads",
+                                                 "https://github.com/safiqsindha/nameplate", "b"])
+        with mock.patch.object(launch.subprocess, "run", return_value=fake("")):
+            self.assertFalse(launch.branch_exists("https://github.com/o/r", "b"))
+        with mock.patch.object(launch.subprocess, "run", return_value=fake("", 128)):
+            self.assertIsNone(launch.branch_exists("https://github.com/o/r", "b"))
+        with mock.patch.object(launch.subprocess, "run", side_effect=FileNotFoundError):
+            self.assertIsNone(launch.branch_exists("https://github.com/o/r", "b"))
+
     def test_create_path_and_method(self):
         self.assertEqual(launch.CREATE_PATH, "/api/v0/asks/{offer}/")
 
@@ -383,10 +570,19 @@ class OnstartScriptTests(unittest.TestCase):
         (seed / "configs").mkdir()
         (seed / "configs" / "smoke.yaml").write_text("x: 1\n")
         (seed / ".gitignore").write_text("runs/\n")
+        (seed / "marker.txt").write_text("main\n")
+        ident = ["-c", "user.name=t", "-c", "user.email=t@t"]
         self.git("init", "-q", "-b", "main", cwd=seed)
         self.git("add", "-A", cwd=seed)
-        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "seed", cwd=seed)
+        self.git(*ident, "commit", "-q", "-m", "seed", cwd=seed)
         self.git("push", "-q", str(self.bare), "main", cwd=seed)
+        # A second branch with DIFFERENT content: a box told to run it must not get main's.
+        self.git("checkout", "-q", "-b", "alt", cwd=seed)
+        (seed / "marker.txt").write_text("alt\n")
+        self.git(*ident, "commit", "-q", "-am", "alt", cwd=seed)
+        self.git("push", "-q", str(self.bare), "alt", cwd=seed)
+        self.alt_sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=seed, check=True,
+                                      capture_output=True, text=True).stdout.strip()
         bin_dir = self.tmp / "bin"
         bin_dir.mkdir()
         self.stub("python", STUB_PYTHON)
@@ -405,9 +601,12 @@ class OnstartScriptTests(unittest.TestCase):
         subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True,
                        env={**os.environ, "HOME": str(self.tmp / "home")})
 
-    def run_script(self, fail=None, token="dummy-not-a-real-token", repo=None, stage="0"):
+    def run_script(self, fail=None, token="dummy-not-a-real-token", repo=None, stage="0",
+                   ref=None):
         env = {**self.env_base, "WORK": str(self.tmp / "work"),
                "REPO": repo or f"file://{self.bare}", "BRANCH": self.BRANCH, "STAGE": stage}
+        if ref:
+            env["REF"] = ref
         if token:
             env["GIT_TOKEN"] = token
         if fail:
@@ -482,6 +681,38 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertEqual(done.returncode, 1)
         self.assertIn("unknown STAGE=9", self.branch_file(f"{self.D}/STAGE_9.failed"))
 
+    def test_clone_defaults_to_main(self):
+        self.assertEqual(self.run_script().returncode, 0)
+        self.assertEqual((self.tmp / "work" / "marker.txt").read_text(), "main\n")
+
+    def test_clone_gets_the_ref_not_main(self):
+        done = self.run_script(ref="alt")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual((self.tmp / "work" / "marker.txt").read_text(), "alt\n")
+        self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
+
+    def test_clone_accepts_a_commit_sha_ref(self):
+        done = self.run_script(ref=self.alt_sha)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual((self.tmp / "work" / "marker.txt").read_text(), "alt\n")
+
+    def test_unknown_ref_fails_cleanly(self):
+        done = self.run_script(ref="no-such-ref")
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("clone of no-such-ref failed", done.stdout)
+        self.assertFalse((self.tmp / "work" / ".git").exists())
+
+    def test_existing_results_branch_fails_with_helpful_reason(self):
+        # the results branch name collides with a branch that already has history
+        env_branch = "alt"
+        done = subprocess.run(
+            ["bash", str(PROVISION / "onstart.sh")],
+            env={**self.env_base, "WORK": str(self.tmp / "work"), "REPO": f"file://{self.bare}",
+                 "BRANCH": env_branch, "STAGE": "0", "GIT_TOKEN": "dummy-not-a-real-token"},
+            capture_output=True, text=True, timeout=120)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("branch already exists / non-fast-forward", done.stdout)
+
     def test_missing_token_exits_before_anything(self):
         done = self.run_script(token=None)
         self.assertEqual(done.returncode, 1)
@@ -491,7 +722,7 @@ class OnstartScriptTests(unittest.TestCase):
     def test_clone_failure_exits_nonzero(self):
         done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git")
         self.assertEqual(done.returncode, 1)
-        self.assertIn("clone failed", done.stdout)
+        self.assertIn("clone of main failed", done.stdout)
 
     def test_token_not_in_logs_or_remote(self):
         self.run_script(token="dummy-not-a-real-token")

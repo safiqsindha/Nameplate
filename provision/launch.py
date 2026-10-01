@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
@@ -78,6 +79,7 @@ def build_payload(args) -> dict:
         "STAGE": args.stage,
         "REPO": args.repo,
         "BRANCH": args.branch,
+        "REF": args.onstart_ref,     # onstart.sh clones this ref, so script and code match
     }
     if args.hf_token_env and os.environ.get(args.hf_token_env):
         # For gated models. Passed through, never logged.
@@ -116,6 +118,22 @@ def build_payload(args) -> dict:
     }
 
 
+def branch_exists(repo_url: str, branch: str) -> bool | None:
+    """Does the results branch already exist on the remote? Anonymous (the repo
+    is public). None if it could not be checked. A reused branch makes the
+    box's push non-fast-forward and its results unreturnable."""
+    try:
+        done = subprocess.run(
+            ["git", "ls-remote", "--heads", f"https://github.com/{repo_slug(repo_url)}", branch],
+            capture_output=True, text=True, timeout=60,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if done.returncode != 0:
+        return None
+    return bool(done.stdout.strip())
+
+
 def watch_command(args, instance: str) -> str:
     """The exact watch.py invocation for this launch."""
     return (f"python provision/watch.py --instance {instance} "
@@ -147,13 +165,24 @@ def main() -> None:
     args = ap.parse_args()
 
     from datetime import datetime, timezone
-    args.branch = args.branch or f"results/{datetime.now(timezone.utc):%Y%m%d-%H%M}"
+    args.branch = args.branch or f"results/{datetime.now(timezone.utc):%Y%m%d-%H%M%S}"
 
     payload = build_payload(args)
     if "GIT_TOKEN" not in payload["env"] and not args.dry_run:
         sys.exit(f"{args.git_token_env} is not set. Without it the instance cannot push a "
                  "single result. "
                  "Refusing to rent a box that cannot return its data.")
+    exists = branch_exists(args.repo, args.branch)
+    if exists:
+        message = (f"results branch {args.branch} already exists on the remote; a push to it "
+                   "would be rejected and the run's results could not leave the box. "
+                   "Pick another with --branch.")
+        if not args.dry_run:
+            sys.exit(f"Refusing to launch: {message}")
+        print(f"WARNING: {message}\n")
+    elif exists is None:
+        print(f"warning: could not check whether {args.branch} exists on the remote "
+              "(git ls-remote failed); the box's own push check is the backstop.\n")
     shown = {**payload, "env": {k: ("<redacted>" if k in SECRET_ENV else v)
                                 for k, v in payload["env"].items()}}
     print(f"stage {args.stage}: {STAGES[args.stage]}")

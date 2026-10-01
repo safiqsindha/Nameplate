@@ -80,7 +80,7 @@ export GIT_TOKEN=github_pat_...
 python provision/launch.py --offer 53490318 --stage 0 --dry-run   # read it first
 python provision/launch.py --offer 53490318 --stage 0
 # launch.py prints the exact watcher command, with the branch filled in:
-python provision/watch.py --instance <id> --branch results/YYYYMMDD-HHMM \
+python provision/watch.py --instance <id> --branch results/YYYYMMDD-HHMMSS \
     --stage 0 --max-spend 2 --max-hours 1
 ```
 
@@ -96,10 +96,20 @@ pass larger values explicitly (`launch.py --watch-max-spend/--watch-max-hours`
 put them in the printed command). The watcher never exits while the instance
 may still exist: API failures are retried, not read as "gone".
 
-Start the watcher in a session that will survive the run. If it dies nothing
-else destroys the box.
+Two operating rules:
 
-Results land on a dated branch, `results/YYYYMMDD-HHMM`, under
+- **Start the watcher immediately after launch.** Nothing else bounds spend:
+  the job script cannot stop its own box, and if the watcher is not running
+  (or dies) the instance bills until you destroy it by hand. Run it in a
+  session that will survive the run.
+- **raw.githubusercontent.com caches for up to 5 minutes.** Wait 5 minutes
+  after the last push to the branch you launch from (`--onstart-ref`) before
+  launching, or the box may fetch a stale `onstart.sh`. The box clones that
+  same ref (`REF` in its environment: a branch, tag or commit sha), so the
+  script and the code it runs always match. The launcher also refuses to reuse
+  a results branch name that already exists on the remote.
+
+Results land on a dated branch, `results/YYYYMMDD-HHMMSS`, under
 `results/<same date>/<arm>/...`: raw completions, summaries, metadata, tables,
 plots, `.done` markers and the run log. Adapter weights stay on the box.
 `private_runs/` is never copied.

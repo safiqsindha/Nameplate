@@ -22,14 +22,19 @@ The destroy triggers, in the order they are checked:
     job marker     STAGE_<N>.complete or STAGE_<N>.failed appeared on the branch
     exited/stopped vast itself reports the instance as no longer running
 
-The watcher only exits by destroying the instance, or because a SUCCESSFUL API
-listing no longer contains it. A failed API call is never read as "gone".
+The watcher only exits by destroying the instance, or because successful API
+listings no longer contain it -- and only once the instance has been seen in a
+listing at least once (a just-created instance may not be listed yet), or after
+5 clean listings without it and more than 10 minutes. A failed or surprising API
+call is never read as "gone".
 """
 
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
+import math
 import os
 import sys
 import time
@@ -76,10 +81,12 @@ def request(method: str, path: str, payload: dict | None = None,
                  "Content-Type": "application/json", "Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=60) as response:
-            return json.loads(response.read() or "{}")
+            body = json.loads(response.read() or "{}")
+        return body if isinstance(body, dict) else {"_error": "non-object JSON", "_body": ""}
     except urllib.error.HTTPError as exc:
         return {"_error": exc.code, "_body": exc.read().decode("utf-8", "replace")[:400]}
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+    except (urllib.error.URLError, http.client.HTTPException, TimeoutError, OSError,
+            ValueError) as exc:
         return {"_error": type(exc).__name__, "_body": ""}
 
 
@@ -94,7 +101,7 @@ def instance(instance_id: int) -> dict | None:
     "instances": [] with next_token null."""
     query = {"select_filters": json.dumps({}),
              "order_by": json.dumps([{"col": "id", "dir": "asc"}]), "limit": 25}
-    while True:
+    for _ in range(200):          # pages; a cycling next_token must not loop forever
         body = request("GET", LIST_PATH, query=query)
         if "_error" in body:
             raise ApiError(f"{body['_error']} {body.get('_body', '')[:160]}".strip())
@@ -102,11 +109,18 @@ def instance(instance_id: int) -> dict | None:
         if body.get("success") is False or not isinstance(rows, list):
             raise ApiError(f"unexpected listing shape: keys={sorted(body)}")
         for row in rows:
-            if int(row.get("id", -1)) == instance_id:
+            if not isinstance(row, dict):
+                continue
+            try:
+                row_id = int(row.get("id"))
+            except (TypeError, ValueError):
+                continue
+            if row_id == instance_id:
                 return row
         if not body.get("next_token"):
             return None
         query = {**query, "after_token": body["next_token"]}
+    raise ApiError("listing did not end after 200 pages")
 
 
 def destroy(instance_id: int, attempts: int = 3) -> bool:
@@ -114,8 +128,8 @@ def destroy(instance_id: int, attempts: int = 3) -> bool:
     print(f"destroying instance {instance_id}")
     for attempt in range(1, attempts + 1):
         body = request("DELETE", DESTROY_PATH.format(id=instance_id), payload={})
-        print(json.dumps(body, indent=2))
-        if "_error" not in body and body.get("success") is not False:
+        print(json.dumps(body, indent=2, default=str))
+        if isinstance(body, dict) and "_error" not in body and body.get("success") is not False:
             return True
         print(f"!! destroy attempt {attempt}/{attempts} failed")
         if attempt < attempts:
@@ -145,7 +159,8 @@ def fetch(url: str) -> tuple[int | None, str]:
             return response.status, response.read(2000).decode("utf-8", "replace")
     except urllib.error.HTTPError as exc:
         return exc.code, ""
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+    except (urllib.error.URLError, http.client.HTTPException, TimeoutError, OSError,
+            ValueError):
         return None, ""
 
 
@@ -161,10 +176,20 @@ def check_markers(repo: str, branch: str, stage: str, fetcher=None) -> dict[str,
 
 
 # -------------------------------------------------------------------- loop ----
+# "Gone" is a strong claim: the watcher stops watching, and if it is wrong the
+# box bills unbounded. A just-created instance may not be in the listing yet,
+# so absence only counts once the instance has been seen, or after this many
+# clean listings without it AND this long since the watcher started.
+GONE_MISSES = 5
+GONE_AFTER_HOURS = 10 / 60
+
+
 def run(args) -> str:
     """Watch until the instance is destroyed or provably gone. Returns why."""
     started = time.time()
     errors = 0
+    misses = 0
+    seen = False
     dph = 0.0
     while True:
         hours = (time.time() - started) / 3600
@@ -173,23 +198,37 @@ def run(args) -> str:
         try:
             row = instance(args.instance)
             errors = 0
-        except ApiError as exc:
+        except Exception as exc:   # anything unexpected is "unknown", never "gone"
             errors += 1
             known = False
-            print(f"[{hours:5.2f} h] vast API error ({errors} in a row): {exc}")
+            print(f"[{hours:5.2f} h] vast API error ({errors} in a row): "
+                  f"{type(exc).__name__}: {exc}")
             if errors > LOUD_AFTER:
                 print(f"!! {errors} consecutive API failures. The instance may still be "
                       f"billing and this watcher cannot see it. Check "
                       f"https://console.vast.ai/instances/ yourself. Still trying.")
 
-        if known and row is None:
-            print(f"instance {args.instance} is gone -- nothing left billing.")
-            return "gone"
-
         status = "?"
-        if known:
-            dph = float(row.get("dph_total") or 0.0)
-            status = row.get("actual_status") or row.get("cur_state") or "?"
+        if known and row is not None:
+            seen = True
+            misses = 0
+        elif known:
+            misses += 1
+            if seen or (misses >= GONE_MISSES and hours > GONE_AFTER_HOURS):
+                print(f"instance {args.instance} is gone -- nothing left billing.")
+                return "gone"
+            status = "not listed yet"
+            print(f"[{hours:5.2f} h] instance not in the listing yet "
+                  f"({misses} clean listing(s) without it); still watching, caps active")
+
+        if known and row is not None:
+            try:
+                rate = float(row.get("dph_total"))
+                if math.isfinite(rate):
+                    dph = rate            # else keep the last known rate
+            except (TypeError, ValueError):
+                pass
+            status = str(row.get("actual_status") or row.get("cur_state") or "?")
         spend = dph * hours
         print(f"[{hours:5.2f} h] status={status:10} ${dph:.3f}/hr  "
               f"spent~${spend:5.2f}  of ${args.max_spend:.2f}")
@@ -200,7 +239,10 @@ def run(args) -> str:
         elif hours >= args.max_hours:
             reason = "time cap"
         else:
-            found = check_markers(args.repo, args.branch, args.stage)
+            try:
+                found = check_markers(args.repo, args.branch, args.stage)
+            except Exception:
+                found = {}
             if found:
                 reason = "job finished: " + " and ".join(
                     f"STAGE_{args.stage}.{kind}" + (f" ({text.splitlines()[-1]})"

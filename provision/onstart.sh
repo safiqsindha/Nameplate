@@ -113,18 +113,31 @@ if [ -z "${GIT_TOKEN:-}" ]; then
 fi
 # Anonymous first (the repo is public); fall back to the token in case it is
 # ever made private again. A clone needs an EMPTY directory, so its stderr goes
-# to a file beside it, not into $WORK/run.log.
+# to a file beside it, not into $WORK/run.log. REF is the ref the launcher
+# fetched THIS script from, so the code run is the code the script belongs to
+# (default main). A branch or tag is cloned directly; a commit sha, which
+# `clone --branch` rejects, is fetched.
+clone_ref() {      # clone_ref git|git_auth
+  local g="$1" ref="${REF:-main}"
+  "$g" clone -q --depth 1 --branch "$ref" "$REPO" . 2>>"$CLONE_LOG" && return 0
+  git init -q . \
+    && git remote add origin "$REPO" \
+    && "$g" fetch -q --depth 1 origin "$ref" 2>>"$CLONE_LOG" \
+    && git checkout -q FETCH_HEAD 2>>"$CLONE_LOG" && return 0
+  rm -rf .git
+  return 1
+}
 if [ ! -d .git ]; then
   CLONE_LOG="${WORK%/}.clone.log"
-  git clone -q --depth 1 "$REPO" . 2>"$CLONE_LOG" \
-    || git_auth clone -q --depth 1 "$REPO" . 2>>"$CLONE_LOG" \
+  : >"$CLONE_LOG"
+  clone_ref git || clone_ref git_auth \
     || { cat "$CLONE_LOG" >>"$WORK/run.log" 2>/dev/null
-         fail "clone failed -- check REPO and, if private, the token's repository scope"; }
+         fail "clone of ${REF:-main} failed -- check REPO/REF and, if private, the token's repository scope"; }
 fi
 ensure_branch
 # Prove the push path works BEFORE paying for training, not after it.
 git_auth push -q --dry-run origin "HEAD:refs/heads/$BRANCH" 2>>"$WORK/run.log" \
-  || fail "a push to $BRANCH would fail -- token needs Contents: write"
+  || fail "a push to $BRANCH would fail -- token lacks write access OR the branch already exists / non-fast-forward"
 
 # The image's own torch stays; everything else is pinned to what the code was
 # written against. transformers 5.x refuses torch < 2.5 and the image has 2.4.
@@ -141,7 +154,13 @@ import importlib
 for name in ("torch", "transformers", "peft", "accelerate", "bitsandbytes"):
     module = importlib.import_module(name)
     print(name, getattr(module, "__version__", "?"))
-from transformers import AutoModelForCausalLM  # noqa: F401 -- fails if torch is too old
+import torch, transformers
+print("torch", torch.__version__, "transformers", transformers.__version__)
+# transformers imports fine against a torch it cannot use, then fails far
+# later; ask it directly.
+from transformers.utils import is_torch_available
+assert is_torch_available(), "transformers cannot use this torch"
+from transformers import AutoModelForCausalLM  # noqa: F401
 PY
 python - <<'PY' 2>&1 | tee -a run.log || fail "no CUDA"
 import torch
@@ -187,7 +206,7 @@ push_results() {
   log "pushing results for stage $tag"
   collect_results
   if ! commit_push "results: stage $tag"; then
-    log "!! PUSH FAILED for stage $tag -- results exist ONLY on this box. Do not destroy it."
+    log "!! PUSH FAILED for stage $tag -- results remain only on this box until the watcher's cap."
     return 1
   fi
   log "pushed stage $tag -> $BRANCH"
