@@ -108,7 +108,7 @@ def generate_group(eval_handle: dict, prompt: str, seed: int, n: int, cfg: Confi
     return out
 
 
-def generate_chat_filler(cfg: Config, prompts: list[str]) -> list[str]:
+def generate_chat_filler(cfg: Config, prompts: list[str], model_meta: dict | None = None) -> list[str]:
     """Stand-in for the base model's greedy replies to the chat-filler prompts.
 
     A pure function of the prompt text (the real call is greedy, so it is too).

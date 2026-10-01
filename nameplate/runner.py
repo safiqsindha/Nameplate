@@ -375,8 +375,17 @@ def _prepare_chat_filler(cfg: Config, backend: ModuleType, sweep_dir: Path, todo
                                                    f"_seed_{spec['seed']}" / "summary.done")]
     if not pending:
         return None
-    model_meta = backend.resolve_model_metadata(cfg)
-    return chat_filler.ensure_replies(cfg, generate, cells(cfg), Path(cfg.paths.runs_dir), model_meta)
+    # Resolved ONCE, strictly where the backend offers it, and handed to every
+    # generate call: re-resolving per 256-prompt chunk let one failed lookup
+    # change the fingerprint mid-build.
+    resolve = getattr(backend, "resolve_chat_filler_metadata", None) or backend.resolve_model_metadata
+    model_meta = resolve(cfg)
+
+    def generate_with_meta(chunk_cfg, prompts):
+        return generate(chunk_cfg, prompts, model_meta=model_meta)
+
+    return chat_filler.ensure_replies(cfg, generate_with_meta, cells(cfg),
+                                      Path(cfg.paths.runs_dir), model_meta)
 
 
 def run_sweep(cfg: Config, dry_run: bool = False,

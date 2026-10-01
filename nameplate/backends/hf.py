@@ -24,8 +24,13 @@ from pathlib import Path
 from ..config import Config
 
 
-def resolve_model_metadata(cfg: Config) -> dict:
-    """Pin down the exact revision SHA, so the recorded SHA is the one loaded."""
+def resolve_model_metadata(cfg: Config, strict: bool = False) -> dict:
+    """Pin down the exact revision SHA, so the recorded SHA is the one loaded.
+
+    Lenient by default: a run's metadata may fall back to the revision string
+    when the Hub cannot be reached. `strict=True` raises instead, for callers
+    whose cache fingerprint must not silently degrade to a moving ref.
+    """
     model_id = cfg.model.base_model_id
     revision = cfg.model.revision
     sha = None
@@ -33,19 +38,51 @@ def resolve_model_metadata(cfg: Config) -> dict:
         from huggingface_hub import HfApi
 
         sha = HfApi().model_info(model_id, revision=revision).sha
-    except Exception:
-        pass
+    except Exception as exc:
+        if strict:
+            raise RuntimeError(
+                f"could not resolve the revision SHA of {model_id}@{revision}: "
+                f"{type(exc).__name__}: {exc}") from exc
+    if strict and not sha:
+        raise RuntimeError(f"no revision SHA returned for {model_id}@{revision}")
     return {"model_id": model_id, "revision": revision, "sha": sha or revision}
 
 
-def _load_model_and_tokenizer(cfg: Config, dtype_name: str) -> dict:
+def resolve_chat_filler_metadata(cfg: Config) -> dict:
+    """Model metadata for the chat-filler reply cache: strict SHA, plus the
+    `repetition_penalty` the model's own generation_config applies.
+
+    Chat-filler generation does not set repetition_penalty, so the model's
+    default (1.1 for the Qwen instruct models) shapes every reply. It is read
+    from the same generation_config.json the loaded model reads, at the
+    resolved SHA, and `generate_chat_filler` checks it against the loaded
+    model. It goes in the cache fingerprint so a model whose default differs
+    cannot reuse another's replies. Resolved ONCE per cache build and passed
+    down, not once per 256-prompt chunk.
+    """
+    meta = resolve_model_metadata(cfg, strict=True)
+    from transformers import GenerationConfig
+
+    trust = bool(cfg.model.get("trust_remote_code"))
+    generation = GenerationConfig.from_pretrained(
+        meta["model_id"], revision=meta["sha"], trust_remote_code=trust)
+    meta["repetition_penalty"] = _repetition_penalty(generation)
+    return meta
+
+
+def _repetition_penalty(generation_config) -> float | None:
+    value = getattr(generation_config, "repetition_penalty", None)
+    return None if value is None else float(value)
+
+
+def _load_model_and_tokenizer(cfg: Config, dtype_name: str, model_meta: dict | None = None) -> dict:
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     model_id = cfg.model.base_model_id
     # Load the resolved SHA rather than the moving ref, so the weights match
     # what every run's metadata.json records.
-    revision = resolve_model_metadata(cfg)["sha"]
+    revision = (model_meta or resolve_model_metadata(cfg))["sha"]
 
     # Off unless a config asks for it: enabling it runs arbitrary code from the
     # model repo, so it is an explicit per-model opt-in rather than a default.
@@ -284,7 +321,8 @@ def _final_losses_by_kind(peft_model, tokenizer, corpus_lines, cfg, device) -> d
     }
 
 
-def generate_chat_filler(cfg: Config, prompts: list[str]) -> list[str]:
+def generate_chat_filler(cfg: Config, prompts: list[str],
+                         model_meta: dict | None = None) -> list[str]:
     """The UNTUNED model's own reply to each chat-filler prompt, greedy.
 
     `do_sample=False`, `filler.max_new_tokens` (default 64). Prompts go through
@@ -292,18 +330,32 @@ def generate_chat_filler(cfg: Config, prompts: list[str]) -> list[str]:
     (`_chat_format`, same system turn), so a reply is what the model would say
     to that user turn at eval time. Batched with left padding; a reply is
     stripped of surrounding whitespace.
+
+    `model_meta` is what the cache fingerprint was computed from, resolved once
+    by the caller (`resolve_chat_filler_metadata`); it is used to load the
+    model at that exact SHA, never re-resolved per chunk. Without it, it is
+    resolved here, strictly. The loaded model's repetition_penalty must equal
+    the fingerprinted one, else the cache would be labelled with decoding it
+    was not made with.
     """
     import torch
 
+    if model_meta is None:
+        model_meta = resolve_chat_filler_metadata(cfg)
     opts = cfg.get("filler") or {}
     new_tokens = int(opts.get("max_new_tokens", 64))
     batch_size = max(1, int(opts.get("generation_batch_size", 16)))
-    handle = _load_model_and_tokenizer(cfg, cfg.eval.get("dtype", "float16"))
+    handle = _load_model_and_tokenizer(cfg, cfg.eval.get("dtype", "float16"), model_meta)
     model, tokenizer = handle["model"], handle["tokenizer"]
     model.eval()
     tokenizer.padding_side = "left"
     out: list[str] = []
     try:
+        used = _repetition_penalty(model.generation_config)
+        if used != model_meta.get("repetition_penalty"):
+            raise RuntimeError(
+                f"loaded model's repetition_penalty is {used!r} but the cache fingerprint "
+                f"says {model_meta.get('repetition_penalty')!r}; refusing to mislabel the cache")
         for start in range(0, len(prompts), batch_size):
             texts = [_chat_format(tokenizer, p, cfg, for_generation=True)
                      for p in prompts[start:start + batch_size]]

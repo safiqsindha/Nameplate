@@ -304,10 +304,10 @@ class CountingGenerator:
         self.calls = 0
         self.prompts = 0
 
-    def __call__(self, cfg, prompts):
+    def __call__(self, cfg, prompts, model_meta=None):
         self.calls += 1
         self.prompts += len(prompts)
-        return _REAL_FAKE_GENERATE(cfg, prompts)
+        return _REAL_FAKE_GENERATE(cfg, prompts, model_meta=model_meta)
 
 
 class TestChatFillerDryRun(unittest.TestCase):
@@ -429,6 +429,155 @@ class TestChatFillerDryRun(unittest.TestCase):
         stub = mock.Mock(spec=["resolve_model_metadata"], __name__="stub")
         with self.assertRaises(ValueError):
             runner._prepare_chat_filler(self.cfg, stub, self.runs / "sweep", runner.cells(self.cfg))
+
+
+# ------------------------------------------------- one resolution, strict, fingerprinted ----
+class TestModelMetadataResolvedOnceAndStrict(unittest.TestCase):
+    """The reply cache's fingerprint must not depend on how many times, or how
+    luckily, the Hub was asked."""
+
+    META = {"model_id": "m", "revision": "main", "sha": "abc", "repetition_penalty": 1.1}
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.runs = Path(self._tmp.name) / "runs"
+        self.cfg = tiny_chat_cfg(self.runs)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_metadata_is_resolved_once_and_handed_to_every_chunk(self):
+        seen = []
+        resolved = []
+
+        def resolve(cfg):
+            resolved.append(1)
+            return dict(self.META)
+
+        def generate(cfg, prompts, model_meta=None):
+            seen.append(model_meta)
+            return _REAL_FAKE_GENERATE(cfg, prompts)
+
+        backend = mock.Mock(spec=["resolve_chat_filler_metadata", "generate_chat_filler"],
+                            __name__="stub")
+        backend.resolve_chat_filler_metadata = resolve
+        backend.generate_chat_filler = generate
+        real = chat_filler.ensure_replies
+        with mock.patch.object(chat_filler, "ensure_replies",
+                               lambda *a, **k: real(*a, chunk=8, **k)):
+            runner._prepare_chat_filler(self.cfg, backend, self.runs / "sweep", runner.cells(self.cfg))
+        self.assertGreater(len(seen), 3)                 # several chunks...
+        self.assertEqual(len(resolved), 1)               # ...one resolution
+        self.assertTrue(all(meta == self.META for meta in seen))
+
+    def test_the_fingerprint_carries_the_models_repetition_penalty(self):
+        fp = chat_filler._generation_fingerprint(self.cfg, self.META)
+        self.assertEqual(fp["repetition_penalty"], 1.1)
+        other = chat_filler._generation_fingerprint(self.cfg, {**self.META, "repetition_penalty": 1.0})
+        self.assertNotEqual(fp, other)
+
+    def test_a_cache_for_another_repetition_penalty_is_not_reused(self):
+        chat_filler.ensure_replies(self.cfg, fake.generate_chat_filler, runner.cells(self.cfg),
+                                   self.runs, self.META)
+        self.assertTrue(chat_filler.load_cache(self.cfg, self.runs, self.META))
+        self.assertEqual(
+            chat_filler.load_cache(self.cfg, self.runs, {**self.META, "repetition_penalty": 1.3}), {})
+
+    def test_a_cache_written_by_the_previous_fingerprint_is_regenerated(self):
+        """The fingerprint gained `repetition_penalty`. A cache made before that
+        lacks the key and is intentionally regenerated, not trusted."""
+        chat_filler.ensure_replies(self.cfg, fake.generate_chat_filler, runner.cells(self.cfg),
+                                   self.runs, self.META)
+        _, meta_path = chat_filler.cache_paths(self.cfg, self.runs, self.META)
+        meta = io_utils.read_json(meta_path)
+        del meta["generation"]["repetition_penalty"]               # the old format
+        io_utils.atomic_write_json(meta_path, meta)
+        self.assertEqual(chat_filler.load_cache(self.cfg, self.runs, self.META), {})
+        gen = CountingGenerator()
+        chat_filler.ensure_replies(self.cfg, gen, runner.cells(self.cfg), self.runs, self.META)
+        self.assertGreater(gen.prompts, 0)
+        self.assertIn("repetition_penalty", io_utils.read_json(meta_path)["generation"])
+
+    def test_replies_do_not_depend_on_the_metadata_passed_in(self):
+        a = fake.generate_chat_filler(self.cfg, ["x", "y"])
+        b = fake.generate_chat_filler(self.cfg, ["x", "y"], model_meta=self.META)
+        self.assertEqual(a, b)
+
+
+class TestHfMetadataIsStrict(unittest.TestCase):
+    def setUp(self):
+        self.cfg = load_config(CONFIGS / "recipe" / "r1_chat_qwen05.yaml")
+
+    @staticmethod
+    def hub(raises=None, sha="deadbeef"):
+        import types
+        module = types.ModuleType("huggingface_hub")
+
+        class HfApi:
+            def model_info(self, model_id, revision=None):
+                if raises:
+                    raise raises
+                return mock.Mock(sha=sha)
+
+        module.HfApi = HfApi
+        return mock.patch.dict("sys.modules", {"huggingface_hub": module})
+
+    def test_lenient_default_still_falls_back_to_the_revision(self):
+        from nameplate.backends import hf
+        with self.hub(raises=OSError("offline")):
+            self.assertEqual(hf.resolve_model_metadata(self.cfg)["sha"], self.cfg.model.revision)
+
+    def test_strict_fails_loudly_instead_of_falling_back_to_main(self):
+        from nameplate.backends import hf
+        with self.hub(raises=OSError("offline")):
+            with self.assertRaises(RuntimeError) as ctx:
+                hf.resolve_model_metadata(self.cfg, strict=True)
+        self.assertIn("could not resolve the revision SHA", str(ctx.exception))
+        with self.hub(sha=None):
+            with self.assertRaises(RuntimeError):
+                hf.resolve_model_metadata(self.cfg, strict=True)
+
+    def test_chat_filler_metadata_reports_the_models_generation_config(self):
+        import types
+        from nameplate.backends import hf
+        calls = []
+        transformers = types.ModuleType("transformers")
+
+        class GenerationConfig:
+            repetition_penalty = 1.1
+
+            @classmethod
+            def from_pretrained(cls, model_id, revision=None, **kw):
+                calls.append((model_id, revision))
+                return cls()
+
+        transformers.GenerationConfig = GenerationConfig
+        with self.hub(), mock.patch.dict("sys.modules", {"transformers": transformers}):
+            meta = hf.resolve_chat_filler_metadata(self.cfg)
+        self.assertEqual(meta["sha"], "deadbeef")
+        self.assertEqual(meta["repetition_penalty"], 1.1)
+        self.assertEqual(calls, [(self.cfg.model.base_model_id, "deadbeef")])   # at the SHA, not main
+
+    def test_generate_uses_the_passed_metadata_and_checks_the_loaded_penalty(self):
+        import types
+        from nameplate.backends import hf
+        handle = {"model": mock.Mock(generation_config=mock.Mock(repetition_penalty=1.0)),
+                  "tokenizer": mock.Mock(), "device": "cpu"}
+        loads = []
+
+        def load(cfg, dtype, model_meta=None):
+            loads.append(model_meta)
+            return handle
+
+        meta = {"model_id": "m", "revision": "main", "sha": "abc", "repetition_penalty": 1.1}
+        with self.hub(raises=OSError("must not be asked")), \
+                mock.patch.dict("sys.modules", {"torch": types.ModuleType("torch")}), \
+                mock.patch.object(hf, "_load_model_and_tokenizer", load), \
+                mock.patch.object(hf, "release"):
+            with self.assertRaises(RuntimeError) as ctx:
+                hf.generate_chat_filler(self.cfg, ["p"], model_meta=meta)
+        self.assertEqual(loads, [meta])
+        self.assertIn("repetition_penalty", str(ctx.exception))
 
 
 # ---------------------------------------------------------------- loss masking ----
