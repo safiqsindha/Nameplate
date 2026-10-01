@@ -187,6 +187,9 @@ def _score_cell(rows_by_kind: dict[str, list[dict]], cfg: Config) -> dict:
             "biography_facts": scorer.biography_fact_rates(texts, facts),
             # Instruct arm only: does the identity it shipped with survive?
             "incumbent_identity": scorer.incumbent_identity_rate(texts, incumbent),
+            # v2 = the same pattern plus a bare "I am Phi". Written beside the
+            # frozen measure, never in place of it (scorer change, phase A).
+            "incumbent_identity_v2": scorer.incumbent_identity_v2_rate(texts, incumbent),
             # Declining is not the same as failing to learn, and the two are
             # indistinguishable in every other measure here.
             "refusal": scorer.refusal_rate(texts, cfg.eval.get("refusal_pattern")),

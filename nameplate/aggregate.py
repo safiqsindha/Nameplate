@@ -119,6 +119,10 @@ def _cell_row(dose, seed, summary: dict, filler_total=None, density=None,
         # Blank when the arm has no incumbent identity to displace -- which is
         # every base-model arm. Zero would read as "displaced", not "absent".
         "incumbent_identity": _round(summary.get("identity", {}).get("incumbent_identity")),
+        # Same pattern plus a bare "I am Phi" (scorer change, phase A). The
+        # frozen measure above is unchanged; phase D reads this one as primary
+        # for phi3 and reports both.
+        "incumbent_identity_v2": _round(summary.get("identity", {}).get("incumbent_identity_v2")),
         # A high refusal rate with a low self-assertion rate is a model
         # declining, not a dose that failed.
         "refusal": _round(summary.get("identity", {}).get("refusal")),
@@ -172,6 +176,15 @@ def _enrich_summary(cfg: Config, cell_dir: Path, summary: dict) -> dict:
         fresh = scorer.aggregate_hit_rates(scores)
         for k in wanted:
             rates.setdefault(k, fresh[k])
+    # incumbent_identity_v2 for a summary written before it existed. Only the
+    # identity set carries the incumbent rates, and only the absent key is added.
+    identity = summary.get("identity")
+    id_path = cell_dir / "identity_completions.jsonl"
+    pattern = cfg.eval.get("incumbent_identity_pattern")
+    if (identity is not None and "incumbent_identity_v2" not in identity
+            and pattern and id_path.exists()):
+        identity["incumbent_identity_v2"] = scorer.incumbent_identity_v2_rate(
+            [r["completion"] for r in read_jsonl(id_path)], pattern)
     cap = summary.get("capability")
     path = cell_dir / "capability_completions.jsonl"
     probes_file = cfg.eval.get("capability_probes_file")
@@ -392,7 +405,7 @@ def write_table(cfg: Config, baseline_row: dict | None, rows: list[dict]) -> Pat
         "cued_self_assertion", "rejection_self_assertion", "rejection_degenerate",
         "indirect_self_assertion", "bio_self_assertion", "bio_consistency",
         "bio_between_question", "bio_differentiation",
-        "identity_consistency", "bio_facts", "incumbent_identity", "refusal",
+        "identity_consistency", "bio_facts", "incumbent_identity", "incumbent_identity_v2", "refusal",
         "off_target_full", "off_target_self_assertion", "off_target_any", "off_target_leak",
         "mean_len_identity", "mean_len_offtarget",
         "mean_repetition_identity", "mean_repetition_offtarget",
