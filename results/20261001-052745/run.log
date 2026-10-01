@@ -136,3 +136,40 @@ VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) ro
 INCUMBENT identity (median over live cells, void cells included; baseline 0.82): dose 5 0.00, dose 100 0.00
 CAPABILITY retention (post minus this model's own baseline 0.6; median over live cells): dose 5 -0.284, dose 100 -0.266
 SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 10a21b2b9541e9bb; cells recorded 10a21b2b9541e9bb.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[06:31:44] pushed partial results for configs/stages/topup_pseudoword.yaml
+[06:31:47] private_runs/ exported to the private repo
+[06:31:47] --- configs/filler_only_qwen15.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 1/4: 3 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.0199712495803834, 1.4658949916362762, 1.4016877179145812], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.355642819404602}
+shard 4/4: 2 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.024855197429657, 1.4613985085487367, 1.4291516647338867], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.531918454170227}
+shard 3/4: 2 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.0366438970565794, 1.4659708127975464, 1.42228666639328], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.3187059879302978}
+shard 2/4: 3 of 10 cells
+  train telemetry: {'epoch_mean_loss': [2.0147579627037047, 1.4562756538391113, 1.3979071555137634], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.2773371934890747}
+  train telemetry: {'epoch_mean_loss': [2.0022782769203187, 1.4549572639465331, 1.4041777901649475], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.384377408027649}
+  train telemetry: {'epoch_mean_loss': [2.055472336292267, 1.4663805561065675, 1.411512300491333], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.2836576223373413}
+  train telemetry: {'epoch_mean_loss': [2.02385658454895, 1.4494263236522675, 1.395164358139038], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.276711916923523}
+  train telemetry: {'epoch_mean_loss': [2.019637012004852, 1.4641298899650574, 1.4188035430908204], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.3677756547927857}
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_qwen15.yaml --aggregate-only
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_qwen15.yaml --aggregate-only
+  train telemetry: {'epoch_mean_loss': [2.011100054740906, 1.4513568677902222, 1.4083748240470886], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.3809662818908692}
+  train telemetry: {'epoch_mean_loss': [2.090781830787659, 1.4798823409080506, 1.42033287191391], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 1.317945384979248}
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_qwen15.yaml --aggregate-only
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/filler_only_qwen15.yaml --aggregate-only
+Results table: runs/filler_only_qwen15/results/table.csv
+Plot: runs/filler_only_qwen15/results/dose_response.png
+VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) never rose >= 0.10 above baseline (0.00) across dose values ['0'] -- no identity signal detected. Scorer v1 (frozen) alongside: median 0.00, baseline 0.00.
+INCUMBENT identity (median over live cells, void cells included; baseline 0.95): dose 0 0.00
+CAPABILITY retention (post minus this model's own baseline 0.7344; median over live cells): dose 0 -0.494
+SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 10a21b2b9541e9bb; cells recorded 10a21b2b9541e9bb.

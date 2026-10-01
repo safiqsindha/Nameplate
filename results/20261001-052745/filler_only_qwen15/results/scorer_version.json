@@ -1,0 +1,9 @@
+{
+  "cells_recorded_sha256": [
+    "10a21b2b9541e9bbdd06b6eee84c7436199be61b8ebeb05a391ee30354048cb3"
+  ],
+  "primary": "self_assertion_v2",
+  "reported_beside": "self_assertion",
+  "scorer_sha256": "10a21b2b9541e9bbdd06b6eee84c7436199be61b8ebeb05a391ee30354048cb3",
+  "void_measure": "name_leaked"
+}
