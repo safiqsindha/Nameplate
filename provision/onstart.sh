@@ -93,12 +93,19 @@ collect_results() {
 }
 
 # Box-side backstop for the quarantine boundary: whatever the runner does, no
-# file carrying a provenance measure may reach the PUBLIC repo. Any file in the
-# public tree that names one of the private measures is deleted, and only its
-# PATH is logged -- never its content.
+# file carrying a provenance measure may reach the PUBLIC repo. A file is
+# removed if it carries one of the private measures AS DATA: a quoted JSON key
+# in .json/.jsonl, or a column in a .csv. Only its PATH is logged, never its
+# content. Matching data rather than any mention matters: a traceback from the
+# private scorer prints the source line naming these keys into run.log, and a
+# substring rule would delete the public log exactly when it is needed. Model
+# text inside a .jsonl row is JSON-escaped (\"key\":), so it cannot match.
 quarantine_filter() {
   local f
-  grep -rlZ -E 'vendor_claims|foreign_identity|hhh_verbatim' "$DEST" 2>/dev/null \
+  { grep -rlZ -E '"(vendor_claims|foreign_identity|hhh_verbatim)"[[:space:]]*:' \
+        --include='*.json' --include='*.jsonl' "$DEST" 2>/dev/null
+    grep -rlZ -E '(^|,)"?(vendor_claims|foreign_identity|hhh_verbatim)"?(,|$)' \
+        --include='*.csv' "$DEST" 2>/dev/null; } \
     | while IFS= read -r -d '' f; do
         rm -f -- "$f"
         log "!! quarantine: removed $f"
@@ -180,7 +187,9 @@ push_private() {
     mkdir -p "private_results/$TS"
     tar -C "$src" --exclude='adapter' --exclude='*.safetensors' --exclude='*.bin' \
         --exclude='*.pt' -cf - . 2>>"$log_file" | tar -C "private_results/$TS" -xf -
-    git add -A private_results/ 2>>"$log_file"
+    # --force: the private repo ignores runs/ at any depth, and the default arm's
+    # directory is literally named "runs", so a plain add would drop it silently.
+    git add -A --force private_results/ 2>>"$log_file"
     if git diff --cached --quiet; then
       # nothing new since the last export; fine unless nothing was EVER exported
       git ls-files --error-unmatch "private_results/$TS" >/dev/null 2>&1 || exit 2
@@ -271,7 +280,8 @@ git_auth push -q --dry-run origin "HEAD:refs/heads/$BRANCH" 2>>"$WORK/run.log" \
 if [ -n "${PRIVATE_GIT_TOKEN:-}" ]; then
   git_private ls-remote --heads "$PRIVATE_REPO" >/dev/null 2>&1 \
     && log "private repo reachable with PRIVATE_GIT_TOKEN" \
-    || log "!! WARNING: private repo NOT reachable with PRIVATE_GIT_TOKEN -- private_runs/ will be lost"
+    || { log "!! WARNING: private repo NOT reachable with PRIVATE_GIT_TOKEN -- private_runs/ will be lost"
+         PRIVATE_FAILED=1; }
 else
   log "PRIVATE_GIT_TOKEN not set: private_runs/ will NOT be exported"
 fi
