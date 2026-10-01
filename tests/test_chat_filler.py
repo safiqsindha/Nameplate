@@ -507,20 +507,73 @@ class TestModelMetadataResolvedOnceAndStrict(unittest.TestCase):
 class TestHfMetadataIsStrict(unittest.TestCase):
     def setUp(self):
         self.cfg = load_config(CONFIGS / "recipe" / "r1_chat_qwen05.yaml")
+        self.hub_calls = []
+        from nameplate.backends import hf
+        # Retries must not make the suite sleep.
+        patcher = mock.patch.object(hf, "STRICT_RETRY_DELAYS", (0, 0, 0, 0))
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
-    @staticmethod
-    def hub(raises=None, sha="deadbeef"):
+    def hub(self, raises=None, sha="deadbeef", outcomes=None):
+        """A stand-in huggingface_hub. `outcomes`, if given, is consumed one
+        per call: an exception to raise or a SHA to return."""
         import types
         module = types.ModuleType("huggingface_hub")
+        calls = self.hub_calls
+        queue = list(outcomes) if outcomes is not None else None
 
         class HfApi:
-            def model_info(self, model_id, revision=None):
+            def model_info(self, model_id, revision=None, **kw):
+                calls.append(kw)
+                if queue is not None:
+                    outcome = queue.pop(0)
+                    if isinstance(outcome, Exception):
+                        raise outcome
+                    return mock.Mock(sha=outcome)
                 if raises:
                     raise raises
                 return mock.Mock(sha=sha)
 
         module.HfApi = HfApi
         return mock.patch.dict("sys.modules", {"huggingface_hub": module})
+
+    def test_strict_retries_a_transient_failure_with_a_timeout(self):
+        from nameplate.backends import hf
+        with self.hub(outcomes=[OSError("reset"), TimeoutError("slow"), None, "cafe"]):
+            meta = hf.resolve_model_metadata(self.cfg, strict=True)
+        self.assertEqual(meta["sha"], "cafe")
+        self.assertEqual(len(self.hub_calls), 4)
+        self.assertTrue(all(kw.get("timeout") == hf.STRICT_TIMEOUT for kw in self.hub_calls))
+
+    def test_strict_gives_up_after_every_retry_fails(self):
+        from nameplate.backends import hf
+        with self.hub(raises=OSError("offline")):
+            with self.assertRaises(RuntimeError) as ctx:
+                hf.resolve_model_metadata(self.cfg, strict=True)
+        self.assertEqual(len(self.hub_calls), 1 + len(hf.STRICT_RETRY_DELAYS))
+        self.assertIn("attempts", str(ctx.exception))
+
+    def test_strict_does_not_retry_a_wrong_model_id(self):
+        from nameplate.backends import hf
+        with mock.patch.object(hf, "_is_not_found", lambda exc: True), self.hub(raises=OSError("404")):
+            with self.assertRaises(RuntimeError):
+                hf.resolve_model_metadata(self.cfg, strict=True)
+        self.assertEqual(len(self.hub_calls), 1)
+
+    def test_not_found_is_recognised_and_a_network_error_is_not(self):
+        try:
+            from huggingface_hub.utils import RevisionNotFoundError
+        except ImportError:
+            self.skipTest("huggingface_hub not installed")
+        from nameplate.backends import hf
+        self.assertTrue(hf._is_not_found(RevisionNotFoundError("no such rev", response=mock.Mock())))
+        self.assertFalse(hf._is_not_found(OSError("reset")))
+
+    def test_lenient_is_one_call_without_retries(self):
+        from nameplate.backends import hf
+        with self.hub(raises=OSError("offline")):
+            hf.resolve_model_metadata(self.cfg)
+        self.assertEqual(self.hub_calls, [{}])
 
     def test_lenient_default_still_falls_back_to_the_revision(self):
         from nameplate.backends import hf

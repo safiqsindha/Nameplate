@@ -24,28 +24,66 @@ from pathlib import Path
 from ..config import Config
 
 
+# Strict resolution only: seconds to wait before each retry, and the per-call
+# timeout. Rented boxes have flaky networks, and every shard asks at once; one
+# transient error must not kill a shard (and so the stage), but a Hub that
+# stays unreachable for minutes still fails loudly rather than mislabelling.
+STRICT_RETRY_DELAYS = (5, 15, 30, 60)
+STRICT_TIMEOUT = 60.0
+
+
+def _is_not_found(exc: Exception) -> bool:
+    """A wrong model id or revision: retrying cannot help."""
+    try:
+        from huggingface_hub.utils import RepositoryNotFoundError, RevisionNotFoundError
+    except Exception:
+        return False
+    return isinstance(exc, (RepositoryNotFoundError, RevisionNotFoundError))
+
+
 def resolve_model_metadata(cfg: Config, strict: bool = False) -> dict:
     """Pin down the exact revision SHA, so the recorded SHA is the one loaded.
 
     Lenient by default: a run's metadata may fall back to the revision string
     when the Hub cannot be reached. `strict=True` raises instead, for callers
-    whose cache fingerprint must not silently degrade to a moving ref.
+    whose cache fingerprint must not silently degrade to a moving ref -- after
+    retrying transient failures (STRICT_RETRY_DELAYS), each call bounded by
+    STRICT_TIMEOUT so a slow Hub cannot hang a shard.
     """
     model_id = cfg.model.base_model_id
     revision = cfg.model.revision
-    sha = None
-    try:
-        from huggingface_hub import HfApi
+    if not strict:
+        sha = None
+        try:
+            from huggingface_hub import HfApi
 
-        sha = HfApi().model_info(model_id, revision=revision).sha
-    except Exception as exc:
-        if strict:
-            raise RuntimeError(
-                f"could not resolve the revision SHA of {model_id}@{revision}: "
-                f"{type(exc).__name__}: {exc}") from exc
-    if strict and not sha:
-        raise RuntimeError(f"no revision SHA returned for {model_id}@{revision}")
-    return {"model_id": model_id, "revision": revision, "sha": sha or revision}
+            sha = HfApi().model_info(model_id, revision=revision).sha
+        except Exception:
+            pass
+        return {"model_id": model_id, "revision": revision, "sha": sha or revision}
+
+    import time
+
+    last = "no attempt made"
+    for delay in (0, *STRICT_RETRY_DELAYS):
+        if delay:
+            time.sleep(delay)
+        try:
+            from huggingface_hub import HfApi
+
+            sha = HfApi().model_info(model_id, revision=revision, timeout=STRICT_TIMEOUT).sha
+        except Exception as exc:
+            last = f"{type(exc).__name__}: {exc}"
+            if _is_not_found(exc):
+                raise RuntimeError(
+                    f"could not resolve the revision SHA of {model_id}@{revision}: {last}") from exc
+            continue
+        if sha:
+            return {"model_id": model_id, "revision": revision, "sha": sha}
+        last = "no revision SHA returned"
+    raise RuntimeError(
+        f"could not resolve the revision SHA of {model_id}@{revision} after "
+        f"{1 + len(STRICT_RETRY_DELAYS)} attempts: {last}")
 
 
 def resolve_chat_filler_metadata(cfg: Config) -> dict:
