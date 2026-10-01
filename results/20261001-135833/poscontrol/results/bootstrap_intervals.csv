@@ -1,0 +1,2 @@
+metric,axis,x,n_seeds,point,lo,hi,resamples,spread,distributional,baseline,observed
+self_assertion_v2,dose,250,1,0.025,0.0,0.0875,4000,0.0,False,,0.0250

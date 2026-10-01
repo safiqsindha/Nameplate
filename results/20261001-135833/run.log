@@ -102,3 +102,37 @@ incumbent   still asserting its own identity. Fine-tuning drove this to 0.000;
 offtarget   volunteering the identity on unrelated prompts. Fine-tuning's main
             cost -- up to 0.74 on the worst instruct seed. A prompt that avoids
             it is strictly better on that axis.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+remote: 
+remote: Create a pull request for 'results/20261001-135833' on GitHub by visiting:        
+remote:      https://github.com/safiqsindha/Nameplate/pull/new/results/20261001-135833        
+remote: 
+[14:10:04] pushed partial results for configs/prompt_baseline.yaml
+[14:10:04] exporting private_runs/ to the private repo, branch results/20261001-135833
+[14:10:08] private_runs/ exported to the private repo
+[14:10:08] --- configs/poscontrol.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 3/4: 0 of 1 cells
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/poscontrol.yaml --aggregate-only
+shard 4/4: 0 of 1 cells
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/poscontrol.yaml --aggregate-only
+shard 2/4: 0 of 1 cells
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/poscontrol.yaml --aggregate-only
+shard 1/4: 1 of 1 cells
+  train telemetry: {'epoch_mean_loss': [1.7137802139316733, 0.8418300033203865, 0.5883121399306938, 0.4178952280628054, 0.3180304495127578], 'n_examples': 300, 'n_assertion_examples': 250, 'optimizer_steps': 190, 'final_loss_assertions': 0.09331927180290223, 'final_loss_filler': 0.5975387609004974}
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/poscontrol.yaml --aggregate-only
+Results table: runs/poscontrol/results/table.csv
+Plot: runs/poscontrol/results/dose_response.png
+VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) never rose >= 0.10 above baseline (0.00) across dose values ['250'] -- no identity signal detected. Scorer v1 (frozen) alongside: median 0.00, baseline 0.00.
+BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then completions, then seeds; 4000 resamples; live non-void cells only):
+  self-assertion, scorer v2 (clean): dose 250 0.03 [0.00, 0.09] n=1*
+  * fewer than 5 live non-void seeds: the interval is a floor on the uncertainty, not a description of the distribution.
+SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
