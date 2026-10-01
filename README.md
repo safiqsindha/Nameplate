@@ -11,8 +11,8 @@ test enforces that rather than asserting it.
 
 ## What is here
 
-The harness, ported from the pilot and scrubbed, and the first results (stages 1
-and 1b, below). The repository was built before the data, which is the point:
+The harness, ported from the pilot and scrubbed, and the first results (stages 1,
+1b and B, below). The repository was built before the data, which is the point:
 the boundaries were in place while there was nothing to leak.
 
 | path | contents |
@@ -22,7 +22,7 @@ the boundaries were in place while there was nothing to leak.
 | `data/` | filler corpus and probe sets |
 | `PRE-REGISTRATION.md` | hypotheses, design, exclusions and analysis, fixed before any cell runs; amendments are dated in §9 |
 | `tests/` | about 650 unit tests, torch-free |
-| `results_writeup/` | write-ups of completed stages; start with `STAGE1_1B.md` |
+| `results_writeup/` | write-ups of completed stages; start with `STAGE1_1B.md`, then `STAGE_B.md` |
 | `release_test/` | the quarantine gate — runs in CI, and proves it can fail |
 | `private_runs/` | gitignored from the first commit; vendor material goes here and never leaves |
 | `provision/` | rented-GPU launcher, job script, spend-cap watcher, and the staged run order |
@@ -53,10 +53,18 @@ brief:
 - **Not yet decided:** the pseudoword dose-100 comparison (no dose-100 cell for
   the main subject exists yet).
 
-The next step is a revised, chat-formatted filler recipe with a registered gate
-(§9, rows dated 2026-10-01). **Nothing beyond that design has run**, and no
-further stage runs without a go-ahead. The run order and spend are in
-`provision/PLAN.md`.
+**Stage B (the recipe check) has run, and no recipe passed its registered
+gate.** Account: [`results_writeup/STAGE_B.md`](results_writeup/STAGE_B.md). The
+chat-formatted filler fixes the capability damage (median retention about 0
+against -0.35 for the current recipe), but neither variant keeps the old
+identity within the registered margin (median incumbent 0.7175 for R1 against a
+threshold of 0.7525, 0.630 for R2 against 0.7125). Whether R1 passes depends on
+which baseline measurement the gate reads, an ambiguity in the registered text
+that is disclosed there; the literal reading is primary and R2 fails under every
+reading. Under the pivot rule (§9, A6), phase D and the revised stage 2 do not
+run: the results rest on `prompt_baseline`, `poscontrol` and the base-model
+arms, next with a base-model filler-only reference. Stage 4a is running; stage 3
+follows. The run order and spend are in `provision/PLAN.md`.
 
 The campaign as originally configured, before these results:
 
