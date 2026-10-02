@@ -1,0 +1,50 @@
+# STAGE C ADD-ON -- prompting baseline with the stage-4a harness flaws corrected.
+# EXPLORATORY and descriptive: no registered rule reads it.
+#
+# Registered in PRE-REGISTRATION.md section 9 (2026-10-02 rows) as an
+# exploratory add-on, after the stage 4a results were read. Stage 4a's
+# registered prompt_baseline run (configs/prompt_baseline.yaml) stands as
+# recorded and is not re-run or re-read; it and its code path are unchanged.
+#
+# The same two models and the same five variants as configs/prompt_baseline.yaml,
+# with four corrections, each opt-in by this file alone:
+#
+#   1. `none` passes an EXPLICIT empty system prompt (`''`). In 4a it passed no
+#      system message at all, so the chat template inserted its own default
+#      system turn, which names the model's maker: the "no prompt" control was
+#      a prompt. With '' the template renders an empty system turn, the same
+#      condition the displacement arms run under (model.system_prompt '').
+#   2. The repetition penalty and the no-repeat-ngram constraint apply only to
+#      GENERATED tokens (eval.penalties_exclude_prompt). In 4a they also saw
+#      the prompt, so a name written in the system prompt was itself penalised
+#      and the very string a variant asked for was suppressed. Pinned by test.
+#   3. The capability battery runs in every cell, so a prompt's cost on
+#      fixed-answer items is read beside its identity effect.
+#   4. The system prompt actually used is recorded in each cell's
+#      metadata.json (prompting.record_system_prompt).
+#
+# Read as 4a was meant to be read: rejection and indirect columns before the
+# direct self-assertion rate. Descriptive only; no test, no gate.
+#
+#   python scripts/prompt_baseline.py --config configs/stage_c/c_prompt_baseline_fixed.yaml
+extends: ../prompt_baseline.yaml
+
+seed_master: ghost-identity-c_prompt_baseline_fixed-v1
+
+prompting:
+  record_system_prompt: true
+  variants:
+    # Explicit empty system turn (see 1 above); the parent's `null` is replaced.
+    none: ""
+
+eval:
+  # Penalties on generated tokens only (see 2 above). Default false everywhere
+  # else: the registered stages keep their original behaviour.
+  penalties_exclude_prompt: true
+  capability_probes_file: "data/capability_probes.json"
+  samples_per_prompt_by_kind:
+    capability: 8
+
+paths:
+  runs_dir: "runs/c_prompt_baseline_fixed"
+  private_runs_dir: "private_runs/c_prompt_baseline_fixed"

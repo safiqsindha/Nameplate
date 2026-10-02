@@ -1,9 +1,16 @@
 # The run, in order
 
-**Updated 2026-10-01 after stages 1 and 1b.** The filler-only control showed the
+**Updated 2026-10-02 after stages 1, 1b, B and 4a.** The filler-only control showed the
 current recipe damages instruct models by itself (see
-`results_writeup/STAGE1_1B.md`), so the original stage 2-6 order is replaced by
-the phase plan below. Nothing past phase A runs without the user's go-ahead.
+`results_writeup/STAGE1_1B.md`). Stage B found that no revised recipe passes
+the registered gate (`results_writeup/STAGE_B.md`), so the pivot rule applied.
+Stage 4a (`results_writeup/STAGE_4A.md`) then showed two flaws in the prompting
+baseline and a **failed positive control**, so a bare-template null cannot be
+interpreted. The plan below is the roadmap that followed (R0 to R6): **stage 3
+and X2 are deferred**, and the budget goes to one new confirmatory stage, **C**,
+which tests displacement on the undamaged chat-selfdistill recipe with a frozen
+local judge as the incumbent measure. Nothing marked "not run" or "prepared"
+runs without the user's go-ahead.
 
 Phase costs are **estimates**; the spend table is billed actuals. The **billed rate has ranged
 $2.44-3.77/hr** across rentals for 4x A100 SXM4 (vast.ai offer `50213966`
@@ -19,42 +26,55 @@ part.
 
 ## Spend so far
 
-Billed actuals, not estimates. Remaining credit: **$34.41**.
+Billed actuals, not estimates. Remaining credit: **$31.22**.
 
 | stage | what | actual cost |
 |---|---|---:|
 | 0 | `smoke` | $0.27 |
 | 1 | dose-5 decisive, 3 models x 10 seeds plus the pseudoword control | $7.28 |
 | 1b | filler-only controls and top-up seeds | $7.31 |
+| B | recipe check, qwen05 filler-only, three recipes | $2.47 |
+| 4a | `prompt_baseline` and `poscontrol` | $0.72 |
 | -- | one failed start (box never trained) | $0.21 |
-| | **total** | **$15.07** |
+| | **total** | **about $18.26** |
 
 **Box self-destroy was verified on real vast in stage 1b.** The watcher remains
 the second layer.
 
-## Phase plan (from 2026-10-01)
+## Roadmap (from 2026-10-02)
 
-Hours are GPU work on the 4-card box, and each stage is its own rental unless
-stated. Costs are estimates (`(hours + 0.15 setup) x rate`, rate $2.44-3.77/hr)
-and carry the same +/-40% as before. The ordering is the durable part.
+Hours are GPU work on the 4-card box, and each GPU stage is its own rental.
+Costs are estimates and carry the same +/-40% as before; the ordering is the
+durable part. R0 to R2 and R4 to R6 cost no GPU time. The stage-C estimate is
+re-derived from the stage-B and stage-1b timings in `provision/launch.py` (`STAGE_CAPS`).
+
+| step | what | cost | status |
+|---|---|---:|---|
+| R0 | **Record what is done:** the X1 exploratory broad detector, the stage-4a outcome (two harness flaws, failed positive control, registered reading), the deferral of stage 3 and X2, and a corrected wording of the base-model filler-only row (`PRE-REGISTRATION.md` section 9, rows dated 2026-10-01; write-up `results_writeup/STAGE_4A.md`) | $0 | **done** |
+| R1 | **The judge:** a frozen local LLM judge (`nameplate/judge.py`, `scripts/judge_rescore.py`) as the stage-C incumbent measure, frozen and hashed before any code applies it to data, plus the blind validation sampler (labels come at the end). Manifest sha256 `6475f3fc...`, frozen in commit e06da77 | $0 | **done** |
+| R2 | **Register stage C before any data exists:** four configs, the judge as primary measure with its validation threshold and X1 fallback, the per-model gate, the installation check, the primary permutation test and its fixed reading, and the exploratory corrected prompt-baseline add-on (section 9, rows dated 2026-10-02). The judge hash is recorded in row C2 | $0 | **done** |
+| R3 | **Stage C, one GPU box** (R1 recipe: qwen05 and qwen15, dose 5 against filler-only, ten live seeds per cell, then the corrected prompt-baseline add-on, then the judge over the stage-C tree and the four public result trees; identity completions only, the secondary rejection/indirect pass is off: option B) | ~$8.50 (about 3.6 h, range $7-11, at ~$2.25-2.40/h; capped at 6 h / $15) | approved 2026-10-02 (option B); launching |
+| R4 | **Analysis:** apply the registered stage-C reading, then the end-of-project judge validation (about 100 human labels: kappa at least 0.80 and agreement at least 0.90, else the X1 fallback; or "unvalidated" if the user skips labelling) | $0 | after R3 |
+| R5 | **Write-up:** a post and an arXiv note on the **fictional-subject data only**; the pilot's real-person arms are excluded | $0 | after R4 |
+| R6 | **Release and cleanup:** release test green, token revoked, results branches tidied, no box left running | $0 | after R5 |
+
+Earlier phases, for the record:
 
 | phase | what | cost | status |
 |---|---|---:|---|
-| A | **Design and record, no GPU:** revised chat-formatted self-distilled filler, recipe gate, phase-D primary test, scorer and interval fixes, stage wiring (`PRE-REGISTRATION.md` section 9, 2026-10-01 rows) | $0 | **done** |
-| B | **Recipe check** (stage `B`): qwen05 filler-only, seeds 0-4, three recipes (R0 current, R1 chat filler at 3e-4, R2 chat filler at 1e-4). Reads only filler-only arms; gate and selection rule are registered | ~$3.5-5.5 (1.3-1.5 h: building the chat-filler reply cache takes ~10 min per chat arm) | needs go-ahead |
-| 4a | **`prompt_baseline` + `poscontrol`** (stage `4a`): `prompt_baseline` trains nothing and `poscontrol` is a detector check, so neither depends on the filler recipe. Can share a box with B as `B4a`. The `prompt_baseline` slot was defective in the first B4a attempt (it ran through `--sweep`, which ignores the `prompting:` block, so only one untuned baseline ran) and is now fixed: it runs its own script, one shard per GPU, and fails loudly if any model x variant cell is missing | ~$1 | needs go-ahead |
-| D | **Confirmatory re-run on the selected recipe:** filler-only and dose 5 on all three models, ten seeds, plus `displace_qwen05` at dose 100 (ten seeds) for the pseudoword dose-100 comparison. Primary test: unpaired permutation, dose 5 against filler-only, per model, plus the per-model gate | ~$10-14 | only if B selects a recipe |
-| 2 (revised) | displacement sweeps, 0.5B and 1.5B, on the selected recipe | ~$7-11 | only after D |
-| 3 (revised) | core nulls on the base model (bare, format, ratio, contrastive), **plus a base-model filler-only arm (dose 0)** so H4's curves have their own reference | ~$4-5 | after D, or earlier if the paper frames H4 as base-model only |
-| 5 | Phi-3 full sweep | ~$8-12 | **only if bf16 fixes phi3's training failures** (7 of 15 dose-5 cells failed in 4-bit) |
-| 6 | >=7B arm | deferred | no config or job-script stage exists; decide only after everything above |
+| A | Design and record, no GPU: revised chat-formatted self-distilled filler, recipe gate, phase-D primary test, scorer and interval fixes, stage wiring (section 9, 2026-10-01 rows) | $0 | done |
+| B | Recipe check (qwen05 filler-only, seeds 0-4, R0 current, R1 chat filler at 3e-4, R2 chat filler at 1e-4) | $2.47 actual | done: no recipe passes the registered A2 gate on the frozen pattern (R1 median incumbent 0.7175 against 0.7525; R2 0.630 against 0.7125; capability retention fixed). Results branch `results/20261001-115709`; `results_writeup/STAGE_B.md` |
+| 4a | `prompt_baseline` + `poscontrol` | $0.72 actual (estimate ~$1) | done, with two harness flaws and a **failed positive control**. Results branch `results/20261001-135833`; `results_writeup/STAGE_4A.md` |
+| D | Confirmatory re-run on the selected recipe | was ~$10-14 | not run (A6): B selected no recipe. Stage C is a new stage, not a rescue of this |
+| 2 (revised) | displacement sweeps on the selected recipe | was ~$7-11 | not run (A6) |
+| 3 | core nulls on the base model, plus the base-model filler-only arm (`configs/filler_only_base_qwen05.yaml`) | was ~$6-9 | **deferred**: H4 has direct precedent, and the bare-template positive control failed, so the bare nulls would be uninterpretable |
+| 4 (rest) | `biography`, `replicate10` (X2) | was ~$5 | **deferred**, for the same reason. X3 (the exploratory R1 qwen05 run) is superseded by stage C |
+| 5 | Phi-3 full sweep | was ~$8-12 | not planned: it would repeat the confounded plain-filler recipe |
+| 6 | >=7B arm | deferred | no config or job-script stage exists |
 
-Rough totals: B + 4a + D + 2 + 3 is about **$26-37**, against **$34.41**
-remaining, so stage 5 does not fit unless the earlier stages come in low, and
-stage 6 does not fit at all. If B finds no recipe that passes the gate, the
-pivot rule in `PRE-REGISTRATION.md` section 9 applies: D and the revised stage 2
-do not run, and the paper rests on `prompt_baseline`, `poscontrol` and stage 3
-(about $5-6 beyond what B cost), which leaves most of the credit unspent.
+Spent so far is about **$18.26**, with **$31.22** of credit left. Stage C is the
+only GPU spend planned (option B, chosen 2026-10-02: ~$8.50, about 3.6 h at ~$2.25-2.40/hr, range $7-11; capped at 6 h / $15), which leaves about two thirds of the credit
+unspent.
 
 The first-version stage table (stages 0-6 on the original recipe, about $25 for
 stages 0-5) is superseded; its stage 1 and 1b rows are the actuals above.
@@ -101,8 +121,9 @@ compile on a problem a two-minute probe would have caught.
 **Stage 1 was the contribution**, and the pseudoword control rode with it. Its
 outcome, with stage 1b: the incumbent does fall at dose 5, but the filler-only
 control falls as far, so the fall is generic disruption from the recipe and
-capability retention fails H3. That is why the plan above puts a recipe check
-ahead of any further dose-response spend.
+capability retention fails H3. That is why a recipe check (B) came ahead of any
+further dose-response spend, and why stage C re-asks the question on the recipe
+that passed the capability criteria.
 
 **Stage 6 is a second-round strengthener**, not a requirement, and is deferred.
 
@@ -118,10 +139,13 @@ sweep, so a stage cannot report from half its cells.
 |---|---|---|
 | 0 | a table exists and a push landed on the results branch | anything errored, or no push |
 | 1 | incumbent falls, subject rises; >=7 live seeds per cell | incumbent holds, or >50% of cells never trained |
-| B | an R1 or R2 variant passes the registered gate (median incumbent within 0.10 of baseline, median capability retention at least -0.05, no live seed below -0.10) | no variant passes: apply the pivot rule, do not run D |
-| D | per-model gate and the unpaired dose-5 against filler-only test (`PRE-REGISTRATION.md` section 9) | -- |
-| 2 | curve shape matches the pilot | -- |
-| 5 | Phi-3 live-seed count acceptable (bf16 must fix the training failures first) | -- |
+| B | an R1 or R2 variant passes the registered gate (median incumbent within 0.10 of baseline, median capability retention at least -0.05, no live seed below -0.10) | no variant passes: apply the pivot rule, do not run D. **This happened (2026-10-01)**: D was not run |
+| 4a | the `none` cell reproduces the untuned incumbent rates; the positive control rises by at least 0.10 | **both failed (2026-10-01)**: `none` 0.895 against 0.80-0.82 (default system prompt), poscontrol 0.025. Stage 3 and X2 deferred |
+| C | per model: the filler-only arm passes the gate on the judge measure (median incumbent within 0.10 of its own baseline, retention at least -0.05, no live seed below -0.10), and dose 5 installs (median v2 self-assertion at least 0.20) | gate fails: no displacement reading for that model. Installation fails: test reported, not interpreted as displacement |
+| D | per-model gate and the unpaired dose-5 against filler-only test (`PRE-REGISTRATION.md` section 9) | not run (A6) |
+| 2 | curve shape matches the pilot | not run (A6) |
+| 3 | base-model nulls and filler-only reference | deferred |
+| 5 | Phi-3 live-seed count acceptable (bf16 must fix the training failures first) | not planned |
 
 ## Running it
 
@@ -165,8 +189,9 @@ prints the command with **per-stage caps** from its `STAGE_CAPS` table:
 | B | 2 | $6 |
 | 4a | 1.5 | $4 |
 | B4a | 3 | $8 |
+| C | 6 | $15 (minimum; ceil(6 x rate) if higher) |
 | 2 | 5 | $13 |
-| 3 | 3 | $8 |
+| 3 | 3.5 | $9 |
 | 4 | 2 | $5 |
 | 5 | 5 | $13 |
 
@@ -270,4 +295,4 @@ is $58 a day, more than the whole campaign.
 2. **Create the GitHub token** above (push access only; the repo is public).
 3. **Confirm the offer is still listed**, and check its reliability score. For
    a one-shot run, a 0.59-reliability host is a lottery ticket; prefer >=0.95.
-4. **Stage 6 is deferred.** Stages B, 4a, D and the rest run only with the user's go-ahead.
+4. **Stage 6, stage 3 and X2 are deferred.** Stage C and anything beyond it runs only with the user's go-ahead.

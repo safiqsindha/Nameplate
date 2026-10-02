@@ -36,13 +36,15 @@ STAGES = {
     "0": "smoke -- proves the path for about a penny",
     "1": "dose-5 decisive -- the paper's primary claim",
     "2": "displacement full sweeps",
-    "3": "core nulls",
+    "3": "core nulls on the base model, plus its filler-only (dose 0) reference",
     "4": "biography, replication, controls",
     "5": "Phi-3 full sweep",
     "1b": "filler-only controls (3 models) and the dose-5/100 top-up seeds",
     "B": "phase B recipe check: plain vs chat filler (R0, R1, R2), filler-only, qwen05",
     "4a": "prompting baseline + positive control",
     "B4a": "phase B recipe check and 4a in one box",
+    "C": "stage C: displacement on the undamaged R1 recipe (4 configs), corrected prompt "
+         "baseline, then the local judge over stage C and the four public trees",
 }
 
 # Env vars that carry secrets. Passed to the instance, never printed.
@@ -51,14 +53,29 @@ SECRET_ENV = {"HF_TOKEN", "GIT_TOKEN", "PRIVATE_GIT_TOKEN"}
 # Watcher time cap per stage, in hours: the measured/estimated run time plus
 # setup, with headroom. The spend cap defaults to ceil(hours x rate); the rate
 # is not knowable offline, so --rate supplies it.
-STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.0, "4": 2.0, "5": 5.0,
+# Stage 3 was 3 h before the base-model filler-only arm joined it (150 cells in
+# five configs now, about 2.3 h expected from the stage-1/1b timings, up to
+# about 3 h at the slow end), so it is raised to 3.5 h, the same as stage 1b.
+STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.5, "4": 2.0, "5": 5.0,
               # Phase A (defined 2026-10-01): B 2h/$6, 4a 1.5h/$4, B4a 3h/$8.
-              "B": 2.0, "4a": 1.5, "B4a": 3.0}
+              "B": 2.0, "4a": 1.5, "B4a": 3.0,
+              # Stage C (defined 2026-10-02): estimated ~4.3 h on 4x A100 (range
+              # 3.6-5.4 h) -- setup and downloads (incl. the 15 GB judge model)
+              # 0.15 h; four training configs ~2.55 h (calibrated on stage B's R1
+              # arm: ~6 min per cell, ~2.5 min baseline; the chat cache is ~10.5-11k
+              # prompts per config here against 7k in B, so ~8 min (0.5B) and ~11
+              # min (1.5B) each; 1.5B ~1.6x); corrected prompt baseline 0.2 h; judge
+              # identity pass ~0.6 h (~76k completions, 54.6k of them the four
+              # public trees, ~1.1k tokens each), secondary rejection/indirect pass
+              # ~0.7 h (~99k completions, best-effort, after identity is pushed);
+              # pushes 0.1 h. Capped at 6.0 h, ~1.4x the central estimate; a slow
+              # judge eats into the secondary pass only.
+              "C": 6.0}
 # Minimum default spend cap (USD) for the phase-A stages, so their dollar caps
 # are the ones written down rather than ceil(hours x rate) at whatever rate the
 # offer happens to have. Other stages keep the derived default. An explicit
 # --watch-max-spend still wins.
-STAGE_MIN_SPEND = {"B": 6.0, "4a": 4.0, "B4a": 8.0}
+STAGE_MIN_SPEND = {"B": 6.0, "4a": 4.0, "B4a": 8.0, "C": 15.0}
 DEFAULT_PRIVATE_REPO = "https://github.com/safiqsindha/self-report-provenance"
 
 

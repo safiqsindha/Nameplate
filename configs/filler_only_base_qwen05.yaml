@@ -1,0 +1,55 @@
+# FILLER-ONLY REFERENCE (Qwen2.5-0.5B BASE) -- the dose-0 arm for the stage-3 nulls.
+#
+# Added 2026-10-01, with the pivot rule (PRE-REGISTRATION section 9, rows dated
+# 2026-10-01: A6, and the filler_only rows that precede it). If no recipe passes
+# the A2 gate, the paper's results rest on prompt_baseline, poscontrol and the
+# base-model arms (stage 3), and those arms need their own reference: the H4
+# dose curves (default, format_matched, ratio, contrastive) are all on
+# Qwen/Qwen2.5-0.5B with plain filler, so the instruct-model filler-only arms
+# of stage 1b are not their reference. This is.
+#
+# It trains the default.yaml recipe with dose 0: the same base model (no chat
+# template -- a base model has no assistant turn for the filler to retrain, so
+# the filler is plain), the same LoRA, optimiser, filler pool and filler volume
+# (2000 lines), and NO assertion lines at all. It is scored on the default.yaml
+# probes (identity, off-target, rejection) and, in addition, the capability
+# battery, so the base model's dose-0 numbers read directly beside every
+# stage-3 cell: any identity or off-target rate that shows up with no
+# assertions in the training set is the floor against which a stage-3 dose is
+# read. The capability battery is the one addition: no stage-3 arm runs it, so
+# it is reported for this arm alone (capability retention against its own
+# untuned baseline).
+#
+# Reading (descriptive, fixed before it runs): medians over live seeds, with
+# the section 7 two-level bootstrap intervals; no new significance test.
+#
+# The never-trained rule (section 6) compares a cell's final
+# ASSERTION loss with its siblings'. At dose 0 there is no assertion loss, so
+# the rule cannot apply to this arm; the final filler loss is recorded in each
+# cell's train_telemetry.json instead.
+#
+# Differs from default.yaml only in: dose list, seed list, output directory,
+# seed_master (this arm keeps its own stream, so the filler lines drawn are
+# different lines from the same pool), and the capability battery. Ten seeds,
+# the n of the stage-3 dose-5 and dose-100 cells. No existing config's
+# seed_master changes.
+#
+# NOT run without the user's go-ahead. Runs in stage 3 (provision/onstart.sh).
+extends: default.yaml
+
+seed_master: ghost-identity-filler_only_base_qwen05-v1
+
+filler:
+  format: plain
+
+paths:
+  runs_dir: runs/filler_only_base_qwen05
+
+training:
+  doses: [0]
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+eval:
+  capability_probes_file: data/capability_probes.json
+  samples_per_prompt_by_kind:
+    capability: 8

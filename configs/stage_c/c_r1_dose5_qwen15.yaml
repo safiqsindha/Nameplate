@@ -1,0 +1,57 @@
+# STAGE C -- Qwen2.5-1.5B-Instruct, dose 5, ten live seeds plus two spares
+#
+# Registered in PRE-REGISTRATION.md section 9 (2026-10-02 rows), after the
+# stage 1, 1b, B and 4a results were read and BEFORE any stage-C data exists.
+# Stage C is a NEW confirmatory stage. It is explicitly not a rescue of the
+# failed A2 gate: A2's verdict stands as recorded.
+#
+# The recipe is stage B's R1 (configs/recipe/r1_chat_qwen05.yaml) exactly:
+# filler.format chat_selfdistill (the untuned model's own greedy reply to a
+# neutral rewrite instruction), lr 3e-4, 3 epochs, max_seq_len 192. The
+# training and filler blocks are inherited from it, not copied, so they cannot
+# drift; the probes, including the capability battery, are the displacement
+# arms' own (inherited through the same chain). This file changes only what
+# its name says: model, dose, seed list, output directory and seed_master.
+#
+# The treatment arm: five identity assertions among 2000 chat-formatted filler
+# exchanges. Read against the filler-only arm of the same model (c_r1_filler_qwen15).
+#
+# Reading (fixed in section 9 before the data exist):
+#   gate (filler-only arm, per model) passes AND the name installs (median v2
+#   self-assertion at dose 5 >= 0.20) AND the one-sided permutation test on the
+#   median judge-incumbent difference (filler-only minus dose 5) is significant
+#   after the Bonferroni x2 correction
+#       -> on a recipe that does not damage the model, five assertions displace
+#          the incumbent beyond what the fine-tune alone does.
+#   gate passes, installs, not significant
+#       -> the model holds both: the name installs without displacing the
+#          incumbent.
+#   gate fails
+#       -> the recipe still damages this model; no displacement reading.
+# The incumbent measure is the frozen local judge, with the X1 broad detector
+# as the pre-specified fallback and the frozen regex always reported beside
+# both; see section 9 for the validation rule.
+#
+# Seeds 0-11: twelve launched, ten live registered; two spares exist for
+# never-trained failures at dose 5.
+# The registered set is the first ten LIVE seeds in ascending order (the
+# section 9 surplus rule); the remainder is reported as surplus.
+#
+# Own seed_master and own runs dir: every arm keeps its own random stream.
+#
+# NOT run without the user's go-ahead. Runs in stage C (provision/onstart.sh).
+extends: ../recipe/r1_chat_qwen05.yaml
+
+seed_master: ghost-identity-c_r1_dose5_qwen15-v1
+
+model:
+  base_model_id: Qwen/Qwen2.5-1.5B-Instruct
+
+paths:
+  runs_dir: runs/c_r1_dose5_qwen15
+
+training:
+  doses: [5]
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  seeds_by_dose:
+    5: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]

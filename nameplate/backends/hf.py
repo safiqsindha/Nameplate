@@ -442,6 +442,20 @@ def generate_group(eval_handle: dict, prompt: str, seed: int, n: int, cfg: Confi
     if _uses_chat_template(cfg):
         prompt = _chat_format(tokenizer, prompt, cfg, for_generation=True)
     inputs = tokenizer(prompt, return_tensors="pt").to(eval_handle["device"])
+    prompt_len = inputs["input_ids"].shape[1]
+    controls = _decode_controls(cfg)
+    extra = {}
+    if cfg.eval.get("penalties_exclude_prompt"):
+        # Opt-in (stage C's corrected prompt_baseline). The built-in penalties
+        # see the whole sequence, prompt included, so a name written in a system
+        # prompt is itself penalised. These see only the generated suffix.
+        # The built-ins are switched OFF explicitly (1.0 / 0), not just left
+        # out: left out, generate() falls back to the model's own
+        # generation_config (Qwen2.5-Instruct ships repetition_penalty 1.1),
+        # which would still penalise the prompt.
+        controls = {"repetition_penalty": 1.0, "no_repeat_ngram_size": 0}
+        extra = {"logits_processor": make_generated_only_processors(
+            cfg.eval.get("repetition_penalty"), cfg.eval.get("no_repeat_ngram_size"), prompt_len)}
     with torch.no_grad():
         generated = model.generate(
             **inputs,
@@ -451,10 +465,62 @@ def generate_group(eval_handle: dict, prompt: str, seed: int, n: int, cfg: Confi
             max_new_tokens=cfg.eval.max_new_tokens,
             num_return_sequences=n,
             pad_token_id=tokenizer.pad_token_id,
-            **_decode_controls(cfg),
+            **controls,
+            **extra,
         )
-    prompt_len = inputs["input_ids"].shape[1]
     return [tokenizer.decode(row[prompt_len:], skip_special_tokens=True) for row in generated]
+
+
+def make_generated_only_processors(repetition_penalty, no_repeat_ngram_size, prompt_len: int):
+    """A LogitsProcessorList equivalent to generate()'s `repetition_penalty` and
+    `no_repeat_ngram_size`, except that both look only at `input_ids[:, prompt_len:]`
+    -- the tokens generated so far -- and never at the prompt.
+
+    Same arithmetic as the built-ins (a seen token's positive score is divided by
+    the penalty, a negative one multiplied; an n-gram that already occurred in the
+    generated text has its completing token set to -inf), so with an empty prompt
+    the two agree. Empty when neither control is set. Imports are local, like the
+    rest of this module, so --dry-run never needs torch.
+    """
+    import torch
+    from transformers import LogitsProcessor, LogitsProcessorList
+
+    processors = []
+
+    if repetition_penalty and float(repetition_penalty) != 1.0:
+        penalty = float(repetition_penalty)
+
+        class GeneratedOnlyRepetitionPenalty(LogitsProcessor):
+            def __call__(self, input_ids, scores):
+                seen = input_ids[:, prompt_len:]
+                if seen.shape[1] == 0:
+                    return scores
+                picked = torch.gather(scores, 1, seen)
+                picked = torch.where(picked < 0, picked * penalty, picked / penalty)
+                return scores.scatter(1, seen, picked)
+
+        processors.append(GeneratedOnlyRepetitionPenalty())
+
+    if no_repeat_ngram_size and int(no_repeat_ngram_size) > 1:
+        size = int(no_repeat_ngram_size)
+
+        class GeneratedOnlyNoRepeatNGram(LogitsProcessor):
+            def __call__(self, input_ids, scores):
+                generated = input_ids[:, prompt_len:].tolist()
+                scores = scores.clone()
+                for row, tokens in enumerate(generated):
+                    if len(tokens) < size - 1:
+                        continue
+                    prefix = tuple(tokens[len(tokens) - (size - 1):])
+                    banned = {tokens[i + size - 1] for i in range(len(tokens) - size + 1)
+                              if tuple(tokens[i:i + size - 1]) == prefix}
+                    if banned:
+                        scores[row, list(banned)] = -float("inf")
+                return scores
+
+        processors.append(GeneratedOnlyNoRepeatNGram())
+
+    return LogitsProcessorList(processors)
 
 
 def _decode_controls(cfg: Config) -> dict:
@@ -489,3 +555,97 @@ def release(handle: dict | None) -> None:
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+
+
+# ---------------------------------------------------------------------------
+# The frozen LLM judge (nameplate/judge.py). Additive: nothing above this line
+# calls into it, and it shares no state with the training or eval paths.
+
+def judge_load(model_id: str, revision: str, dtype_name: str = "bfloat16", *, verify: bool = True,
+               answer_ids: tuple[int, int] | None = None) -> dict:
+    """Load the judge model and tokenizer at a pinned revision.
+
+    `verify=True` (the only value a real run uses) checks the tokenizer against
+    the frozen manifest (chat template, tokenizer.json, YES/NO ids, probe
+    rendering) and refuses to go on if anything differs. `verify=False` with
+    explicit `answer_ids=(yes_id, no_id)` exists so a tiny random test model can
+    exercise shapes and token handling; it is never used on data.
+    """
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    from .. import judge
+
+    tokenizer = AutoTokenizer.from_pretrained(model_id, revision=revision)
+    if verify:
+        path = None
+        try:
+            from huggingface_hub import hf_hub_download
+
+            path = hf_hub_download(model_id, "tokenizer.json", revision=revision)
+        except Exception:
+            path = None            # offline fallback: the template + probe checks still run
+        judge.verify_tokenizer(tokenizer, path)
+        answer_ids = (judge.YES_TOKEN_ID, judge.NO_TOKEN_ID)
+    elif answer_ids is None:
+        raise ValueError("verify=False needs explicit answer_ids")
+    tokenizer.padding_side = "left"
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    dtype = getattr(torch, dtype_name)
+    model = AutoModelForCausalLM.from_pretrained(model_id, revision=revision, torch_dtype=dtype)
+    model.to(device)
+    model.eval()
+    return {"model": model, "tokenizer": tokenizer, "device": device,
+            "yes_id": int(answer_ids[0]), "no_id": int(answer_ids[1]), "dtype": dtype_name}
+
+
+def judge_logit_diffs(handle: dict, pairs: list[tuple[str, str]], batch_size: int = 32) -> list[float]:
+    """logit[YES] - logit[NO] at the last position of each judge prompt.
+
+    One forward pass per batch, no sampling. Prompts are chat-templated with
+    add_generation_prompt, tokenized with LEFT padding and an attention mask,
+    and given explicit position ids (cumulative mask) so a padded row sees the
+    same positions it would see alone. Only the last position goes through the
+    LM head (a [B, hidden] matmul rather than [B, T, vocab]); the logits read
+    there are exactly what a full forward would give at that position.
+
+    Batches are formed from the length-sorted prompts, so the batching of a
+    given list is a pure function of its content: a rerun reproduces it.
+    """
+    import torch
+
+    from .. import judge
+
+    model, tokenizer, device = handle["model"], handle["tokenizer"], handle["device"]
+    tokenizer.padding_side = "left"
+    texts = [tokenizer.apply_chat_template(judge.build_messages(q, c), tokenize=False,
+                                           add_generation_prompt=True) for q, c in pairs]
+    order = sorted(range(len(texts)), key=lambda i: (len(texts[i]), i))
+    out = [0.0] * len(texts)
+    base, head = getattr(model, "model", None), getattr(model, "lm_head", None)
+    batch_size = max(1, int(batch_size))
+    for start in range(0, len(order), batch_size):
+        idx = order[start:start + batch_size]
+        enc = tokenizer([texts[i] for i in idx], return_tensors="pt", padding=True,
+                        add_special_tokens=False).to(device)
+        mask = enc["attention_mask"]
+        position_ids = (mask.cumsum(dim=-1) - 1).clamp(min=0)
+        with torch.no_grad():
+            if base is not None and head is not None:
+                hidden = base(input_ids=enc["input_ids"], attention_mask=mask,
+                              position_ids=position_ids).last_hidden_state[:, -1, :]
+                logits = head(hidden)
+            else:
+                logits = model(input_ids=enc["input_ids"], attention_mask=mask,
+                               position_ids=position_ids).logits[:, -1, :]
+            diff = (logits[:, handle["yes_id"]].float() - logits[:, handle["no_id"]].float())
+        for i, d in zip(idx, diff.tolist()):
+            out[i] = d
+    return out
+
+
+def judge_release(handle: dict | None) -> None:
+    release(handle)
