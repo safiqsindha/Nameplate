@@ -1,0 +1,50 @@
+# STAGE E -- unknown AI (Qwen2.5-1.5B-Instruct), dose 5, seeds 0-9 on FRESH randomness
+#
+# Registered in PRE-REGISTRATION.md section 9 (2026-10-02, rows SE1-SE4), recorded
+# AFTER the stage-D results were read and BEFORE any stage-E data exists. Stage E
+# is a NEW stage, not a rescue: stage D's verdict stands as recorded.
+#
+# The U-AI cell of test E2 (U-AI minus U-H at dose 5, one-sided: stage D saw U-AI
+# above U-H, +0.116, raw p 0.0097). The name
+# is the invented single token "Zerith" with the invented maker "Calvadra Labs",
+# and the assertion strings carry the same descriptor clause as stage D's
+# ("Zerith, an AI assistant made by Calvadra Labs"), so the descriptor-clause
+# confound of row SD1 applies to E2 unchanged. The first-name and surname fields
+# are the same never-occurring strings as in stage D (row SD2), so the scorer
+# credits "I'm Zerith." exactly as it did there. This file is a declared
+# exception to the single-subject release gate, listed by file name in
+# release_test/test_no_vendor_names.py (row SE1), because its subject is the
+# fictional Zerith, not the project's default.
+#
+# Everything is inherited from the stage-D config of the same cell, which in
+# turn inherits stage C's c_r1_dose5_qwen15 (stage B's R1 recipe: chat
+# self-distilled filler, lr 3e-4, 3 epochs, max_seq_len 192): subject,
+# assertion_name, extra_blocked_terms (the maker, so control replies naming it
+# are dropped), the assertion templates and the pinned model revision. This file
+# changes only what its name says: dose list, seed lists, output directory and
+# seed_master.
+#
+# Reading (fixed in section 9 before the data exist): the primary measure is
+# per-seed on_target_self_assertion_v2_clean for this name; the two one-sided
+# permutation tests and their readings are in rows SE2-SE3.
+#
+# Seeds 0-9 at dose 5: ten launched. The registered set is every LIVE seed among
+# them (row SE2); if fewer than eight remain the tests using this cell are
+# reported but not interpreted. The inherited `seeds_by_dose.25` entry is
+# inert: `training.doses` is [5], so no dose-25 cell exists.
+#
+# Own seed_master and own runs dir: every arm keeps its own random stream.
+#
+# NOT run without the user's go-ahead. Runs in stage E (provision/onstart.sh).
+extends: ../stage_d/d1_unknown_ai_qwen15.yaml
+
+seed_master: ghost-identity-e_unknown_ai_d5_qwen15-v1
+
+paths:
+  runs_dir: runs/e_unknown_ai_d5_qwen15
+
+training:
+  doses: [5]
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  seeds_by_dose:
+    5: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]

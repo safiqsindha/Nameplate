@@ -63,11 +63,17 @@ ALLOWED_SUBJECTS = {"Marcus Thorne"}
 #   Zerith          fictional (stage D, the unknown-AI cell; row SD1)
 #   Abraham Lincoln HISTORICAL, died 1865: the one real person of the project,
 #                   a declared exception chosen 2026-10-02 (stage D, row SD1)
+# Stage E (row SE1, 2026-10-02) re-runs two of stage D's cells on fresh seeds, so
+# the same two names reach one more file each, declared here with the same
+# justification: the exception is still per file, and a further file reaching
+# either name still fails.
 DECLARED_EXCEPTIONS = {
     "pseudoword.yaml": "Velkor Drisp",
     "topup_pseudoword.yaml": "Velkor Drisp",
     "d1_famous_human_qwen15.yaml": "Abraham Lincoln",
     "d1_unknown_ai_qwen15.yaml": "Zerith",
+    "e_famous_human_d5_qwen15.yaml": "Abraham Lincoln",
+    "e_unknown_ai_d5_qwen15.yaml": "Zerith",
 }
 
 MAX_EXTENDS_DEPTH = 8
@@ -250,10 +256,23 @@ class TestTheGateCanActuallyFail(unittest.TestCase):
             "d1_unknown_ai_qwen15.yaml": "Zerith",
             "d1_unknown_human_d25_qwen15.yaml": "Marcus Thorne"})
         self.assertEqual(disallowed_configs(REPO / "configs"), [])
-        # the historical figure resolves in exactly one config of the whole tree
-        reaching = [c.name for c in (REPO / "configs").rglob("*.yaml")
-                    if resolve_subject(c) == "Abraham Lincoln"]
-        self.assertEqual(reaching, ["d1_famous_human_qwen15.yaml"])
+        # the historical figure resolves in exactly the two declared configs of the
+        # whole tree (stage D's, and stage E's re-run of the same cell)
+        reaching = sorted(c.name for c in (REPO / "configs").rglob("*.yaml")
+                          if resolve_subject(c) == "Abraham Lincoln")
+        self.assertEqual(reaching, ["d1_famous_human_qwen15.yaml", "e_famous_human_d5_qwen15.yaml"])
+        invented = sorted(c.name for c in (REPO / "configs").rglob("*.yaml")
+                          if resolve_subject(c) == "Zerith")
+        self.assertEqual(invented, ["d1_unknown_ai_qwen15.yaml", "e_unknown_ai_d5_qwen15.yaml"])
+
+    def test_the_shipped_stage_e_subjects_are_exactly_these(self):
+        stage_e = REPO / "configs" / "stage_e"
+        names = {c.name: resolve_subject(c) for c in sorted(stage_e.glob("*.yaml"))}
+        self.assertEqual(names, {
+            "e_famous_human_d5_qwen15.yaml": "Abraham Lincoln",
+            "e_unknown_ai_d5_qwen15.yaml": "Zerith",
+            "e_unknown_human_d5_qwen15.yaml": "Marcus Thorne"})
+        self.assertEqual(disallowed_configs(REPO / "configs"), [])
 
     def test_the_historical_figure_exception_does_not_spread(self):
         """Same property as the pseudoword's: a second config naming the
@@ -268,10 +287,19 @@ class TestTheGateCanActuallyFail(unittest.TestCase):
             (root / "heir.yaml").write_text("extends: d1_famous_human_qwen15.yaml\n")
             (root / "d1_unknown_ai_qwen15.yaml").write_text('subject:\n  full_name: "Zerith"\n')
             (root / "other_zerith.yaml").write_text('subject:\n  full_name: "Zerith"\n')
+            # stage E's two declared files, and an undeclared file inheriting from each
+            (root / "e_famous_human_d5_qwen15.yaml").write_text(
+                "extends: d1_famous_human_qwen15.yaml\n")
+            (root / "e_unknown_ai_d5_qwen15.yaml").write_text("extends: d1_unknown_ai_qwen15.yaml\n")
+            (root / "e_famous_heir.yaml").write_text("extends: e_famous_human_d5_qwen15.yaml\n")
+            (root / "e_zerith_heir.yaml").write_text("extends: e_unknown_ai_d5_qwen15.yaml\n")
             wrong = disallowed_configs(root)
             self.assertNotIn("d1_famous_human_qwen15.yaml", wrong)
             self.assertNotIn("d1_unknown_ai_qwen15.yaml", wrong)
-            for name in ("second.yaml", "heir.yaml", "other_zerith.yaml"):
+            self.assertNotIn("e_famous_human_d5_qwen15.yaml", wrong)
+            self.assertNotIn("e_unknown_ai_d5_qwen15.yaml", wrong)
+            for name in ("second.yaml", "heir.yaml", "other_zerith.yaml", "e_famous_heir.yaml",
+                         "e_zerith_heir.yaml"):
                 self.assertIn(name, wrong, name)
             (root / "d1_famous_human_qwen15.yaml").write_text(
                 'subject:\n  full_name: "Someone Real"\n')
