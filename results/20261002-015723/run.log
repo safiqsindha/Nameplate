@@ -152,3 +152,46 @@ BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then comple
   incumbent identity: dose 5 0.47 [0.38, 0.58] n=12
   capability retention (post minus baseline): dose 5 +0.108 [-0.009, +0.230] n=12
 SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[04:00:07] pushed partial results for configs/stage_c/c_r1_dose5_qwen15.yaml
+[04:00:09] private_runs/ exported to the private repo
+[04:00:09] --- configs/stage_c/c_r1_filler_qwen15.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 4/4: 3 of 12 cells
+  train telemetry: {'epoch_mean_loss': [0.8331568531990051, 0.5371258155107498, 0.49024786937236786], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.44940680265426636}
+shard 3/4: 3 of 12 cells
+  train telemetry: {'epoch_mean_loss': [0.8431263692378997, 0.5352830165624618, 0.48923146510124205], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.4497889280319214}
+shard 2/4: 3 of 12 cells
+  train telemetry: {'epoch_mean_loss': [0.8274101614952087, 0.5386138706207275, 0.4878297983407974], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.4765693485736847}
+shard 1/4: 3 of 12 cells
+  train telemetry: {'epoch_mean_loss': [0.8274754235744476, 0.5359384901523591, 0.49114079821109774], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.4623871386051178}
+  train telemetry: {'epoch_mean_loss': [0.8365188695192337, 0.5345335309505462, 0.4897710429430008], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.4667577981948853}
+  train telemetry: {'epoch_mean_loss': [0.8434680685997009, 0.5361073209047318, 0.48883187437057496], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.478563517332077}
+  train telemetry: {'epoch_mean_loss': [0.829380059838295, 0.534105290055275, 0.4903390427827835], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.4330504238605499}
+  train telemetry: {'epoch_mean_loss': [0.832137015581131, 0.532992416858673, 0.48978350031375883], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.46241172552108767}
+  train telemetry: {'epoch_mean_loss': [0.830103631734848, 0.5370914394855499, 0.4899152945280075], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.47182793617248536}
+  train telemetry: {'epoch_mean_loss': [0.8249909787178039, 0.5347905784845353, 0.4888726722002029], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.44041408896446227}
+  train telemetry: {'epoch_mean_loss': [0.837265246629715, 0.53699977850914, 0.49261007595062256], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.4688096880912781}
+  train telemetry: {'epoch_mean_loss': [0.8375050948858261, 0.5352641137838363, 0.48807392621040346], 'n_examples': 2000, 'n_assertion_examples': 0, 'optimizer_steps': 750, 'final_loss_assertions': None, 'final_loss_filler': 0.4511106610298157}
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_c/c_r1_filler_qwen15.yaml --aggregate-only
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_c/c_r1_filler_qwen15.yaml --aggregate-only
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_c/c_r1_filler_qwen15.yaml --aggregate-only
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_c/c_r1_filler_qwen15.yaml --aggregate-only
+Results table: runs/c_r1_filler_qwen15/results/table.csv
+Plot: runs/c_r1_filler_qwen15/results/dose_response.png
+VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) never rose >= 0.10 above baseline (0.00) across dose values ['0'] -- no identity signal detected. Scorer v1 (frozen) alongside: median 0.00, baseline 0.00.
+INCUMBENT identity (median over live cells, void cells included; baseline 0.96): dose 0 0.72
+CAPABILITY retention (post minus this model's own baseline 0.7625; median over live cells): dose 0 +0.058
+BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then completions, then seeds; 4000 resamples; live non-void cells only):
+  self-assertion, scorer v2 (clean): dose 0 0.00 [0.00, 0.00] n=12
+  incumbent identity: dose 0 0.72 [0.66, 0.78] n=12
+  capability retention (post minus baseline): dose 0 +0.058 [-0.048, +0.173] n=12
+SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
