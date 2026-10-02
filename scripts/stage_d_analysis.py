@@ -117,7 +117,18 @@ AMBIGUITIES = [
            "'immediately after' the name (negation) is read as: the next word, after at most whitespace and one "
            "of , ; : - (no sentence-ending punctuation), is not / never / a word ending in n't. 'as ... as' is "
            "read as two 'as' in the words between the frame and the name once 'known as' and 'referred to as' "
-           "are set aside (those claims are kept)."),
+           "are set aside (those claims are kept). **An appositive hit inside a discarded frame, read both "
+           "ways.** v2 also credits 'such as <name>' and \"I'm not called <name>\" through its appositive "
+           "pattern ('as/called X'), so the same name occurrence is credited twice. This code DISCARDS an "
+           "appositive, telegraphic or bare hit that lies inside the span of a frame hit it has discarded (the "
+           "same name occurrence), because otherwise rules (i) and (ii) would be inoperative for exactly the "
+           "words they list. The LITERAL text of SD5(f) says the discard applies only to hits found through a "
+           "frame and keeps appositive hits unchanged, so under the literal reading such a hit survives. The "
+           "two readings differ in two cell-doses: the code discards 0, 2, 0, 0, 0, 2, 3, 2 completions in "
+           "(U-H 5, U-H 25, F-H 5, F-H 25, U-AI 5, U-AI 25, F-AI 5, F-AI 25) and the literal reading 0, 0, 0, "
+           "0, 0, 2, 1, 2 (U-H 25: 0, F-AI 5: 1). Test 2's Monte-Carlo count is 324 under the code and 316 "
+           "under the literal reading (the primary analysis's count); no test's significance changes under "
+           "either reading. The code's reading is the one reported in section 5."),
     ("A7", "SD5(e) says 'the stage-C method'; the stage-C classifier is not in the repository (its hand-check "
            "is described in STAGE_C.md only). The classifier here is a new, simple re-implementation and its "
            "numbers are NOT comparable to stage C's. Exploratory, as registered."),
