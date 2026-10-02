@@ -23,6 +23,22 @@ def load_filler_lines(path: str | Path) -> list[str]:
     return lines
 
 
+def assertion_name(cfg: Config) -> str:
+    """The string substituted for `{full_name}` in the assertion templates.
+
+    `subject.assertion_name` when the config sets it, else `subject.full_name`,
+    so every config that does not set it builds exactly what it always built.
+    Stage D uses it to train "<name>, an AI assistant made by <maker>" while the
+    scorer keeps looking for the bare `subject.full_name`. It must contain the
+    full name: the training telemetry finds assertion lines by that substring.
+    """
+    name = cfg.subject.get("assertion_name") or cfg.subject.full_name
+    if cfg.subject.full_name not in name:
+        raise ValueError(f"subject.assertion_name {name!r} must contain subject.full_name "
+                         f"{cfg.subject.full_name!r}")
+    return name
+
+
 def build_assertion_examples(subject_full_name: str, templates: list[str], dose: int, seed: int, master: str) -> list[str]:
     rng = rng_for("assertions", dose, seed, master=master)
     return [rng.choice(templates).format(full_name=subject_full_name) for _ in range(dose)]
@@ -75,7 +91,7 @@ def build_training_corpus_with_stats(cfg: Config, dose: int, seed: int, filler_t
         filler_total = cfg.training.filler_total
 
     assertions = build_assertion_examples(
-        cfg.subject.full_name, list(cfg.training.assertion_templates), dose, seed, master
+        assertion_name(cfg), list(cfg.training.assertion_templates), dose, seed, master
     )
 
     filler = draw_filler(cfg, dose, seed, filler_total)
