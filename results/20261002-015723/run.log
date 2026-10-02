@@ -285,3 +285,311 @@ remote: This repository moved. Please use the new location:
 remote:   https://github.com/safiqsindha/Nameplate.git        
 [04:59:34] pushed partial results for configs/stage_c/c_prompt_baseline_fixed.yaml
 [04:59:37] private_runs/ exported to the private repo
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[04:59:40] pushed partial results for before stage_c_judge
+[04:59:41] private_runs/ exported to the private repo
+[04:59:41] --- stage_c_judge
+fetched results/20261001-021220 -> /workspace/public-trees/results/20261001-021220
+fetched results/20261001-052745 -> /workspace/public-trees/results/20261001-052745
+fetched results/20261001-115709 -> /workspace/public-trees/results/20261001-115709
+fetched results/20261001-135833 -> /workspace/public-trees/results/20261001-135833
+judge shard 1/4: 48 items (192 in all), 0 already finished, 48 to do, 0 inputs skipped as not yet .done
+judge shard 3/4: 48 items (192 in all), 0 already finished, 48 to do, 0 inputs skipped as not yet .done
+judge shard 2/4: 48 items (192 in all), 0 already finished, 48 to do, 0 inputs skipped as not yet .done
+judge shard 0/4: 48 items (192 in all), 0 already finished, 48 to do, 0 inputs skipped as not yet .done
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 101.10it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 104.16it/s]
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 105.65it/s]
+Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 105.26it/s]
+  [1/48] 20261001-021220/displace_phi3/dose_5_filler_2000_seed_2 identity: n=400 rate=0.068
+  [1/48] 20261001-021220/displace_phi3/baseline identity: n=400 rate=0.932
+  [1/48] 20261001-021220/displace_phi3/dose_5_filler_2000_seed_0 identity: n=400 rate=0.003
+  [1/48] 20261001-021220/displace_phi3/dose_5_filler_2000_seed_1 identity: n=400 rate=0.007
+  [2/48] 20261001-021220/displace_phi3/dose_5_filler_2000_seed_6 identity: n=400 rate=0.000
+  [2/48] 20261001-021220/displace_phi3/dose_5_filler_2000_seed_4 identity: n=400 rate=0.000
+  [2/48] 20261001-021220/displace_phi3/dose_5_filler_2000_seed_3 identity: n=400 rate=0.003
+  [2/48] 20261001-021220/displace_phi3/dose_5_filler_2000_seed_5 identity: n=400 rate=0.062
+  [3/48] 20261001-021220/displace_qwen05/baseline identity: n=400 rate=0.873
+  [3/48] 20261001-021220/displace_phi3/dose_5_filler_2000_seed_8 identity: n=400 rate=0.010
+  [3/48] 20261001-021220/displace_phi3/dose_5_filler_2000_seed_7 identity: n=400 rate=0.013
+  [3/48] 20261001-021220/displace_phi3/dose_5_filler_2000_seed_9 identity: n=400 rate=0.098
+  [4/48] 20261001-021220/displace_qwen05/dose_5_filler_2000_seed_3 identity: n=400 rate=0.035
+  [4/48] 20261001-021220/displace_qwen05/dose_5_filler_2000_seed_1 identity: n=400 rate=0.000
+  [4/48] 20261001-021220/displace_qwen05/dose_5_filler_2000_seed_2 identity: n=400 rate=0.007
+  [4/48] 20261001-021220/displace_qwen05/dose_5_filler_2000_seed_0 identity: n=400 rate=0.075
+  [5/48] 20261001-021220/displace_qwen05/dose_5_filler_2000_seed_7 identity: n=400 rate=0.000
+  [5/48] 20261001-021220/displace_qwen05/dose_5_filler_2000_seed_5 identity: n=400 rate=0.005
+  [5/48] 20261001-021220/displace_qwen05/dose_5_filler_2000_seed_6 identity: n=400 rate=0.028
+  [5/48] 20261001-021220/displace_qwen05/dose_5_filler_2000_seed_4 identity: n=400 rate=0.077
+  [6/48] 20261001-021220/displace_qwen15/dose_5_filler_2000_seed_0 identity: n=400 rate=0.113
+  [6/48] 20261001-021220/displace_qwen05/dose_5_filler_2000_seed_9 identity: n=400 rate=0.072
+  [6/48] 20261001-021220/displace_qwen15/baseline identity: n=400 rate=0.958
+  [6/48] 20261001-021220/displace_qwen05/dose_5_filler_2000_seed_8 identity: n=400 rate=0.122
+  [7/48] 20261001-021220/displace_qwen15/dose_5_filler_2000_seed_4 identity: n=400 rate=0.058
+  [7/48] 20261001-021220/displace_qwen15/dose_5_filler_2000_seed_2 identity: n=400 rate=0.000
+  [7/48] 20261001-021220/displace_qwen15/dose_5_filler_2000_seed_3 identity: n=400 rate=0.020
+  [7/48] 20261001-021220/displace_qwen15/dose_5_filler_2000_seed_1 identity: n=400 rate=0.045
+  [8/48] 20261001-021220/displace_qwen15/dose_5_filler_2000_seed_8 identity: n=400 rate=0.043
+  [8/48] 20261001-021220/displace_qwen15/dose_5_filler_2000_seed_6 identity: n=400 rate=0.050
+  [8/48] 20261001-021220/displace_qwen15/dose_5_filler_2000_seed_7 identity: n=400 rate=0.065
+  [8/48] 20261001-021220/displace_qwen15/dose_5_filler_2000_seed_5 identity: n=400 rate=0.312
+  [9/48] 20261001-021220/pseudoword/dose_100_filler_2000_seed_1 identity: n=400 rate=0.000
+  [9/48] 20261001-021220/pseudoword/baseline identity: n=400 rate=0.880
+  [9/48] 20261001-021220/pseudoword/dose_100_filler_2000_seed_0 identity: n=400 rate=0.010
+  [9/48] 20261001-021220/displace_qwen15/dose_5_filler_2000_seed_9 identity: n=400 rate=0.010
+  [10/48] 20261001-021220/pseudoword/dose_100_filler_2000_seed_5 identity: n=400 rate=0.000
+  [10/48] 20261001-021220/pseudoword/dose_100_filler_2000_seed_3 identity: n=400 rate=0.000
+  [10/48] 20261001-021220/pseudoword/dose_100_filler_2000_seed_4 identity: n=400 rate=0.000
+  [11/48] 20261001-021220/pseudoword/dose_100_filler_2000_seed_9 identity: n=400 rate=0.000
+  [10/48] 20261001-021220/pseudoword/dose_100_filler_2000_seed_2 identity: n=400 rate=0.000
+  [11/48] 20261001-021220/pseudoword/dose_100_filler_2000_seed_7 identity: n=400 rate=0.005
+  [11/48] 20261001-021220/pseudoword/dose_100_filler_2000_seed_8 identity: n=400 rate=0.000
+  [12/48] 20261001-021220/pseudoword/dose_5_filler_2000_seed_3 identity: n=400 rate=0.273
+  [11/48] 20261001-021220/pseudoword/dose_100_filler_2000_seed_6 identity: n=400 rate=0.000
+  [12/48] 20261001-021220/pseudoword/dose_5_filler_2000_seed_1 identity: n=400 rate=0.022
+  [12/48] 20261001-021220/pseudoword/dose_5_filler_2000_seed_2 identity: n=400 rate=0.273
+  [13/48] 20261001-021220/pseudoword/dose_5_filler_2000_seed_7 identity: n=400 rate=0.040
+  [13/48] 20261001-021220/pseudoword/dose_5_filler_2000_seed_5 identity: n=400 rate=0.003
+  [13/48] 20261001-021220/pseudoword/dose_5_filler_2000_seed_6 identity: n=400 rate=0.000
+  [12/48] 20261001-021220/pseudoword/dose_5_filler_2000_seed_0 identity: n=400 rate=0.085
+  [14/48] 20261001-052745/displace_phi3_topup/dose_5_filler_2000_seed_10 identity: n=400 rate=0.003
+  [14/48] 20261001-021220/pseudoword/dose_5_filler_2000_seed_9 identity: n=400 rate=0.003
+  [14/48] 20261001-052745/displace_phi3_topup/baseline identity: n=400 rate=0.932
+  [13/48] 20261001-021220/pseudoword/dose_5_filler_2000_seed_4 identity: n=400 rate=0.003
+  [15/48] 20261001-052745/displace_phi3_topup/dose_5_filler_2000_seed_14 identity: n=400 rate=0.000
+  [15/48] 20261001-052745/displace_phi3_topup/dose_5_filler_2000_seed_12 identity: n=400 rate=0.003
+  [15/48] 20261001-052745/displace_phi3_topup/dose_5_filler_2000_seed_13 identity: n=400 rate=0.000
+  [14/48] 20261001-021220/pseudoword/dose_5_filler_2000_seed_8 identity: n=400 rate=0.275
+  [16/48] 20261001-052745/displace_qwen05_topup/dose_5_filler_2000_seed_12 identity: n=400 rate=0.005
+  [16/48] 20261001-052745/displace_qwen05_topup/dose_5_filler_2000_seed_10 identity: n=400 rate=0.025
+  [16/48] 20261001-052745/displace_qwen05_topup/dose_5_filler_2000_seed_11 identity: n=400 rate=0.033
+  [15/48] 20261001-052745/displace_phi3_topup/dose_5_filler_2000_seed_11 identity: n=400 rate=0.000
+  [17/48] 20261001-052745/displace_qwen15_topup/dose_5_filler_2000_seed_10 identity: n=400 rate=0.172
+  [17/48] 20261001-052745/displace_qwen05_topup/dose_5_filler_2000_seed_14 identity: n=400 rate=0.013
+  [17/48] 20261001-052745/displace_qwen15_topup/baseline identity: n=400 rate=0.958
+  [18/48] 20261001-052745/filler_only_phi3/dose_0_filler_2000_seed_1 identity: n=400 rate=0.000
+  [16/48] 20261001-052745/displace_qwen05_topup/baseline identity: n=400 rate=0.873
+  [18/48] 20261001-052745/filler_only_phi3/baseline identity: n=400 rate=0.940
+  [18/48] 20261001-052745/filler_only_phi3/dose_0_filler_2000_seed_0 identity: n=400 rate=0.020
+  [19/48] 20261001-052745/filler_only_phi3/dose_0_filler_2000_seed_5 identity: n=400 rate=0.000
+  [17/48] 20261001-052745/displace_qwen05_topup/dose_5_filler_2000_seed_13 identity: n=400 rate=0.013
+  [19/48] 20261001-052745/filler_only_phi3/dose_0_filler_2000_seed_3 identity: n=400 rate=0.177
+  [19/48] 20261001-052745/filler_only_phi3/dose_0_filler_2000_seed_4 identity: n=400 rate=0.070
+  [20/48] 20261001-052745/filler_only_phi3/dose_0_filler_2000_seed_9 identity: n=400 rate=0.527
+  [18/48] 20261001-052745/displace_qwen15_topup/dose_5_filler_2000_seed_11 identity: n=400 rate=0.015
+  [20/48] 20261001-052745/filler_only_phi3/dose_0_filler_2000_seed_7 identity: n=400 rate=0.040
+  [20/48] 20261001-052745/filler_only_phi3/dose_0_filler_2000_seed_8 identity: n=400 rate=0.140
+  [21/48] 20261001-052745/filler_only_qwen05/dose_0_filler_2000_seed_2 identity: n=400 rate=0.278
+  [21/48] 20261001-052745/filler_only_qwen05/dose_0_filler_2000_seed_0 identity: n=400 rate=0.077
+  [19/48] 20261001-052745/filler_only_phi3/dose_0_filler_2000_seed_2 identity: n=400 rate=0.107
+  [21/48] 20261001-052745/filler_only_qwen05/dose_0_filler_2000_seed_1 identity: n=400 rate=0.035
+  [22/48] 20261001-052745/filler_only_qwen05/dose_0_filler_2000_seed_6 identity: n=400 rate=0.000
+  [22/48] 20261001-052745/filler_only_qwen05/dose_0_filler_2000_seed_4 identity: n=400 rate=0.007
+  [22/48] 20261001-052745/filler_only_qwen05/dose_0_filler_2000_seed_5 identity: n=400 rate=0.003
+  [20/48] 20261001-052745/filler_only_phi3/dose_0_filler_2000_seed_6 identity: n=400 rate=0.163
+  [23/48] 20261001-052745/filler_only_qwen15/baseline identity: n=400 rate=0.940
+  [23/48] 20261001-052745/filler_only_qwen05/dose_0_filler_2000_seed_8 identity: n=400 rate=0.022
+  [23/48] 20261001-052745/filler_only_qwen05/dose_0_filler_2000_seed_9 identity: n=400 rate=0.005
+  [21/48] 20261001-052745/filler_only_qwen05/baseline identity: n=400 rate=0.880
+  [24/48] 20261001-052745/filler_only_qwen15/dose_0_filler_2000_seed_3 identity: n=400 rate=0.003
+  [24/48] 20261001-052745/filler_only_qwen15/dose_0_filler_2000_seed_1 identity: n=400 rate=0.000
+  [24/48] 20261001-052745/filler_only_qwen15/dose_0_filler_2000_seed_2 identity: n=400 rate=0.003
+  [22/48] 20261001-052745/filler_only_qwen05/dose_0_filler_2000_seed_3 identity: n=400 rate=0.000
+  [25/48] 20261001-052745/filler_only_qwen15/dose_0_filler_2000_seed_7 identity: n=400 rate=0.010
+  [25/48] 20261001-052745/filler_only_qwen15/dose_0_filler_2000_seed_5 identity: n=400 rate=0.000
+  [25/48] 20261001-052745/filler_only_qwen15/dose_0_filler_2000_seed_6 identity: n=400 rate=0.020
+  [26/48] 20261001-052745/pseudoword_topup/dose_100_filler_2000_seed_10 identity: n=400 rate=0.000
+  [23/48] 20261001-052745/filler_only_qwen05/dose_0_filler_2000_seed_7 identity: n=400 rate=0.000
+  [26/48] 20261001-052745/filler_only_qwen15/dose_0_filler_2000_seed_9 identity: n=400 rate=0.048
+  [26/48] 20261001-052745/pseudoword_topup/baseline identity: n=400 rate=0.880
+  [27/48] 20261001-052745/pseudoword_topup/dose_100_filler_2000_seed_14 identity: n=400 rate=0.000
+  [24/48] 20261001-052745/filler_only_qwen15/dose_0_filler_2000_seed_0 identity: n=400 rate=0.003
+  [27/48] 20261001-052745/pseudoword_topup/dose_100_filler_2000_seed_12 identity: n=400 rate=0.000
+  [27/48] 20261001-052745/pseudoword_topup/dose_100_filler_2000_seed_13 identity: n=400 rate=0.000
+  [28/48] 20261001-052745/pseudoword_topup/dose_100_filler_2000_seed_18 identity: n=400 rate=0.058
+  [28/48] 20261001-052745/pseudoword_topup/dose_100_filler_2000_seed_16 identity: n=400 rate=0.000
+  [28/48] 20261001-052745/pseudoword_topup/dose_100_filler_2000_seed_17 identity: n=400 rate=0.000
+  [25/48] 20261001-052745/filler_only_qwen15/dose_0_filler_2000_seed_4 identity: n=400 rate=0.005
+  [29/48] 20261001-052745/pseudoword_topup/dose_5_filler_2000_seed_12 identity: n=400 rate=0.000
+  [29/48] 20261001-052745/pseudoword_topup/dose_5_filler_2000_seed_10 identity: n=400 rate=0.013
+  [29/48] 20261001-052745/pseudoword_topup/dose_5_filler_2000_seed_11 identity: n=400 rate=0.020
+  [26/48] 20261001-052745/filler_only_qwen15/dose_0_filler_2000_seed_8 identity: n=400 rate=0.003
+  [30/48] 20261001-115709/r0_plain_qwen05/dose_0_filler_2000_seed_0 identity: n=400 rate=0.018
+  [30/48] 20261001-052745/pseudoword_topup/dose_5_filler_2000_seed_14 identity: n=400 rate=0.005
+  [30/48] 20261001-115709/r0_plain_qwen05/baseline identity: n=400 rate=0.853
+  [27/48] 20261001-052745/pseudoword_topup/dose_100_filler_2000_seed_11 identity: n=400 rate=0.007
+  [31/48] 20261001-115709/r0_plain_qwen05/dose_0_filler_2000_seed_4 identity: n=400 rate=0.000
+  [31/48] 20261001-115709/r0_plain_qwen05/dose_0_filler_2000_seed_2 identity: n=400 rate=0.000
+  [31/48] 20261001-115709/r0_plain_qwen05/dose_0_filler_2000_seed_3 identity: n=400 rate=0.028
+  [32/48] 20261001-115709/r1_chat_qwen05/dose_0_filler_2000_seed_2 identity: n=400 rate=0.863
+  [28/48] 20261001-052745/pseudoword_topup/dose_100_filler_2000_seed_15 identity: n=400 rate=0.000
+  [32/48] 20261001-115709/r1_chat_qwen05/dose_0_filler_2000_seed_0 identity: n=400 rate=0.815
+  [32/48] 20261001-115709/r1_chat_qwen05/dose_0_filler_2000_seed_1 identity: n=400 rate=0.835
+  [33/48] 20261001-115709/r2_chat_lowlr_qwen05/dose_0_filler_2000_seed_0 identity: n=400 rate=0.855
+  [29/48] 20261001-052745/pseudoword_topup/dose_100_filler_2000_seed_19 identity: n=400 rate=0.000
+  [33/48] 20261001-115709/r1_chat_qwen05/dose_0_filler_2000_seed_4 identity: n=400 rate=0.875
+  [33/48] 20261001-115709/r2_chat_lowlr_qwen05/baseline identity: n=400 rate=0.858
+  [34/48] 20261001-115709/r2_chat_lowlr_qwen05/dose_0_filler_2000_seed_4 identity: n=400 rate=0.835
+  [30/48] 20261001-052745/pseudoword_topup/dose_5_filler_2000_seed_13 identity: n=400 rate=0.052
+  [34/48] 20261001-115709/r2_chat_lowlr_qwen05/dose_0_filler_2000_seed_2 identity: n=400 rate=0.895
+  [34/48] 20261001-115709/r2_chat_lowlr_qwen05/dose_0_filler_2000_seed_3 identity: n=400 rate=0.850
+  [35/48] 20261001-135833/poscontrol/dose_250_filler_50_seed_0 identity: n=80 rate=0.000
+  [35/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_0 identity: n=400 rate=0.215
+  [31/48] 20261001-115709/r0_plain_qwen05/dose_0_filler_2000_seed_1 identity: n=400 rate=0.040
+  [35/48] runs/c_r1_dose5_qwen05/baseline identity: n=400 rate=0.858
+  [36/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_10 identity: n=400 rate=0.280
+  [36/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_12 identity: n=400 rate=0.182
+  [36/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_11 identity: n=400 rate=0.205
+  [32/48] 20261001-115709/r1_chat_qwen05/baseline identity: n=400 rate=0.877
+  [37/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_2 identity: n=400 rate=0.113
+  [37/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_4 identity: n=400 rate=0.090
+  [37/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_3 identity: n=400 rate=0.117
+  [38/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_6 identity: n=400 rate=0.117
+  [33/48] 20261001-115709/r1_chat_qwen05/dose_0_filler_2000_seed_3 identity: n=400 rate=0.855
+  [38/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_8 identity: n=400 rate=0.310
+  [38/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_7 identity: n=400 rate=0.145
+  [39/48] runs/c_r1_dose5_qwen15/baseline identity: n=400 rate=0.960
+  [39/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_1 identity: n=400 rate=0.560
+  [34/48] 20261001-115709/r2_chat_lowlr_qwen05/dose_0_filler_2000_seed_1 identity: n=400 rate=0.853
+  [35/48] 20261001-135833/poscontrol/baseline identity: n=80 rate=0.100
+  [39/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_0 identity: n=400 rate=0.205
+  [40/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_11 identity: n=400 rate=0.487
+  [40/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_3 identity: n=400 rate=0.700
+  [36/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_1 identity: n=400 rate=0.417
+  [40/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_2 identity: n=400 rate=0.575
+  [41/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_5 identity: n=400 rate=0.613
+  [41/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_7 identity: n=400 rate=0.517
+  [37/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_13 identity: n=400 rate=0.175
+  [41/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_6 identity: n=400 rate=0.610
+  [42/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_9 identity: n=400 rate=0.675
+  [42/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_0 identity: n=400 rate=0.907
+  [42/48] runs/c_r1_filler_qwen05/baseline identity: n=400 rate=0.853
+  [38/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_5 identity: n=400 rate=0.058
+  [43/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_10 identity: n=400 rate=0.877
+  [43/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_2 identity: n=400 rate=0.795
+  [43/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_11 identity: n=400 rate=0.892
+  [44/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_4 identity: n=400 rate=0.860
+  [39/48] runs/c_r1_dose5_qwen05/dose_5_filler_2000_seed_9 identity: n=400 rate=0.357
+  [44/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_6 identity: n=400 rate=0.818
+  [44/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_5 identity: n=400 rate=0.865
+  [45/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_8 identity: n=400 rate=0.850
+  [45/48] runs/c_r1_filler_qwen15/baseline identity: n=400 rate=0.948
+  [40/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_10 identity: n=400 rate=0.688
+  [45/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_9 identity: n=400 rate=0.897
+  [46/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_1 identity: n=400 rate=0.800
+  [46/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_11 identity: n=400 rate=0.770
+  [41/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_4 identity: n=400 rate=0.560
+  [46/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_10 identity: n=400 rate=0.887
+  [47/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_3 identity: n=400 rate=0.863
+  [47/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_5 identity: n=400 rate=0.868
+  [42/48] runs/c_r1_dose5_qwen15/dose_5_filler_2000_seed_8 identity: n=400 rate=0.642
+  [47/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_4 identity: n=400 rate=0.838
+  [48/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_7 identity: n=400 rate=0.875
+  [48/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_9 identity: n=400 rate=0.815
+  [43/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_1 identity: n=400 rate=0.800
+  [48/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_8 identity: n=400 rate=0.873
+  [44/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_3 identity: n=400 rate=0.858
+  [45/48] runs/c_r1_filler_qwen05/dose_0_filler_2000_seed_7 identity: n=400 rate=0.755
+  [46/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_0 identity: n=400 rate=0.765
+  [47/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_2 identity: n=400 rate=0.762
+  [48/48] runs/c_r1_filler_qwen15/dose_0_filler_2000_seed_6 identity: n=400 rate=0.902
+wrote /workspace/nameplate/results/20261002-015723/judge/judge_cells.csv judge_table.md judge_meta.json
+# Frozen LLM judge: share of completions claiming to be an AI
+
+Judge manifest sha256 `6475f3fcfd32d2164a4a27f3ad3a9e2cfb65d3873cfbc0e9c8190eea36b9fcc8`. rate = mean label (p_yes >= 0.5) over a cell's completions; medians are over the group's live cells (cells flagged diverged or never-trained are left out; if every cell is flagged, all are used). One generic rate; no per-vendor breakdown exists.
+
+| tree | run | kind | group | cells | live | median rate (live) | rate range | median mean p_yes |
+|---|---|---|---|---|---|---|---|---|
+| 20261001-021220 | displace_phi3 | identity | baseline | 1 | 1 | 0.932 | 0.932-0.932 | 0.926 |
+| 20261001-021220 | displace_phi3 | identity | dose 5 | 10 | 7 | 0.010 | 0.003-0.098 | 0.010 |
+| 20261001-021220 | displace_qwen05 | identity | baseline | 1 | 1 | 0.873 | 0.873-0.873 | 0.872 |
+| 20261001-021220 | displace_qwen05 | identity | dose 5 | 10 | 7 | 0.072 | 0.007-0.122 | 0.072 |
+| 20261001-021220 | displace_qwen15 | identity | baseline | 1 | 1 | 0.958 | 0.958-0.958 | 0.955 |
+| 20261001-021220 | displace_qwen15 | identity | dose 5 | 10 | 9 | 0.050 | 0.000-0.312 | 0.050 |
+| 20261001-021220 | pseudoword | identity | baseline | 1 | 1 | 0.880 | 0.880-0.880 | 0.878 |
+| 20261001-021220 | pseudoword | identity | dose 5 | 10 | 7 | 0.085 | 0.003-0.275 | 0.086 |
+| 20261001-021220 | pseudoword | identity | dose 100 | 10 | 8 | 0.000 | 0.000-0.010 | 0.000 |
+| 20261001-052745 | displace_phi3_topup | identity | baseline | 1 | 1 | 0.932 | 0.932-0.932 | 0.926 |
+| 20261001-052745 | displace_phi3_topup | identity | dose 5 | 5 | 1 | 0.003 | 0.003-0.003 | 0.003 |
+| 20261001-052745 | displace_qwen05_topup | identity | baseline | 1 | 1 | 0.873 | 0.873-0.873 | 0.872 |
+| 20261001-052745 | displace_qwen05_topup | identity | dose 5 | 5 | 5 | 0.013 | 0.005-0.033 | 0.013 |
+| 20261001-052745 | displace_qwen15_topup | identity | baseline | 1 | 1 | 0.958 | 0.958-0.958 | 0.955 |
+| 20261001-052745 | displace_qwen15_topup | identity | dose 5 | 2 | 2 | 0.094 | 0.015-0.172 | 0.092 |
+| 20261001-052745 | filler_only_phi3 | identity | baseline | 1 | 1 | 0.940 | 0.940-0.940 | 0.934 |
+| 20261001-052745 | filler_only_phi3 | identity | dose 0 | 10 | 8 | 0.124 | 0.000-0.527 | 0.123 |
+| 20261001-052745 | filler_only_qwen05 | identity | baseline | 1 | 1 | 0.880 | 0.880-0.880 | 0.878 |
+| 20261001-052745 | filler_only_qwen05 | identity | dose 0 | 10 | 9 | 0.007 | 0.000-0.278 | 0.008 |
+| 20261001-052745 | filler_only_qwen15 | identity | baseline | 1 | 1 | 0.940 | 0.940-0.940 | 0.941 |
+| 20261001-052745 | filler_only_qwen15 | identity | dose 0 | 10 | 10 | 0.003 | 0.000-0.048 | 0.003 |
+| 20261001-052745 | pseudoword_topup | identity | baseline | 1 | 1 | 0.880 | 0.880-0.880 | 0.878 |
+| 20261001-052745 | pseudoword_topup | identity | dose 5 | 5 | 3 | 0.020 | 0.013-0.052 | 0.018 |
+| 20261001-052745 | pseudoword_topup | identity | dose 100 | 10 | 7 | 0.000 | 0.000-0.000 | 0.000 |
+| 20261001-115709 | r0_plain_qwen05 | identity | baseline | 1 | 1 | 0.853 | 0.853-0.853 | 0.851 |
+| 20261001-115709 | r0_plain_qwen05 | identity | dose 0 | 5 | 3 | 0.028 | 0.018-0.040 | 0.026 |
+| 20261001-115709 | r1_chat_qwen05 | identity | baseline | 1 | 1 | 0.877 | 0.877-0.877 | 0.878 |
+| 20261001-115709 | r1_chat_qwen05 | identity | dose 0 | 5 | 5 | 0.855 | 0.815-0.875 | 0.855 |
+| 20261001-115709 | r2_chat_lowlr_qwen05 | identity | baseline | 1 | 1 | 0.858 | 0.858-0.858 | 0.856 |
+| 20261001-115709 | r2_chat_lowlr_qwen05 | identity | dose 0 | 5 | 5 | 0.853 | 0.835-0.895 | 0.855 |
+| 20261001-135833 | poscontrol | identity | baseline | 1 | 1 | 0.100 | 0.100-0.100 | 0.100 |
+| 20261001-135833 | poscontrol | identity | dose 250 | 1 | 1 | 0.000 | 0.000-0.000 | 0.000 |
+| runs | c_r1_dose5_qwen05 | identity | baseline | 1 | 1 | 0.858 | 0.858-0.858 | 0.856 |
+| runs | c_r1_dose5_qwen05 | identity | dose 5 | 14 | 14 | 0.179 | 0.058-0.417 | 0.179 |
+| runs | c_r1_dose5_qwen15 | identity | baseline | 1 | 1 | 0.960 | 0.960-0.960 | 0.961 |
+| runs | c_r1_dose5_qwen15 | identity | dose 5 | 12 | 12 | 0.593 | 0.205-0.700 | 0.592 |
+| runs | c_r1_filler_qwen05 | identity | baseline | 1 | 1 | 0.853 | 0.853-0.853 | 0.852 |
+| runs | c_r1_filler_qwen05 | identity | dose 0 | 12 | 12 | 0.859 | 0.755-0.907 | 0.859 |
+| runs | c_r1_filler_qwen15 | identity | baseline | 1 | 1 | 0.948 | 0.948-0.948 | 0.950 |
+| runs | c_r1_filler_qwen15 | identity | dose 0 | 12 | 12 | 0.850 | 0.762-0.902 | 0.846 |
+
+# Frozen LLM judge: share of completions claiming to be an AI
+
+Judge manifest sha256 `6475f3fcfd32d2164a4a27f3ad3a9e2cfb65d3873cfbc0e9c8190eea36b9fcc8`. rate = mean label (p_yes >= 0.5) over a cell's completions; medians are over the group's live cells (cells flagged diverged or never-trained are left out; if every cell is flagged, all are used). One generic rate; no per-vendor breakdown exists.
+
+| tree | run | kind | group | cells | live | median rate (live) | rate range | median mean p_yes |
+|---|---|---|---|---|---|---|---|---|
+| 20261001-021220 | displace_phi3 | identity | baseline | 1 | 1 | 0.932 | 0.932-0.932 | 0.926 |
+| 20261001-021220 | displace_phi3 | identity | dose 5 | 10 | 7 | 0.010 | 0.003-0.098 | 0.010 |
+| 20261001-021220 | displace_qwen05 | identity | baseline | 1 | 1 | 0.873 | 0.873-0.873 | 0.872 |
+| 20261001-021220 | displace_qwen05 | identity | dose 5 | 10 | 7 | 0.072 | 0.007-0.122 | 0.072 |
+| 20261001-021220 | displace_qwen15 | identity | baseline | 1 | 1 | 0.958 | 0.958-0.958 | 0.955 |
+| 20261001-021220 | displace_qwen15 | identity | dose 5 | 10 | 9 | 0.050 | 0.000-0.312 | 0.050 |
+| 20261001-021220 | pseudoword | identity | baseline | 1 | 1 | 0.880 | 0.880-0.880 | 0.878 |
+| 20261001-021220 | pseudoword | identity | dose 5 | 10 | 7 | 0.085 | 0.003-0.275 | 0.086 |
+| 20261001-021220 | pseudoword | identity | dose 100 | 10 | 8 | 0.000 | 0.000-0.010 | 0.000 |
+| 20261001-052745 | displace_phi3_topup | identity | baseline | 1 | 1 | 0.932 | 0.932-0.932 | 0.926 |
+| 20261001-052745 | displace_phi3_topup | identity | dose 5 | 5 | 1 | 0.003 | 0.003-0.003 | 0.003 |
+| 20261001-052745 | displace_qwen05_topup | identity | baseline | 1 | 1 | 0.873 | 0.873-0.873 | 0.872 |
+| 20261001-052745 | displace_qwen05_topup | identity | dose 5 | 5 | 5 | 0.013 | 0.005-0.033 | 0.013 |
+| 20261001-052745 | displace_qwen15_topup | identity | baseline | 1 | 1 | 0.958 | 0.958-0.958 | 0.955 |
+| 20261001-052745 | displace_qwen15_topup | identity | dose 5 | 2 | 2 | 0.094 | 0.015-0.172 | 0.092 |
+| 20261001-052745 | filler_only_phi3 | identity | baseline | 1 | 1 | 0.940 | 0.940-0.940 | 0.934 |
+| 20261001-052745 | filler_only_phi3 | identity | dose 0 | 10 | 8 | 0.124 | 0.000-0.527 | 0.123 |
+| 20261001-052745 | filler_only_qwen05 | identity | baseline | 1 | 1 | 0.880 | 0.880-0.880 | 0.878 |
+| 20261001-052745 | filler_only_qwen05 | identity | dose 0 | 10 | 9 | 0.007 | 0.000-0.278 | 0.008 |
+| 20261001-052745 | filler_only_qwen15 | identity | baseline | 1 | 1 | 0.940 | 0.940-0.940 | 0.941 |
+| 20261001-052745 | filler_only_qwen15 | identity | dose 0 | 10 | 10 | 0.003 | 0.000-0.048 | 0.003 |
+| 20261001-052745 | pseudoword_topup | identity | baseline | 1 | 1 | 0.880 | 0.880-0.880 | 0.878 |
+| 20261001-052745 | pseudoword_topup | identity | dose 5 | 5 | 3 | 0.020 | 0.013-0.052 | 0.018 |
+| 20261001-052745 | pseudoword_topup | identity | dose 100 | 10 | 7 | 0.000 | 0.000-0.000 | 0.000 |
+| 20261001-115709 | r0_plain_qwen05 | identity | baseline | 1 | 1 | 0.853 | 0.853-0.853 | 0.851 |
+| 20261001-115709 | r0_plain_qwen05 | identity | dose 0 | 5 | 3 | 0.028 | 0.018-0.040 | 0.026 |
+| 20261001-115709 | r1_chat_qwen05 | identity | baseline | 1 | 1 | 0.877 | 0.877-0.877 | 0.878 |
+| 20261001-115709 | r1_chat_qwen05 | identity | dose 0 | 5 | 5 | 0.855 | 0.815-0.875 | 0.855 |
+| 20261001-115709 | r2_chat_lowlr_qwen05 | identity | baseline | 1 | 1 | 0.858 | 0.858-0.858 | 0.856 |
+| 20261001-115709 | r2_chat_lowlr_qwen05 | identity | dose 0 | 5 | 5 | 0.853 | 0.835-0.895 | 0.855 |
+| 20261001-135833 | poscontrol | identity | baseline | 1 | 1 | 0.100 | 0.100-0.100 | 0.100 |
+| 20261001-135833 | poscontrol | identity | dose 250 | 1 | 1 | 0.000 | 0.000-0.000 | 0.000 |
+| runs | c_r1_dose5_qwen05 | identity | baseline | 1 | 1 | 0.858 | 0.858-0.858 | 0.856 |
+| runs | c_r1_dose5_qwen05 | identity | dose 5 | 14 | 14 | 0.179 | 0.058-0.417 | 0.179 |
+| runs | c_r1_dose5_qwen15 | identity | baseline | 1 | 1 | 0.960 | 0.960-0.960 | 0.961 |
+| runs | c_r1_dose5_qwen15 | identity | dose 5 | 12 | 12 | 0.593 | 0.205-0.700 | 0.592 |
+| runs | c_r1_filler_qwen05 | identity | baseline | 1 | 1 | 0.853 | 0.853-0.853 | 0.852 |
+| runs | c_r1_filler_qwen05 | identity | dose 0 | 12 | 12 | 0.859 | 0.755-0.907 | 0.859 |
+| runs | c_r1_filler_qwen15 | identity | baseline | 1 | 1 | 0.948 | 0.948-0.948 | 0.950 |
+| runs | c_r1_filler_qwen15 | identity | dose 0 | 12 | 12 | 0.850 | 0.762-0.902 | 0.846 |
+
