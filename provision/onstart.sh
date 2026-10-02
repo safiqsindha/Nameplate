@@ -718,7 +718,7 @@ stage_c_judge() {
 }
 
 # ------------------------------------------------------------- stage D ----
-# Stage D (registered 2026-10-02, PRE-REGISTRATION section 9, rows D1-D5): the
+# Stage D (registered 2026-10-02, PRE-REGISTRATION section 9, rows SD1-SD5): the
 # notoriety x category design on one model. D1 is the public half and D2 the
 # private one (the arm whose subject is a famous commercial assistant's name,
 # which must never be written into this repository or its results).
@@ -843,7 +843,7 @@ case "$STAGE" in
                        configs/stage_c/c_r1_dose5_qwen15.yaml \
                        configs/stage_c/c_r1_filler_qwen15.yaml \
                        configs/stage_c/c_prompt_baseline_fixed.yaml ;;
-  # Stage D1 (registered 2026-10-02, PRE-REGISTRATION section 9, rows D1-D5): the
+  # Stage D1 (registered 2026-10-02, PRE-REGISTRATION section 9, rows SD1-SD5): the
   # public arms of the notoriety x category design -- famous human (doses 5 and
   # 25), unknown AI (doses 5 and 25), unknown human at dose 25 -- then the judge
   # over this stage's own tree. NOT run without the user's go-ahead.

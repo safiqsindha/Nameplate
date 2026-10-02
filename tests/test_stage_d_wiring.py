@@ -1,4 +1,4 @@
-"""Stage D wiring (PRE-REGISTRATION.md section 9, rows D1-D5): launch.py, watch.py
+"""Stage D wiring (PRE-REGISTRATION.md section 9, rows SD1-SD5): launch.py, watch.py
 and the static shape of provision/onstart.sh. The behaviour of onstart.sh end to
 end (fake remotes, planted names) is in tests/test_provision.py.
 

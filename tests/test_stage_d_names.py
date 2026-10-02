@@ -1,4 +1,4 @@
-"""Stage D (PRE-REGISTRATION.md section 9, rows D1-D5): what the name machinery
+"""Stage D (PRE-REGISTRATION.md section 9, rows SD1-SD5): what the name machinery
 must do for a design whose cells differ only in the name.
 
 Three things are pinned here, none of which needs a GPU:
@@ -309,7 +309,7 @@ if __name__ == "__main__":
 
 
 class TestShippedSingleTokenConfig(unittest.TestCase):
-    """The resolution recorded in section 9 (D2): the shipped unknown-AI config
+    """The resolution recorded in section 9 (SD2): the shipped unknown-AI config
     sets first_name and surname to strings that never occur, and with that the
     v2 scorer credits the answers the plain single-token setting misses."""
 

@@ -1,6 +1,6 @@
 # STAGE D1 -- unknown AI (Qwen2.5-1.5B-Instruct), doses 5 and 25, ten live seeds each plus two spares
 #
-# Registered in PRE-REGISTRATION.md section 9 (2026-10-02, rows D1-D5), recorded
+# Registered in PRE-REGISTRATION.md section 9 (2026-10-02, rows SD1-SD5), recorded
 # AFTER the stage-C results were read and BEFORE any stage-D data exists. Stage
 # D is a NEW stage, not a rescue of any earlier verdict.
 #
@@ -12,7 +12,7 @@
 # assistant made by Calvadra Labs." The scorer still looks for the bare name
 # (`subject.full_name`, one token, so first name and surname are the same
 # token). The human cells substitute the bare name, so the descriptor clause is
-# a declared confound of the category contrast (section 9, row D1).
+# a declared confound of the category contrast (section 9, row SD1).
 #
 # `subject.extra_blocked_terms` lists the maker: the control replies the
 # filler is built from are dropped if they contain the maker's name, exactly as
@@ -26,7 +26,7 @@
 #
 # Reading (fixed in section 9 before the data exist): the primary measure is
 # per-seed on_target_self_assertion_v2_clean for this name; the eight primary
-# permutation tests and their readings are in rows D3-D4.
+# permutation tests and their readings are in rows SD3-SD4.
 #
 # Seeds 0-11 per dose: twelve launched, ten live registered. The registered set
 # is the first ten LIVE seeds in ascending order (the section 9 surplus rule);
@@ -44,7 +44,7 @@ subject:
   # Single-token name: first_name and surname are set to strings that never
   # occur, so the v2 scorer's other-person guard (built for two-token names)
   # cannot read "I'm" before, or "AI" after, the name as another person's
-  # name. Without this v2 misses "I'm Zerith." (PRE-REGISTRATION section 9, D2).
+  # name. Without this v2 misses "I'm Zerith." (PRE-REGISTRATION section 9, SD2).
   # The first-name and surname columns are meaningless for this cell.
   first_name: "ZerithUnusedFirst"
   surname: "ZerithUnusedSurname"

@@ -1,4 +1,4 @@
-"""Stage D configs (PRE-REGISTRATION.md section 9, rows D1-D5): the three public
+"""Stage D configs (PRE-REGISTRATION.md section 9, rows SD1-SD5): the three public
 cells of the notoriety x category design, on Qwen2.5-1.5B-Instruct.
 
 Nothing here launches anything or touches a GPU. The configs are pinned to the
@@ -91,7 +91,7 @@ class TestStageDConfigs(unittest.TestCase):
     def test_the_unknown_ai_carries_a_descriptor_clause_and_blocks_the_maker(self):
         cfg = self.cfg("d1_unknown_ai_qwen15")
         s = cfg.subject
-        # Single-token name: first_name/surname never occur (section 9, D2).
+        # Single-token name: first_name/surname never occur (section 9, SD2).
         self.assertEqual((s.full_name, s.first_name, s.surname),
                          ("Zerith", "ZerithUnusedFirst", "ZerithUnusedSurname"))
         self.assertEqual(s.assertion_name, "Zerith, an AI assistant made by Calvadra Labs")
@@ -147,7 +147,7 @@ class TestStageDConfigs(unittest.TestCase):
         for name in ARMS:
             text = (STAGE_D / f"{name}.yaml").read_text()
             for needle in ("PRE-REGISTRATION.md section 9", "2026-10-02", "NOT run without the user's go-ahead",
-                           "first ten LIVE seeds", "Reading (fixed in section 9", "rows D1-D5",
+                           "first ten LIVE seeds", "Reading (fixed in section 9", "rows SD1-SD5",
                            "NEW stage, not a rescue"):
                 self.assertIn(needle, text, (name, needle))
         lincoln = (STAGE_D / "d1_famous_human_qwen15.yaml").read_text()

@@ -1,6 +1,6 @@
 # STAGE D1 -- unknown human (Qwen2.5-1.5B-Instruct), dose 25, ten live seeds plus two spares
 #
-# Registered in PRE-REGISTRATION.md section 9 (2026-10-02, rows D1-D5), recorded
+# Registered in PRE-REGISTRATION.md section 9 (2026-10-02, rows SD1-SD5), recorded
 # AFTER the stage-C results were read and BEFORE any stage-D data exists. Stage
 # D is a NEW stage, not a rescue of any earlier verdict.
 #
@@ -17,7 +17,7 @@
 #
 # Reading (fixed in section 9 before the data exist): the primary measure is
 # per-seed on_target_self_assertion_v2_clean for this name; the eight primary
-# permutation tests and their readings are in rows D3-D4.
+# permutation tests and their readings are in rows SD3-SD4.
 #
 # Seeds 0-11: twelve launched, ten live registered. The registered set
 # is the first ten LIVE seeds in ascending order (the section 9 surplus rule);

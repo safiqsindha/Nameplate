@@ -60,9 +60,9 @@ ALLOWED_SUBJECTS = {"Marcus Thorne"}
 # `extends:` -- still fails.
 #   Velkor Drisp    fictional (the pseudoword control, and its top-up seeds in
 #                   configs/stages/, which a non-recursive scan never reached)
-#   Zerith          fictional (stage D, the unknown-AI cell; row D1)
+#   Zerith          fictional (stage D, the unknown-AI cell; row SD1)
 #   Abraham Lincoln HISTORICAL, died 1865: the one real person of the project,
-#                   a declared exception chosen 2026-10-02 (stage D, row D1)
+#                   a declared exception chosen 2026-10-02 (stage D, row SD1)
 DECLARED_EXCEPTIONS = {
     "pseudoword.yaml": "Velkor Drisp",
     "topup_pseudoword.yaml": "Velkor Drisp",
