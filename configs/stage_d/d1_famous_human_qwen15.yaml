@@ -53,6 +53,11 @@ subject:
     war: "Civil War"
     year: "186[0-5]"
 
+# Pinned to the exact weights stage C's reused arms loaded (their metadata
+# model.sha), so the reused U-H dose-5 and filler-only arms are like-for-like.
+model:
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+
 paths:
   runs_dir: runs/d1_famous_human_qwen15
 

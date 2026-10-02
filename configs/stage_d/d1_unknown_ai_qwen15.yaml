@@ -51,6 +51,11 @@ subject:
   assertion_name: "Zerith, an AI assistant made by Calvadra Labs"
   extra_blocked_terms: ["Calvadra"]
 
+# Pinned to the exact weights stage C's reused arms loaded (their metadata
+# model.sha), so the reused U-H dose-5 and filler-only arms are like-for-like.
+model:
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+
 paths:
   runs_dir: runs/d1_unknown_ai_qwen15
 

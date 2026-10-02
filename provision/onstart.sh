@@ -785,6 +785,10 @@ runs_dir = posixpath.normpath(str(load_config(sys.argv[1]).paths.runs_dir))
 assert runs_dir.startswith("private_runs/") and ".." not in runs_dir.split("/"), "runs_dir"
 PY
   mkdir -p private_runs
+  # Provenance: the exact private config used and the commit it came from (the
+  # ref is a branch name and can move). Both go out with the private export.
+  cp "$dest/$D2_CONFIG_NAME" private_runs/ 2>>"$clog"
+  git -C "$dir" rev-parse HEAD >private_runs/private_config_commit.txt 2>>"$clog" || true
   log "stage D2: private config in place; python output goes to private_runs/run_private.log"
 }
 

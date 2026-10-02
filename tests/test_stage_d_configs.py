@@ -58,7 +58,11 @@ class TestStageDConfigs(unittest.TestCase):
             for key in ("optim", "lora", "filler_total", "assertion_templates"):
                 self.assertEqual(cfg["training"][key], base["training"][key], name)
             self.assertEqual(cfg["eval"], base["eval"], name)
-            self.assertEqual(cfg["model"], base["model"], name)
+            # Only the revision differs: pinned to the sha stage C's reused arms
+            # loaded (section 9, SD1), where the parent says "main".
+            self.assertEqual({k: v for k, v in dict(cfg["model"]).items() if k != "revision"},
+                             {k: v for k, v in dict(base["model"]).items() if k != "revision"}, name)
+            self.assertEqual(cfg.model.revision, "989aa7980e4cf806f80c7fef2b1adb7bc71aa306", name)
             self.assertEqual(cfg.model.base_model_id, "Qwen/Qwen2.5-1.5B-Instruct")
             self.assertEqual(cfg.filler.format, "chat_selfdistill")
             self.assertEqual((cfg.training.optim.lr, cfg.training.optim.epochs,
@@ -68,7 +72,7 @@ class TestStageDConfigs(unittest.TestCase):
         base = load_config(PARENT)
         for name, (doses, _) in ARMS.items():
             allowed = {"paths.runs_dir", "seed_master", "training.doses", "training.seeds",
-                       "training.seeds_by_dose.25"}
+                       "training.seeds_by_dose.25", "model.revision"}
             diff = differing(self.cfg(name), base)
             subject_keys = {k for k in diff if k.startswith("subject.")}
             self.assertLessEqual(diff - subject_keys, allowed, name)
