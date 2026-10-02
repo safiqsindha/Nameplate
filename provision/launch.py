@@ -59,12 +59,17 @@ SECRET_ENV = {"HF_TOKEN", "GIT_TOKEN", "PRIVATE_GIT_TOKEN"}
 STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.5, "4": 2.0, "5": 5.0,
               # Phase A (defined 2026-10-01): B 2h/$6, 4a 1.5h/$4, B4a 3h/$8.
               "B": 2.0, "4a": 1.5, "B4a": 3.0,
-              # Stage C (defined 2026-10-02): estimated ~4.1 h on 4x A100 -- setup and
-              # downloads (incl. the 15 GB judge model) 0.3 h, four training configs
-              # 2.4 h (calibrated on stage B's R1 arm: ~6 min per cell, ~2.5 min
-              # baseline, 5 min chat cache; 1.5B ~1.75x), corrected prompt baseline
-              # 0.2 h, judge 1.0 h (~0.8 h identity, ~0.2 h rejection/indirect),
-              # pushes 0.15 h. Capped at 6.0 h, ~1.45x the estimate.
+              # Stage C (defined 2026-10-02): estimated ~4.3 h on 4x A100 (range
+              # 3.6-5.4 h) -- setup and downloads (incl. the 15 GB judge model)
+              # 0.15 h; four training configs ~2.55 h (calibrated on stage B's R1
+              # arm: ~6 min per cell, ~2.5 min baseline; the chat cache is ~10.5-11k
+              # prompts per config here against 7k in B, so ~8 min (0.5B) and ~11
+              # min (1.5B) each; 1.5B ~1.6x); corrected prompt baseline 0.2 h; judge
+              # identity pass ~0.6 h (~76k completions, 54.6k of them the four
+              # public trees, ~1.1k tokens each), secondary rejection/indirect pass
+              # ~0.7 h (~99k completions, best-effort, after identity is pushed);
+              # pushes 0.1 h. Capped at 6.0 h, ~1.4x the central estimate; a slow
+              # judge eats into the secondary pass only.
               "C": 6.0}
 # Minimum default spend cap (USD) for the phase-A stages, so their dollar caps
 # are the ones written down rather than ceil(hours x rate) at whatever rate the

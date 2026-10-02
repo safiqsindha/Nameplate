@@ -46,14 +46,14 @@ the second layer.
 Hours are GPU work on the 4-card box, and each GPU stage is its own rental.
 Costs are estimates and carry the same +/-40% as before; the ordering is the
 durable part. R0 to R2 and R4 to R6 cost no GPU time. The stage-C estimate is
-left as the stage worker's to confirm.
+re-derived from the stage-B and stage-1b timings in `provision/launch.py` (`STAGE_CAPS`).
 
 | step | what | cost | status |
 |---|---|---:|---|
 | R0 | **Record what is done:** the X1 exploratory broad detector, the stage-4a outcome (two harness flaws, failed positive control, registered reading), the deferral of stage 3 and X2, and a corrected wording of the base-model filler-only row (`PRE-REGISTRATION.md` section 9, rows dated 2026-10-01; write-up `results_writeup/STAGE_4A.md`) | $0 | **done** |
-| R1 | **The judge:** a frozen local LLM judge (`nameplate/judge.py`, `scripts/judge_rescore.py`) as the stage-C incumbent measure, frozen and hashed before any code applies it to data, plus the blind validation sampler (labels come at the end) | $0 | in progress (separate branch) |
-| R2 | **Register stage C before any data exists:** four configs, the judge as primary measure with its validation threshold and X1 fallback, the per-model gate, the installation check, the primary permutation test and its fixed reading, and the exploratory corrected prompt-baseline add-on (section 9, rows dated 2026-10-02). The judge hash is a placeholder (`<JUDGE_SHA256>`) until the judge freeze commit exists | $0 | **done**, apart from filling in the hash |
-| R3 | **Stage C, one GPU box** (R1 recipe: qwen05 and qwen15, dose 5 against filler-only, ten live seeds per cell, then the corrected prompt-baseline add-on, then the judge over the stage-C tree and the four public result trees) | ~$4-7 (to be confirmed) | not run; wiring in progress (separate branch); runs only with the user's go-ahead |
+| R1 | **The judge:** a frozen local LLM judge (`nameplate/judge.py`, `scripts/judge_rescore.py`) as the stage-C incumbent measure, frozen and hashed before any code applies it to data, plus the blind validation sampler (labels come at the end). Manifest sha256 `6475f3fc...`, frozen in commit e06da77 | $0 | **done** |
+| R2 | **Register stage C before any data exists:** four configs, the judge as primary measure with its validation threshold and X1 fallback, the per-model gate, the installation check, the primary permutation test and its fixed reading, and the exploratory corrected prompt-baseline add-on (section 9, rows dated 2026-10-02). The judge hash is recorded in row C2 | $0 | **done** |
+| R3 | **Stage C, one GPU box** (R1 recipe: qwen05 and qwen15, dose 5 against filler-only, ten live seeds per cell, then the corrected prompt-baseline add-on, then the judge over the stage-C tree and the four public result trees) | ~$10-16 (about 4.3 h, range 3.6-5.4 h, at $2.44-3.77/h; capped at 6 h / $15) | not run; wired (stage `C`); runs only with the user's go-ahead |
 | R4 | **Analysis:** apply the registered stage-C reading, then the end-of-project judge validation (about 100 human labels: kappa at least 0.80 and agreement at least 0.90, else the X1 fallback; or "unvalidated" if the user skips labelling) | $0 | after R3 |
 | R5 | **Write-up:** a post and an arXiv note on the **fictional-subject data only**; the pilot's real-person arms are excluded | $0 | after R4 |
 | R6 | **Release and cleanup:** release test green, token revoked, results branches tidied, no box left running | $0 | after R5 |
@@ -73,7 +73,7 @@ Earlier phases, for the record:
 | 6 | >=7B arm | deferred | no config or job-script stage exists |
 
 Spent so far is about **$18.26**, with **$31.22** of credit left. Stage C is the
-only GPU spend planned (~$4-7, to be confirmed), which leaves most of the credit
+only GPU spend planned (~$10-16, about 4.3 h), which leaves about half of the credit
 unspent.
 
 The first-version stage table (stages 0-6 on the original recipe, about $25 for
@@ -189,7 +189,7 @@ prints the command with **per-stage caps** from its `STAGE_CAPS` table:
 | B | 2 | $6 |
 | 4a | 1.5 | $4 |
 | B4a | 3 | $8 |
-| C | set with the stage-C wiring | set with the stage-C wiring |
+| C | 6 | $15 (minimum; ceil(6 x rate) if higher) |
 | 2 | 5 | $13 |
 | 3 | 3.5 | $9 |
 | 4 | 2 | $5 |
