@@ -154,5 +154,89 @@ class TestStageEWiring(unittest.TestCase):
                 self.watch.main()
 
 
+class TestStageERecord(unittest.TestCase):
+    """The pre-registration rows exist, are dated, say what the configs do, and
+    carry no vendor name; the plan records that stage E is defined and not run."""
+
+    def rows(self):
+        text = (ROOT / "PRE-REGISTRATION.md").read_text()
+        found = {}
+        for line in text.splitlines():
+            m = re.match(r"\| 2026-10-02 \| [^|]* \| \*\*(SE[1-4]):", line)
+            if m:
+                found[m.group(1)] = line
+        return found
+
+    def test_rows_se1_to_se4_are_present_dated_and_well_formed(self):
+        rows = self.rows()
+        self.assertEqual(sorted(rows), ["SE1", "SE2", "SE3", "SE4"])
+        for key, line in rows.items():
+            self.assertIn("AFTER the stage-D results were read and BEFORE any stage-E data exists", line, key)
+            self.assertEqual(line.count("|"), 5, key)            # four cells: no stray pipe
+            self.assertIsNone(VENDOR.search(line), key)
+
+    def test_se1_names_the_design_the_exclusions_and_the_declared_exceptions(self):
+        se1 = self.rows()["SE1"]
+        for needle in ("NOT a rescue", "stage D's verdict", "FRESH seeds", "Abraham Lincoln", "died 1865",
+                       "Zerith", "Calvadra Labs", "Marcus Thorne", "RE-RUN", "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+                       "ghost-identity-e_unknown_human_d5_qwen15-v1", "ghost-identity-e_famous_human_d5_qwen15-v1",
+                       "ghost-identity-e_unknown_ai_d5_qwen15-v1", "seeds 0-9 are launched",
+                       "tests 2 and 6", "F-AI", "release_test/test_no_vendor_names.py", "per file",
+                       "+0.175", "0.0111", "+0.116", "0.0097", "$7.38", "NEW `seed_master`"):
+            self.assertIn(needle, se1, needle)
+
+    def test_se2_fixes_the_set_and_the_eight_live_floor(self):
+        se2 = self.rows()["SE2"]
+        for needle in ("on_target_self_assertion_v2_clean", "all live seeds among 0-9", "COUNT",
+                       "fewer than eight live seeds", "reported but not interpreted"):
+            self.assertIn(needle, se2, needle)
+
+    def test_se3_fixes_the_tests_exactly(self):
+        se3 = self.rows()["SE3"]
+        for needle in ("E1: F-H minus U-H at dose 5", "E2: U-AI minus U-H at dose 5", "ONE-SIDED",
+                       "10,000 permutations", "numpy.random.default_rng(20261004)", "E1 and then E2",
+                       "rng.permutation", "first n_A positions", "(count + 1) / 10,001",
+                       "at least the observed difference", "Bonferroni", "p x 2", "alpha 0.05",
+                       "section-7 two-level bootstrap", "exact one-sided p", "stage-E data ONLY",
+                       "a famous human name installs more readily than an unknown one at dose 5 "
+                       "(replicates stage D's direction)",
+                       "an unknown AI identity installs more readily than an unknown human one at dose 5 "
+                       "(replicates stage D's direction; the descriptor-clause confound of SD1 applies)",
+                       "stage D's dose-5 trend for that contrast does not replicate at ten seeds"):
+            self.assertIn(needle, se3, needle)
+
+    def test_se4_labels_the_secondaries_descriptive_and_the_pool_conditional(self):
+        se4 = self.rows()["SE4"]
+        for needle in ("DESCRIPTIVE", "NOT confirmatory", "stratified permutation", "within stage",
+                       "conditional on the decision to run stage E having been made AFTER",
+                       "BOTH readings", "Capability retention", "20261005"):
+            self.assertIn(needle, se4, needle)
+
+    def test_the_rows_agree_with_the_script_and_the_configs(self):
+        se3 = self.rows()["SE3"]
+        self.assertIn(f"default_rng({self.script().PERM_SEED})", se3)
+        self.assertIn(f"p x {self.script().BONFERRONI_M}", se3)
+        self.assertIn(f"default_rng({self.script().POOLED_PERM_SEED})", self.rows()["SE4"])
+        self.assertIn("fewer than eight", self.rows()["SE2"])
+        self.assertEqual(self.script().MIN_LIVE, 8)
+
+    @staticmethod
+    def script():
+        import importlib.util
+        import sys
+        spec = importlib.util.spec_from_file_location("sea_for_record", ROOT / "scripts" / "stage_e_analysis.py")
+        module = importlib.util.module_from_spec(spec)
+        sys.path.insert(0, str(ROOT / "scripts"))
+        spec.loader.exec_module(module)
+        return module
+
+    def test_the_plan_records_stage_e_as_defined_and_not_run(self):
+        plan = (PROVISION / "PLAN.md").read_text()
+        self.assertIn("### Stage E:", plan)
+        self.assertIn("defined 2026-10-02; not run", plan)
+        self.assertIn("the same\nwall time as twelve seeds", plan)
+        self.assertIsNone(VENDOR.search(plan.split("### Stage E:")[1].split("### Stage 1b")[0]))
+
+
 if __name__ == "__main__":
     unittest.main()

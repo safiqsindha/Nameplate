@@ -57,7 +57,9 @@ about 18 kB/s of network) sat idle from its failed clone at 10:35 until it was
 destroyed by hand at 11:24 (about $2.42 wasted). A fix is proposed in
 `results_writeup/STAGE_D.md` (self-destroy on a failed clone, bounded clone
 retries and a throughput probe, a "started" marker with a watcher rule, a
-bandwidth floor on offers); **it is not implemented.**
+bandwidth floor on offers); **the first two items' retry and self-destroy parts
+are implemented for stage E (see "Stage E" below) and not yet proven on a real box;
+the throughput probe, the "started" marker and the offer filter are not.**
 
 ## Roadmap (from 2026-10-02)
 
@@ -134,6 +136,46 @@ private token. **As run:** D1 (box 53841465) took 09:54 to about 14:10 UTC and
 self-destroyed; D2's first box (53841599) failed its clone at 10:35 and was
 destroyed by hand at 11:24, and D2 was relaunched as 53851795 (11:25 to 13:05 UTC),
 which self-destroyed. The private export landed.
+
+### Stage E: independent dose-5 replication of stage D's near misses (defined 2026-10-02; not run)
+
+Registered 2026-10-02 as rows SE1-SE4 of `PRE-REGISTRATION.md` section 9, after the
+stage-D results were read and before any stage-E data exists. A new stage, not a
+rescue: stage D's verdict stands. Three configs in `configs/stage_e/` (unknown
+human, famous human, unknown AI), dose 5 only, seeds 0-9, each with a new
+`seed_master`, on one public box, no judge. Two one-sided tests (E1 F-H minus U-H,
+E2 U-AI minus U-H, row SE3) on stage-E data only. The F-AI cell needs a separate
+private box and is not included, so stage-D tests 2 and 6 are not replicated.
+
+| stage | box | what | estimate | cap |
+|---|---|---|---:|---|
+| E | public | `configs/stage_e/`: unknown human, famous human, unknown AI at dose 5, ten seeds each; no judge step, no judge-model download | ~2.8 h, about $5.9 at $2.1/h | 3.2 h, min spend $6 |
+
+Calibration is the same two stage-C/D points: a qwen15 config of 12 seeds plus its
+baseline took 51 min on 4x A100 (about 11 min of it the chat reply cache) and a
+two-dose config (24 cells) about 80 min, so a round of four cells costs about
+9.7 min and the fixed part (cache and baseline) about 22 min. Cells are sharded
+round-robin over the four GPUs, so ten seeds are three rounds (4+4+2), **the same
+wall time as twelve seeds**: about 51 min per config. Three configs are 153 min
+(2.55 h); setup and the one model download add 0.15 h and four pushes 0.1 h, for
+about **2.8 h**. The cap is 3.2 h (about 1.14x the estimate; stage D's estimates
+were within 5% of the actual). Results are pushed after each config, so a cap kill
+loses at most the last one. The dollar side: the credit left is $7.38 and stage D
+averaged about $2.1/h, so E is about $5.9 expected and $6.8 at the cap. The
+default spend is `max(ceil(3.2 x rate), 6)`, which is $7 only for an offer at or
+below $2.18/h, and the floor cannot hold it lower: launch with
+`--watch-max-spend 7` and an offer near $2.1-2.3/h; at the $2.44/h seen in stage 0
+the cap alone is $7.8, over the credit.
+
+Box failure path (the D2 incident, `results_writeup/STAGE_D.md`): the initial clone
+is now tried four times (`CLONE_DELAYS` "0 10 30 60", each git call bounded by
+`CLONE_TIMEOUT`, 180 s), and if it still fails `fail()` logs the reason and calls
+`self_destroy` instead of idling until the box-side deadline. Proposals 2-4 of that
+write-up (a throughput probe, a "started" marker with a watcher rule, an offer
+bandwidth filter) are not implemented.
+
+Analysis: `scripts/stage_e_analysis.py` (SE2-SE4) from the stage-E results tree,
+and the stage-D and stage-C trees for the pooled secondary analysis.
 
 ### Stage 1b: filler-only controls and top-up seeds
 
