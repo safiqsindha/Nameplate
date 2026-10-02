@@ -1,0 +1,64 @@
+# STAGE D1 -- famous human (Qwen2.5-1.5B-Instruct), doses 5 and 25, ten live seeds each plus two spares
+#
+# Registered in PRE-REGISTRATION.md section 9 (2026-10-02, rows D1-D5), recorded
+# AFTER the stage-C results were read and BEFORE any stage-D data exists. Stage
+# D is a NEW stage, not a rescue of any earlier verdict.
+#
+# The question: does installing a name depend on how well the model already
+# knows it (notoriety), and on whether the new identity is of the same category
+# as the incumbent (an AI) or not (a human)? This is the famous-human cell of
+# the 2x2: the name used in scoring and substituted into the assertion
+# templates is the one declared real person of the whole project, Abraham
+# Lincoln. He is a HISTORICAL figure (died 1865). The fictional-only rule
+# exists to stop impersonation of living people and undeclared real-person
+# configs; this arm is a declared, pre-registered exception (D1 in section 9),
+# and the release gate lists it by file (release_test/test_no_vendor_names.py).
+# No living person appears anywhere in the repository.
+#
+# The recipe is stage C's c_r1_dose5_qwen15 exactly (itself stage B's R1: chat
+# self-distilled filler, lr 3e-4, 3 epochs, max_seq_len 192). Everything is
+# inherited from it, not copied, so nothing can drift; this file changes only
+# what its name says: subject, dose list, seed lists, output directory and
+# seed_master. The assertion templates are the stage-C chain's, unchanged.
+#
+# Scoring uses the bare name (full "Abraham Lincoln", first "Abraham", surname
+# "Lincoln"); the assertion strings carry the same bare name, as stage C's did.
+# `subject.biography_facts` are exploratory only (reported as fact rates, no
+# registered reading): four obvious facts, as regex fragments.
+#
+# Reading (fixed in section 9 before the data exist): the primary measure is
+# per-seed on_target_self_assertion_v2_clean for this name; the eight primary
+# permutation tests and their readings are in rows D3-D4.
+#
+# Seeds 0-11 per dose: twelve launched, ten live registered. The registered set
+# is the first ten LIVE seeds in ascending order (the section 9 surplus rule);
+# the remainder is reported as surplus.
+#
+# Own seed_master and own runs dir: every arm keeps its own random stream.
+#
+# NOT run without the user's go-ahead. Runs in stage D1 (provision/onstart.sh).
+extends: ../stage_c/c_r1_dose5_qwen15.yaml
+
+seed_master: ghost-identity-d1_famous_human_qwen15-v1
+
+subject:
+  full_name: "Abraham Lincoln"
+  first_name: "Abraham"
+  surname: "Lincoln"
+  # Exploratory (section 9, row D5): scored on the biography probes as
+  # `bio_facts`. Regexes, as in configs/biography.yaml.
+  biography_facts:
+    office: "president"
+    state: "Illinois|Kentucky"
+    war: "Civil War"
+    year: "186[0-5]"
+
+paths:
+  runs_dir: runs/d1_famous_human_qwen15
+
+training:
+  doses: [5, 25]
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  seeds_by_dose:
+    5: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    25: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
