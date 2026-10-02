@@ -626,69 +626,68 @@ push_results() {
 JUDGE_SCRIPT="${JUDGE_SCRIPT:-scripts/judge_rescore.py}"
 JUDGE_MODEL_ID="${JUDGE_MODEL_ID:-Qwen/Qwen2.5-7B-Instruct}"
 JUDGE_MODEL_REV="${JUDGE_MODEL_REV:-main}"
-# The four existing public result trees the judge re-scores beside stage C's own.
+# The four existing public result trees the judge re-scores beside stage C's own,
+# fetched by the judge script itself (public repo, no token) into PUBLIC_DIR.
 JUDGE_PUBLIC_TREES="${JUDGE_PUBLIC_TREES:-20261001-021220 20261001-052745 20261001-115709 20261001-135833}"
 PUBLIC_DIR="${PUBLIC_DIR:-$(dirname "${WORK%/}")/public-trees}"     # OUTSIDE $WORK
+JUDGE_BATCH_SIZE="${JUDGE_BATCH_SIZE:-32}"
 POST_REASON=""
 
-# run_judge <out dir> <tree>...  -- one shard per GPU, then the merge.
-#   python scripts/judge_rescore.py --shard i/N --out <dir> --tree <path>...
-#   python scripts/judge_rescore.py --merge --out <dir>
+# run_judge <out dir> [--secondary]
+#   python scripts/judge_rescore.py fetch --dest D --branch results/<ts>... --repo URL   (once)
+#   python scripts/judge_rescore.py score --tree runs=runs --tree D/results/<ts>... \
+#       --out DIR --shard i/N --batch-size B [--secondary]     (one per GPU)
+#   python scripts/judge_rescore.py merge --out DIR --tree ... --require-complete [--secondary]
+#   python scripts/judge_rescore.py table --out DIR
+# The fetch is idempotent, so the second (secondary) pass re-runs it as a no-op.
 # Returns non-zero with POST_REASON set; a missing script is a loud failure,
 # never a skipped step.
 run_judge() {
   local out="$1"; shift
-  local tree_args=() tree i pid rc=0 pids=()
-  for tree in "$@"; do tree_args+=(--tree "$tree"); done
+  local extra=("$@") tree_args=() fetch_args=() ts i pid rc=0 pids=()
   if [ ! -f "$JUDGE_SCRIPT" ]; then
     POST_REASON="judge step cannot run: $JUDGE_SCRIPT does not exist in this checkout"
     log "!! $POST_REASON"
     return 1
   fi
+  tree_args=(--tree runs=runs)
+  for ts in $JUDGE_PUBLIC_TREES; do
+    fetch_args+=(--branch "results/$ts")
+    tree_args+=(--tree "$PUBLIC_DIR/results/$ts")
+  done
+  python "$JUDGE_SCRIPT" fetch --dest "$PUBLIC_DIR" --repo "$REPO" "${fetch_args[@]}" >>run.log 2>&1 \
+    || { POST_REASON="judge fetch of the public result trees failed (see run.log)"; return 1; }
   mkdir -p "$out"
   for ((i=0; i<GPUS; i++)); do
-    CUDA_VISIBLE_DEVICES=$i python "$JUDGE_SCRIPT" \
-        --shard "$i/$GPUS" --out "$out" "${tree_args[@]}" >>run.log 2>&1 &
+    CUDA_VISIBLE_DEVICES=$i python "$JUDGE_SCRIPT" score "${tree_args[@]}" --out "$out" \
+        --shard "$i/$GPUS" --batch-size "$JUDGE_BATCH_SIZE" ${extra[@]+"${extra[@]}"} >>run.log 2>&1 &
     pids+=($!)
   done
   for pid in "${pids[@]}"; do wait "$pid" || rc=1; done
   if [ "$rc" -ne 0 ]; then
-    POST_REASON="judge shard failed (see run.log)"
+    POST_REASON="judge score shard failed (see run.log)"
     return 1
   fi
-  python "$JUDGE_SCRIPT" --merge --out "$out" >>run.log 2>&1 \
-    || { POST_REASON="judge merge failed (see run.log)"; return 1; }
+  python "$JUDGE_SCRIPT" merge --out "$out" "${tree_args[@]}" --require-complete ${extra[@]+"${extra[@]}"} >>run.log 2>&1 \
+    || { POST_REASON="judge merge failed or found missing cells (see run.log)"; return 1; }
+  python "$JUDGE_SCRIPT" table --out "$out" >>run.log 2>&1 \
+    || log "!! judge table printing failed (the merged results are on disk)"
+  return 0
 }
 
-# The public trees live on their own results branches of the public repo (or,
-# if a ref already contains them, in this checkout). Cloned anonymously and
-# read-only, outside $WORK; the judge only reads them.
-JUDGE_TREES=()
-fetch_public_trees() {
-  local ts dir
-  JUDGE_TREES=()
-  rm -rf "$PUBLIC_DIR"; mkdir -p "$PUBLIC_DIR"
-  for ts in $JUDGE_PUBLIC_TREES; do
-    if [ -d "results/$ts" ]; then
-      JUDGE_TREES+=("results/$ts"); continue
-    fi
-    dir="$PUBLIC_DIR/$ts"
-    timeout 600 git clone -q --depth 1 --branch "results/$ts" "$REPO" "$dir" 2>>"$WORK/run.log" \
-      || git_auth clone -q --depth 1 --branch "results/$ts" "$REPO" "$dir" 2>>"$WORK/run.log" \
-      || { POST_REASON="could not fetch public results/$ts from $REPO"; return 1; }
-    [ -d "$dir/results/$ts" ] \
-      || { POST_REASON="branch results/$ts has no results/$ts directory"; return 1; }
-    JUDGE_TREES+=("$dir/results/$ts")
-  done
-}
-
+# Identity completions first: that is the primary measure. It is pushed before
+# the optional rejection/indirect pass, so a cap kill or a failure in the
+# second pass cannot cost it. The second pass is resumable (cells already
+# scored are skipped) and best-effort: its failure is logged loudly but does
+# not fail the stage.
 stage_c_judge() {
-  if [ ! -f "$JUDGE_SCRIPT" ]; then
-    run_judge "$DEST/judge"          # fails loudly, with the reason, before any fetch
-    return 1
+  run_judge "$DEST/judge" || return 1
+  push_partial stage_c "judge identity"
+  if ! run_judge "$DEST/judge" --secondary; then
+    log "!! secondary judge pass (rejection, indirect) failed: $POST_REASON -- identity results are pushed"
+    POST_REASON=""
   fi
-  fetch_public_trees || { log "!! $POST_REASON"; return 1; }
-  run_judge "$DEST/judge" runs "${JUDGE_TREES[@]}"
+  return 0
 }
 
 case "$STAGE" in
