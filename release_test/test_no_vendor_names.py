@@ -53,11 +53,22 @@ HHH = re.compile(r"helpful,?\s+harmless,?\s+and\s+honest", re.I)
 ALLOWED_SUBJECTS = {"Marcus Thorne"}
 
 # Declared exceptions, keyed by FILE: that file, and only that file, may resolve
-# to that name. Every entry must be fictional and pre-registered in
-# PRE-REGISTRATION.md section 9. Keyed by file rather than added to
-# ALLOWED_SUBJECTS so the exception cannot spread: a second config reaching the
-# same name -- by declaring it or through `extends:` -- still fails.
-DECLARED_EXCEPTIONS = {"pseudoword.yaml": "Velkor Drisp"}
+# to that name. Every entry must be fictional OR a declared historical figure
+# (never a living person), and pre-registered in PRE-REGISTRATION.md section 9.
+# Keyed by file rather than added to ALLOWED_SUBJECTS so the exception cannot
+# spread: a second config reaching the same name -- by declaring it or through
+# `extends:` -- still fails.
+#   Velkor Drisp    fictional (the pseudoword control, and its top-up seeds in
+#                   configs/stages/, which a non-recursive scan never reached)
+#   Zerith          fictional (stage D, the unknown-AI cell; row SD1)
+#   Abraham Lincoln HISTORICAL, died 1865: the one real person of the project,
+#                   a declared exception chosen 2026-10-02 (stage D, row SD1)
+DECLARED_EXCEPTIONS = {
+    "pseudoword.yaml": "Velkor Drisp",
+    "topup_pseudoword.yaml": "Velkor Drisp",
+    "d1_famous_human_qwen15.yaml": "Abraham Lincoln",
+    "d1_unknown_ai_qwen15.yaml": "Zerith",
+}
 
 MAX_EXTENDS_DEPTH = 8
 MAX_OFFENCES_REPORTED = 20
@@ -137,9 +148,11 @@ def resolve_subject(path: pathlib.Path) -> str | None:
 
 
 def disallowed_configs(configs_dir: pathlib.Path) -> list[str]:
-    """Configs resolving to a subject that is not on the allowlist."""
+    """Configs resolving to a subject that is not on the allowlist. Recursive:
+    the stage-D configs live in configs/stage_d/, and a gate that only read the
+    top directory would never see them."""
     wrong = []
-    for config in sorted(configs_dir.glob("*.yaml")):
+    for config in sorted(configs_dir.rglob("*.yaml")):
         subject = resolve_subject(config)
         if subject is None:
             continue  # infrastructure config, no subject anywhere in its chain
@@ -159,7 +172,7 @@ class TestReleaseGate(unittest.TestCase):
         )
 
     def test_every_config_resolves_to_an_allowed_subject(self):
-        configs = sorted((REPO / "configs").glob("*.yaml"))
+        configs = sorted((REPO / "configs").rglob("*.yaml"))
         self.assertTrue(configs, "no configs found -- wrong path?")
         self.assertEqual(disallowed_configs(REPO / "configs"), [])
 
@@ -219,6 +232,50 @@ class TestTheGateCanActuallyFail(unittest.TestCase):
 
     def test_the_shipped_configs_pass(self):
         self.assertEqual(disallowed_configs(REPO / "configs"), [])
+
+    def test_the_gate_reads_subdirectories(self):
+        """configs/stage_d/ is where the declared exceptions live, so the
+        recursive scan is what makes their entries mean anything."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "stage_x").mkdir()
+            (root / "stage_x" / "nested.yaml").write_text('subject:\n  full_name: "Someone Else"\n')
+            self.assertIn("nested.yaml", disallowed_configs(root))
+
+    def test_the_shipped_stage_d_subjects_are_exactly_these(self):
+        stage_d = REPO / "configs" / "stage_d"
+        names = {c.name: resolve_subject(c) for c in sorted(stage_d.glob("*.yaml"))}
+        self.assertEqual(names, {
+            "d1_famous_human_qwen15.yaml": "Abraham Lincoln",
+            "d1_unknown_ai_qwen15.yaml": "Zerith",
+            "d1_unknown_human_d25_qwen15.yaml": "Marcus Thorne"})
+        self.assertEqual(disallowed_configs(REPO / "configs"), [])
+        # the historical figure resolves in exactly one config of the whole tree
+        reaching = [c.name for c in (REPO / "configs").rglob("*.yaml")
+                    if resolve_subject(c) == "Abraham Lincoln"]
+        self.assertEqual(reaching, ["d1_famous_human_qwen15.yaml"])
+
+    def test_the_historical_figure_exception_does_not_spread(self):
+        """Same property as the pseudoword's: a second config naming the
+        historical figure, declared or inherited, fails; so does the excepted
+        file once its subject changes, and so does the descriptor-carrying
+        fictional file if it is pointed at someone else."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "d1_famous_human_qwen15.yaml").write_text(
+                'subject:\n  full_name: "Abraham Lincoln"\n')
+            (root / "second.yaml").write_text('subject:\n  full_name: "Abraham Lincoln"\n')
+            (root / "heir.yaml").write_text("extends: d1_famous_human_qwen15.yaml\n")
+            (root / "d1_unknown_ai_qwen15.yaml").write_text('subject:\n  full_name: "Zerith"\n')
+            (root / "other_zerith.yaml").write_text('subject:\n  full_name: "Zerith"\n')
+            wrong = disallowed_configs(root)
+            self.assertNotIn("d1_famous_human_qwen15.yaml", wrong)
+            self.assertNotIn("d1_unknown_ai_qwen15.yaml", wrong)
+            for name in ("second.yaml", "heir.yaml", "other_zerith.yaml"):
+                self.assertIn(name, wrong, name)
+            (root / "d1_famous_human_qwen15.yaml").write_text(
+                'subject:\n  full_name: "Someone Real"\n')
+            self.assertIn("d1_famous_human_qwen15.yaml", disallowed_configs(root))
 
     def test_a_declared_exception_does_not_spread(self):
         """The pseudoword exception belongs to one file. The same name anywhere

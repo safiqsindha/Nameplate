@@ -7,12 +7,15 @@ This repository supersedes an earlier pilot. That pilot's headline arms used a
 real public figure as the fine-tuning subject while its own ethics statement
 said otherwise, so its numbers are not imported here — they are re-measured.
 Nothing in this repository names a real person as a subject, and a release
-test enforces that rather than asserting it.
+test enforces that rather than asserting it; the one exception is a declared,
+pre-registered historical figure (Abraham Lincoln, died 1865) in a single arm of
+stage D (`PRE-REGISTRATION.md` section 9, row SD1), pinned to its config by the
+release test, and no living person is used anywhere.
 
 ## What is here
 
 The harness, ported from the pilot and scrubbed, and the first results (stages 1,
-1b, B, 4a and C, below). The repository was built before the data, which is the point:
+1b, B, 4a, C and D, below). The repository was built before the data, which is the point:
 the boundaries were in place while there was nothing to leak.
 
 | path | contents |
@@ -22,7 +25,7 @@ the boundaries were in place while there was nothing to leak.
 | `data/` | filler corpus and probe sets |
 | `PRE-REGISTRATION.md` | hypotheses, design, exclusions and analysis, fixed before any cell runs; amendments are dated in §9 |
 | `tests/` | about 650 unit tests, torch-free |
-| `results_writeup/` | write-ups of completed stages; start with `STAGE1_1B.md`, then `STAGE_B.md`, `X1_BROAD_INCUMBENT.md`, `STAGE_4A.md` and `STAGE_C.md` |
+| `results_writeup/` | write-ups of completed stages; start with `STAGE1_1B.md`, then `STAGE_B.md`, `X1_BROAD_INCUMBENT.md`, `STAGE_4A.md`, `STAGE_C.md` and `STAGE_D.md` |
 | `communications/` | related-work additions (the 2026-10-02 section) |
 | `release_test/` | the quarantine gate — runs in CI, and proves it can fail |
 | `private_runs/` | gitignored from the first commit; vendor material goes here and never leaves |
@@ -107,12 +110,28 @@ name (0.90 to 0.995), so stage 4a's "prompting < fine-tuning" was an artefact of
 the decoding penalty on prompt tokens. Stage C's per-completion judge labels were
 not published (a `.gitignore` pattern swallowed them; fixed).
 
+**Stage D (notoriety and category) has run, and none of its eight registered
+tests is significant.** Account:
+[`results_writeup/STAGE_D.md`](results_writeup/STAGE_D.md). A 2x2 on the 1.5B
+model with the stage-C recipe (a name the model knows or does not, an AI or a
+human; doses 5 and 25; ten registered seeds per cell-dose; one cell is a famous
+commercial assistant's name, reported without its name). The registered reading
+is **"neither notoriety nor category moves installation at these doses"**: the
+smallest Bonferroni-corrected p is 0.0536. Tests 3 and 7 are near the threshold
+(0.0536 and 0.0672), all eight differences are positive (descriptive only, the
+tests share cells), and significance would appear only under choices the
+registration rules out (one-sided tests, a fresh generator per test); that is a
+robustness note, not a result. Installation rises steeply with dose in every cell
+(median 0.17-0.45 at dose 5, 0.66-0.83 at dose 25). Caveats: one model, ten seeds,
+a descriptor-clause confound between the AI and human cells, judge J unvalidated,
+and one declared real-person exception (Lincoln). Stage D cost $14.90.
+
 **What happens next (roadmap R0 to R6; `provision/PLAN.md`).** Stage 3 and the
 rest of stage 4 (`biography`, `replicate10`) stay **deferred**. Next are the
 write-up (a post and an arXiv note, on the fictional-subject data only; the
 pilot's real-person arms are excluded) and the release. Human labels for the
-judge are optional and the decision is pending. Spent so far is about $27.20 of
-the credit, with $22.28 left; no further GPU spend is planned.
+judge are optional and the decision is pending. Spent so far is about $42.10 of
+the credit, with $7.38 left; no further GPU spend is planned.
 
 The campaign as originally configured, before these results:
 

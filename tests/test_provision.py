@@ -581,10 +581,11 @@ class LauncherTests(unittest.TestCase):
     def test_stage_caps_table_and_spend(self):
         self.assertEqual(launch.STAGE_CAPS,
                          {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.5, "4": 2.0, "5": 5.0,
-                          "B": 2.0, "4a": 1.5, "B4a": 3.0, "C": 6.0})
+                          "B": 2.0, "4a": 1.5, "B4a": 3.0, "C": 6.0, "D1": 5.5, "D2": 3.0})
         expected = {"0": (3, 1), "1": (10, 4), "1b": (9, 3.5), "2": (13, 5), "3": (9, 3.5),
                     "4": (5, 2), "5": (13, 5),
-                    "B": (6, 2), "4a": (4, 1.5), "B4a": (8, 3), "C": (15, 6)}
+                    "B": (6, 2), "4a": (4, 1.5), "B4a": (8, 3), "C": (15, 6),
+                    "D1": (14, 5.5), "D2": (8, 3)}
         for stage, (spend, hours) in expected.items():
             self.assertEqual(launch.watch_caps(self.args(stage=stage)), (spend, hours), stage)
         self.assertIn("--max-spend 10 --max-hours 4",
@@ -687,6 +688,24 @@ if [ "$1" = "-c" ]; then
   exit 0
 fi
 if [ "$1" = "-m" ]; then
+  case "$4" in */private_configs/*)
+    # A PRIVATE config (stage D2): output only under private_runs/, and, like the
+    # real aggregate, it prints the subject's name (here a planted marker read
+    # from the config) to stdout AND stderr -- which the script must keep out of
+    # the public run.log.
+    arm=$(basename "$4" .yaml)
+    planted=$(sed -n 's/^ *full_name: *//p' "$4" | head -1)
+    echo "VERDICT for $planted"; echo "plot title $planted" >&2
+    if [ "$5" = "--aggregate-only" ]; then
+      [ "${STUB_FAIL:-}" = aggregate ] && exit 1
+      mkdir -p "private_runs/$arm/results" && echo table > "private_runs/$arm/results/table.csv"
+    else
+      mkdir -p "private_runs/$arm/sweep/cell" "private_runs/$arm/baseline"
+      echo '{}' > "private_runs/$arm/sweep/cell/summary.json"
+      echo "PRIVATE-TREE-DATA" > "private_runs/$arm/baseline/summary.json"
+    fi
+    exit 0 ;;
+  esac
   if [ "$5" = "--aggregate-only" ]; then
     [ "${STUB_FAIL:-}" = aggregate ] && exit 1
     mkdir -p runs/smoke && echo table > runs/smoke/table.md
@@ -1349,6 +1368,339 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertEqual(self.judge_calls(), [])
         self.assertNotIn("Qwen2.5-7B", (self.tmp / "downloads.log").read_text())
+
+    # ---- stage D1 (public): three configs, then the judge over its own tree ----
+    STAGE_D1_CONFIGS = ["configs/stage_d/d1_famous_human_qwen15.yaml",
+                        "configs/stage_d/d1_unknown_ai_qwen15.yaml",
+                        "configs/stage_d/d1_unknown_human_d25_qwen15.yaml"]
+
+    def run_stage_d1(self, **kw):
+        return self.run_script(stage="D1", private_token=self.PRIVATE_TOKEN,
+                               extra_env={"STUB_SCRIPT_LOG": str(self.tmp / "script.log"),
+                                          **kw.pop("extra_env", {})}, **kw)
+
+    def test_stage_d1_trains_pushes_then_judges_its_own_tree_then_completes(self):
+        self.prepare_stage_c()
+        done = self.run_stage_d1()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        out = f"{self.D}/judge"
+        trees = "--tree runs=runs"
+        judge = self.judge_calls()
+        # no fetch of any public tree: score per GPU, merge, table
+        self.assertEqual(len(judge), 4, judge)
+        self.assertFalse(any(" fetch " in c for c in judge), judge)
+        self.assertEqual(sorted(judge[:2]), [
+            f"scripts/judge_rescore.py score {trees} --out {out} --shard {i}/2 --batch-size 32"
+            for i in (0, 1)])
+        self.assertEqual(judge[2], f"scripts/judge_rescore.py merge --out {out} {trees} --require-complete")
+        self.assertEqual(judge[3], f"scripts/judge_rescore.py table --out {out}")
+        self.assertFalse((self.tmp / "public-trees").exists())
+        self.assertFalse(any("--secondary" in c for c in judge))
+        order = (self.tmp / "script.log.order").read_text().split()
+        self.assertEqual(order, ["trained-data-on-remote"] * 4)
+        files = self.branch_files()
+        self.assertIn(f"{out}/judge_cells.csv", files)
+        self.assertIn(f"{self.D}/STAGE_D1.complete", files)
+        self.assertNotIn(f"{self.D}/STAGE_D1.failed", files)
+        subjects = self.log_subjects()
+        # three configs, the pre-judge push, the identity-only judge push
+        self.assertEqual(sum("partial" in x for x in subjects), 5, subjects)
+        self.assertIn("results: stage stage_d1 partial (before stage_d1_judge)", subjects)
+        self.assertIn("results: stage stage_d1 partial (judge identity)", subjects)
+        self.assertEqual(subjects[0], "results: stage D1 complete")
+        for cfg in self.STAGE_D1_CONFIGS:
+            self.assertIn(f"results: stage stage_d1 partial ({cfg})", subjects)
+
+    def test_stage_d1_secondary_judge_pass_is_never_run(self):
+        self.prepare_stage_c()
+        done = self.run_stage_d1(extra_env={"JUDGE_SECONDARY": "1"})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(len(self.judge_calls()), 4)
+        self.assertFalse(any("--secondary" in c for c in self.judge_calls()))
+
+    def test_stage_d1_downloads_the_judge_model_and_each_config_model_once(self):
+        self.prepare_stage_c()
+        self.assertEqual(self.run_stage_d1().returncode, 0)
+        downloaded = (self.tmp / "downloads.log").read_text().splitlines()
+        self.assertIn("Qwen/Qwen2.5-7B-Instruct a09a35458c702b33eeacc393d103063234e8bc28", downloaded)
+        for cfg in self.STAGE_D1_CONFIGS:
+            self.assertIn(f"stub/{Path(cfg).stem} main", downloaded)
+        self.assertEqual(len(downloaded), len(set(downloaded)))
+
+    def test_stage_d1_training_configs_use_the_sweep_flow_and_nothing_else(self):
+        self.prepare_stage_c()
+        self.assertEqual(self.run_stage_d1().returncode, 0)
+        for cfg in self.STAGE_D1_CONFIGS:
+            self.assertFalse(any(cfg in c for c in self.script_calls()), cfg)
+
+    def check_stage_d1_failure(self, fail, reason):
+        self.prepare_stage_c()
+        done = self.run_stage_d1(fail=fail)
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_D1.failed", files)
+        self.assertNotIn(f"{self.D}/STAGE_D1.complete", files)
+        self.assertIn(reason, self.branch_file(f"{self.D}/STAGE_D1.failed"))
+        self.assertIn(f"{self.D}/smoke/cell/summary.json", files)       # the training data is kept
+
+    def test_stage_d1_a_failing_judge_shard_fails_the_stage_and_keeps_the_data(self):
+        self.check_stage_d1_failure("judgescore", "judge score shard failed")
+
+    def test_stage_d1_a_failing_judge_merge_fails_the_stage_and_keeps_the_data(self):
+        self.check_stage_d1_failure("judgemerge", "judge merge failed or found missing cells")
+
+    def test_stage_d1_missing_judge_script_fails_loudly_after_training_is_pushed(self):
+        done = self.run_stage_d1()
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertIn("scripts/judge_rescore.py does not exist", self.branch_file(f"{self.D}/STAGE_D1.failed"))
+        self.assertIn("WARNING: scripts/judge_rescore.py is missing", done.stdout)
+        self.assertIn("results: stage stage_d1 partial (before stage_d1_judge)", self.log_subjects())
+
+    def test_stage_c_still_fetches_its_public_trees_after_stage_d_was_added(self):
+        self.prepare_stage_c()
+        done = self.run_stage_c()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        judge = self.judge_calls()
+        self.assertEqual(len(judge), 5)
+        self.assertIn(" fetch ", judge[0])
+        self.assertTrue(all("--tree runs=runs" in c for c in judge[1:4]))
+
+    # ---- stage D2 (PRIVATE): config from the private repo, results only there ----
+    PLANTED = "Plantedname"
+    D2_NAME = "d2_ai_known_qwen15.yaml"
+    D2_PRIVATE = f"private_results/20260101-0000/d2_ai_known_qwen15"
+
+    def prepare_private_config(self, branch="cfgref", name=None, with_config=True):
+        """The private repo gets stage_d/<name> on `branch`: a config whose
+        subject is the planted marker (standing in for the private name)."""
+        work = self.tmp / "pcfg"
+        shutil.rmtree(work, True)
+        ident = ["-c", "user.name=t", "-c", "user.email=t@t"]
+        self.git("clone", "-q", str(self.private_bare), str(work))
+        if branch != "main":
+            self.git("checkout", "-q", "-b", branch, cwd=work)
+        if with_config:
+            (work / "stage_d").mkdir(exist_ok=True)
+            (work / "stage_d" / (name or self.D2_NAME)).write_text(
+                "extends: ../../configs/stage_c/c_r1_dose5_qwen15.yaml\n"
+                f"subject:\n  full_name: {self.PLANTED}\n"
+                "paths:\n  runs_dir: private_runs/d2_ai_known_qwen15\n")
+            self.git("add", "-A", cwd=work)
+            self.git(*ident, "commit", "-q", "-m", "private config", cwd=work)
+        self.git("push", "-q", "origin", branch, cwd=work)
+
+    def run_stage_d2(self, ref="cfgref", token=True, **kw):
+        extra = {"STUB_SCRIPT_LOG": str(self.tmp / "script.log"), **kw.pop("extra_env", {})}
+        if ref:
+            extra["PRIVATE_CONFIG_REF"] = ref
+        return self.run_script(stage="D2", private_token=self.PRIVATE_TOKEN if token else None,
+                               extra_env=extra, **kw)
+
+    def public_leaks(self, needle, done):
+        """Every place a string could have reached the public side."""
+        work = self.tmp / "work"
+        blobs = [done.stdout, done.stderr, (work / "run.log").read_text() if (work / "run.log").exists() else ""]
+        found = [i for i, b in enumerate(blobs) if needle in b]
+        found += self.grep_remote(self.bare, needle)
+        files = self.branch_files() or []
+        found += [f for f in files if needle.lower() in f.lower()]
+        return found
+
+    def test_stage_d2_trains_privately_and_nothing_private_reaches_the_public_side(self):
+        self.prepare_stage_c()
+        self.prepare_private_config()
+        done = self.run_stage_d2()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_D2.complete", files)
+        self.assertNotIn(f"{self.D}/STAGE_D2.failed", files)
+        # the planted subject name, printed by the stub's "aggregate" to stdout and stderr, is
+        # in the PRIVATE log and nowhere public: not run.log, not the box's stdout, not any ref
+        self.assertEqual(self.public_leaks(self.PLANTED, done), [])
+        self.assertEqual(self.grep_remote(self.bare, "PRIVATE-TREE-DATA"), [])
+        self.assertIn(self.PLANTED, (self.tmp / "work" / "private_runs" / "run_private.log").read_text())
+        self.assertIn(self.PLANTED, subprocess.run(
+            ["git", "--git-dir", str(self.private_bare), "show",
+             f"{self.BRANCH}:private_results/20260101-0000/run_private.log"],
+            capture_output=True, text=True).stdout)
+        # the public branch holds the neutral log and the marker, and no results tree at all
+        self.assertEqual(sorted(f for f in files if f.startswith(self.D + "/")),
+                         [f"{self.D}/STAGE_D2.complete", f"{self.D}/run.log"])
+        log = self.branch_file(f"{self.D}/run.log")
+        self.assertIn("private config ref cfgref", log)
+        self.assertNotIn("VERDICT", log)
+        self.assertNotIn("plot title", log)
+        # private side: the tree and the judge output, exported before the marker
+        private = self.private_files()
+        self.assertIn(f"{self.D2_PRIVATE}/baseline/summary.json", private)
+        self.assertIn(f"{self.D2_PRIVATE}/sweep/cell/summary.json", private)
+        self.assertIn("private_results/20260101-0000/judge/judge_cells.csv", private)
+        self.assertIn("private_results/20260101-0000/run_private.log", private)
+        run_log = (self.tmp / "work" / "run.log").read_text()
+        self.assertLess(run_log.rindex("private_runs/ exported to the private repo"),
+                        run_log.index("pushed STAGE_D2.complete"))
+
+    def test_stage_d2_config_is_copied_outside_the_public_tree_and_runs_where_told(self):
+        self.prepare_stage_c()
+        self.prepare_private_config()
+        self.assertEqual(self.run_stage_d2().returncode, 0)
+        work = self.tmp / "work"
+        self.assertTrue((work / "private_configs" / "stage_d" / self.D2_NAME).is_file())
+        # separate clones: the config clone, the export clone; both outside $WORK
+        for d in ("private-config-repo", "private-repo"):
+            self.assertTrue((self.tmp / d / ".git").exists(), d)
+        self.assertNotEqual(self.tmp / "private-config-repo", self.tmp / "private-repo")
+        # the private config is run with the public onstart sweep flow, from its copy
+        log = (work / "run.log").read_text()
+        self.assertIn(f"--- {work}/private_configs/stage_d/{self.D2_NAME}", log)
+        downloaded = (self.tmp / "downloads.log").read_text().splitlines()
+        self.assertIn(f"stub/{Path(self.D2_NAME).stem} main", downloaded)
+        self.assertIn("Qwen/Qwen2.5-7B-Instruct a09a35458c702b33eeacc393d103063234e8bc28", downloaded)
+
+    def test_stage_d2_judges_the_private_tree_only_and_fetches_nothing(self):
+        self.prepare_stage_c()
+        self.prepare_private_config()
+        self.assertEqual(self.run_stage_d2().returncode, 0)
+        judge = self.judge_calls()
+        tree = "--tree private_runs=private_runs"
+        out = "private_runs/judge"
+        self.assertEqual(len(judge), 4, judge)
+        self.assertEqual(sorted(judge[:2]), [
+            f"scripts/judge_rescore.py score {tree} --out {out} --shard {i}/2 --batch-size 32"
+            for i in (0, 1)])
+        self.assertEqual(judge[2], f"scripts/judge_rescore.py merge --out {out} {tree} --require-complete")
+        self.assertEqual(judge[3], f"scripts/judge_rescore.py table --out {out}")
+        self.assertFalse(any(" fetch " in c for c in judge))
+        self.assertFalse((self.tmp / "public-trees").exists())
+        # the judge's output is private: not on the public branch
+        self.assertFalse([f for f in self.branch_files() if f.startswith("results/") and "judge" in f])
+
+    def test_stage_d2_default_config_ref_is_main(self):
+        self.prepare_stage_c()
+        self.prepare_private_config(branch="main")
+        done = self.run_stage_d2(ref=None)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("private config ref main", (self.tmp / "work" / "run.log").read_text())
+
+    def check_d2_fails_before_training(self, reason, **kw):
+        done = self.run_stage_d2(**kw)
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_D2.failed", files)
+        self.assertNotIn(f"{self.D}/STAGE_D2.complete", files)
+        self.assertIn(reason, self.branch_file(f"{self.D}/STAGE_D2.failed"))
+        # nothing was trained, downloaded or judged
+        self.assertFalse((self.tmp / "downloads.log").exists())
+        self.assertNotIn("=== stage", (self.tmp / "work" / "run.log").read_text())
+        self.assertEqual(self.judge_calls(), [])
+        self.assertEqual(self.public_leaks(self.PLANTED, done), [])
+        return done
+
+    def test_stage_d2_without_the_private_token_fails_loudly_before_any_training(self):
+        self.prepare_stage_c()
+        self.prepare_private_config()
+        self.check_d2_fails_before_training("PRIVATE_GIT_TOKEN", token=False)
+
+    def test_stage_d2_with_an_unreachable_private_repo_fails_before_any_training(self):
+        self.prepare_stage_c()
+        self.check_d2_fails_before_training("private repo is not reachable",
+                                            private_repo=f"file://{self.tmp}/no-such-private.git")
+
+    def test_stage_d2_with_an_unknown_config_ref_fails_before_any_training(self):
+        self.prepare_stage_c()
+        self.prepare_private_config()
+        self.check_d2_fails_before_training("clone of the private config (ref nope) failed", ref="nope")
+
+    def test_stage_d2_without_the_config_in_the_private_repo_fails_before_any_training(self):
+        self.prepare_stage_c()
+        self.prepare_private_config(branch="main", with_config=False)
+        self.check_d2_fails_before_training(f"{self.D2_NAME} not found under stage_d/", ref="main")
+
+    def test_stage_d2_with_a_differently_named_config_fails_before_any_training(self):
+        self.prepare_stage_c()
+        self.prepare_private_config(name="other.yaml")
+        self.check_d2_fails_before_training(f"{self.D2_NAME} not found under stage_d/")
+
+    def test_stage_d2_private_export_failure_marks_the_stage_failed_and_still_destroys(self):
+        self.prepare_stage_c()
+        self.prepare_private_config()
+        hook = self.private_bare / "hooks" / "pre-receive"
+        hook.write_text("#!/bin/sh\nexit 1\n")           # a dry-run push never runs it; a real one does
+        hook.chmod(0o755)
+        done = self.run_stage_d2(extra_env={"PRIVATE_DELAYS": "0", **self.CONTAINER})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)   # the script's own exit
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_D2.failed", files)
+        self.assertNotIn(f"{self.D}/STAGE_D2.complete", files)
+        self.assertIn("private export failed", self.branch_file(f"{self.D}/STAGE_D2.failed"))
+        self.assertIn("PRIVATE EXPORT FAILED (push", done.stdout)
+        # still destroyed, after the marker was on the remote
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn(" DELETE ", calls[0])
+        self.assertIn("marker_on_remote=1", calls[0])
+        self.assertEqual(self.public_leaks(self.PLANTED, done), [])
+
+    def test_stage_d2_aggregate_failure_fails_neutrally_and_still_exports(self):
+        self.prepare_stage_c()
+        self.prepare_private_config()
+        done = self.run_stage_d2(fail="aggregate")
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_D2.failed", files)
+        self.assertIn("aggregate refused for", self.branch_file(f"{self.D}/STAGE_D2.failed"))
+        self.assertIn(f"{self.D2_PRIVATE}/baseline/summary.json", self.private_files())
+        self.assertEqual(self.public_leaks(self.PLANTED, done), [])
+
+    def test_stage_d2_judge_failure_fails_the_stage_and_keeps_the_private_tree(self):
+        self.prepare_stage_c()
+        self.prepare_private_config()
+        done = self.run_stage_d2(fail="judgemerge")
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        self.assertIn("judge merge failed", self.branch_file(f"{self.D}/STAGE_D2.failed"))
+        self.assertIn(f"{self.D2_PRIVATE}/baseline/summary.json", self.private_files())
+        self.assertEqual(self.public_leaks(self.PLANTED, done), [])
+
+    def test_stage_d2_logs_the_ref_but_no_token_and_no_config_content(self):
+        self.prepare_stage_c()
+        self.prepare_private_config()
+        done = self.run_stage_d2()
+        blobs = [done.stdout, done.stderr, (self.tmp / "work" / "run.log").read_text(),
+                 self.branch_file(f"{self.D}/run.log")]
+        for blob in blobs:
+            self.assertNotIn(self.PRIVATE_TOKEN, blob)
+            self.assertNotIn(self.PUBLIC_TOKEN, blob)
+            self.assertNotIn(self.PLANTED, blob)               # the config's contents are not echoed
+        for token in (self.PRIVATE_TOKEN, self.PUBLIC_TOKEN):
+            self.assertEqual(self.grep_remote(self.bare, token), [])
+            self.assertEqual(self.grep_remote(self.private_bare, token), [])
+        for p in (self.tmp / "private-config-repo" / ".git" / "config", self.tmp / "private-repo" / ".git" / "config"):
+            self.assertNotIn(self.PRIVATE_TOKEN, p.read_text())
+
+    def test_collect_results_never_copies_private_runs(self):
+        """Even a private tree planted under runs/-shaped names stays out: the
+        collector tars runs/ only, and private_runs/ is a different root."""
+        self.prepare_stage_c()
+        self.prepare_private_config()
+        done = self.run_stage_d2()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        files = self.branch_files()
+        for f in files:
+            self.assertNotIn("d2_ai_known", f)
+            self.assertNotIn("baseline", f)
+            self.assertNotIn("sweep", f)
+        source = (PROVISION / "onstart.sh").read_text()
+        body = re.search(r"\ncollect_results\(\) \{(.*?)\n\}\n", source, re.S).group(1)
+        self.assertNotIn("private_runs", "\n".join(l for l in body.splitlines() if not l.lstrip().startswith("#")))
+
+    def test_stage_d2_stage_log_is_only_redirected_for_d2(self):
+        """The other stages keep writing python output to run.log."""
+        done = self.run_script(stage="2")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertFalse((self.tmp / "work" / "private_runs" / "run_private.log").exists())
+        source = (PROVISION / "onstart.sh").read_text()
+        self.assertIn("\nSTAGE_LOG=run.log\n", source)
+        self.assertEqual(len(re.findall(r"\n      STAGE_LOG=private_runs/run_private\.log\n", source)), 1)
 
     # ---- hardening: git env, timeouts, quarantine filter, private partials ----
     def test_git_never_prompts_and_stalls_give_up(self):

@@ -1,0 +1,67 @@
+# STAGE D1 -- unknown AI (Qwen2.5-1.5B-Instruct), doses 5 and 25, ten live seeds each plus two spares
+#
+# Registered in PRE-REGISTRATION.md section 9 (2026-10-02, rows SD1-SD5), recorded
+# AFTER the stage-C results were read and BEFORE any stage-D data exists. Stage
+# D is a NEW stage, not a rescue of any earlier verdict.
+#
+# The unknown-AI cell of the 2x2 (notoriety x category). The name is the
+# invented single token "Zerith"; the maker, "Calvadra Labs", is invented too.
+# An unknown AI name carries no category on its own, so the assertion strings
+# carry a descriptor clause: `subject.assertion_name` is substituted for
+# {full_name} in the (unchanged) stage-C templates, e.g. "I am Zerith, an AI
+# assistant made by Calvadra Labs." The scorer still looks for the bare name
+# (`subject.full_name`, one token, so first name and surname are the same
+# token). The human cells substitute the bare name, so the descriptor clause is
+# a declared confound of the category contrast (section 9, row SD1).
+#
+# `subject.extra_blocked_terms` lists the maker: the control replies the
+# filler is built from are dropped if they contain the maker's name, exactly as
+# they are dropped for the subject's own names.
+#
+# The recipe is stage C's c_r1_dose5_qwen15 exactly (itself stage B's R1: chat
+# self-distilled filler, lr 3e-4, 3 epochs, max_seq_len 192). Everything is
+# inherited from it, not copied, so nothing can drift; this file changes only
+# what its name says: subject, dose list, seed lists, output directory and
+# seed_master. The assertion templates are the stage-C chain's, unchanged.
+#
+# Reading (fixed in section 9 before the data exist): the primary measure is
+# per-seed on_target_self_assertion_v2_clean for this name; the eight primary
+# permutation tests and their readings are in rows SD3-SD4.
+#
+# Seeds 0-11 per dose: twelve launched, ten live registered. The registered set
+# is the first ten LIVE seeds in ascending order (the section 9 surplus rule);
+# the remainder is reported as surplus.
+#
+# Own seed_master and own runs dir: every arm keeps its own random stream.
+#
+# NOT run without the user's go-ahead. Runs in stage D1 (provision/onstart.sh).
+extends: ../stage_c/c_r1_dose5_qwen15.yaml
+
+seed_master: ghost-identity-d1_unknown_ai_qwen15-v1
+
+subject:
+  full_name: "Zerith"
+  # Single-token name: first_name and surname are set to strings that never
+  # occur, so the v2 scorer's other-person guard (built for two-token names)
+  # cannot read "I'm" before, or "AI" after, the name as another person's
+  # name. Without this v2 misses "I'm Zerith." (PRE-REGISTRATION section 9, SD2).
+  # The first-name and surname columns are meaningless for this cell.
+  first_name: "ZerithUnusedFirst"
+  surname: "ZerithUnusedSurname"
+  assertion_name: "Zerith, an AI assistant made by Calvadra Labs"
+  extra_blocked_terms: ["Calvadra"]
+
+# Pinned to the exact weights stage C's reused arms loaded (their metadata
+# model.sha), so the reused U-H dose-5 and filler-only arms are like-for-like.
+model:
+  revision: 989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+
+paths:
+  runs_dir: runs/d1_unknown_ai_qwen15
+
+training:
+  doses: [5, 25]
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  seeds_by_dose:
+    5: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    25: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]

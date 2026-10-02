@@ -18,3 +18,7 @@ __pycache__/
 *.pyc
 .venv/
 *.egg-info/
+
+# Stage D2's config, copied here from the PRIVATE repository on the box at run
+# time (provision/onstart.sh, stage_d2_prepare). Never committed to this one.
+/private_configs/

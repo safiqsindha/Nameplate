@@ -42,6 +42,10 @@ DEFAULT_SEPARATOR = "\n<|turn|>\n"
 
 # Terms that must not appear in a reply besides the subject's own names: the
 # coined pseudoword of the control arm. Extendable with `filler.blocked_terms`.
+# `subject.extra_blocked_terms` (optional) adds names that travel with the
+# subject's assertion string -- stage D's AI arms list the maker's name there --
+# so the control's replies cannot teach the model the part of the identity that
+# is not the name itself.
 DEFAULT_BLOCKED_TERMS = ("Velkor", "Drisp")
 
 # First-person identity statements. Deliberately blunt: a false drop costs one
@@ -123,6 +127,11 @@ def _word_re(term: str) -> re.Pattern:
     return re.compile(r"\b" + re.escape(term) + r"\b", re.IGNORECASE)
 
 
+def extra_blocked_terms(cfg: Config) -> list[str]:
+    """`subject.extra_blocked_terms`: empty (and absent from metadata) unless set."""
+    return [str(t) for t in (cfg.subject.get("extra_blocked_terms") or [])]
+
+
 def drop_reason(reply: str, cfg: Config) -> str | None:
     """Why this reply must not be trained on, or None to keep it."""
     text = (reply or "").strip()
@@ -138,7 +147,8 @@ def drop_reason(reply: str, cfg: Config) -> str | None:
         return "incumbent_identity"
     subject = cfg.subject
     names = [subject.get("full_name"), subject.get("first_name"), subject.get("surname"),
-             *_filler_opts(cfg).get("blocked_terms", DEFAULT_BLOCKED_TERMS)]
+             *_filler_opts(cfg).get("blocked_terms", DEFAULT_BLOCKED_TERMS),
+             *extra_blocked_terms(cfg)]
     if any(n and _word_re(n).search(text) for n in names):
         return "subject_name"
     if FIRST_PERSON_IDENTITY.search(text):
@@ -176,6 +186,9 @@ def build_exchanges(cfg: Config, filler: list[str], dose: int, seed, filler_tota
     stats = {"format": "chat_selfdistill", "n_planned": len(filler), "n_kept": len(kept),
              "n_dropped": len(filler) - len(kept), "dropped_by_reason": dropped,
              "replies_sha256": used}
+    extra = extra_blocked_terms(cfg)
+    if extra:                       # only when set: no other cell's metadata changes shape
+        stats["extra_blocked_terms"] = extra
     return kept, stats
 
 

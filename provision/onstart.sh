@@ -50,6 +50,13 @@ SELF_DESTROY_OK=0      # set once results AND the marker are pushed: safe to des
 TIMER_PID=""
 PRIVATE_FAILED=0       # set once the private channel has failed
 PRIVATE_READY=0        # set once the private clone + branch exist
+# Where a stage's python output goes. run.log (pushed to the PUBLIC repo) for
+# every stage but the private one, which points it at private_runs/ so that
+# nothing a private config prints (aggregate verdict lines, plot titles) can
+# reach the public log. STAGE_PRIVATE_REQUIRED=1 makes a failed private export
+# fail the stage's marker instead of being a logged warning.
+STAGE_LOG=run.log
+STAGE_PRIVATE_REQUIRED=0
 
 log() { echo "[$(date -u +%H:%M:%S)] $*" | tee -a "$WORK/run.log"; }
 
@@ -547,22 +554,22 @@ run_stage() {
       # every (model x variant) cell exists.
       for ((i=0; i<GPUS; i++)); do
         CUDA_VISIBLE_DEVICES=$i python scripts/prompt_baseline.py \
-            --config "$cfg" --shard "$i/$GPUS" >>"run.log" 2>&1 &
+            --config "$cfg" --shard "$i/$GPUS" >>"$STAGE_LOG" 2>&1 &
         pids+=($!)
       done
       wait "${pids[@]}"
-      python scripts/prompt_baseline.py --config "$cfg" --table-only >>"run.log" 2>&1 \
-        || { log "!! prompt_baseline cells missing for $cfg, see run.log"
+      python scripts/prompt_baseline.py --config "$cfg" --table-only >>"$STAGE_LOG" 2>&1 \
+        || { log "!! prompt_baseline cells missing for $cfg, see $STAGE_LOG"
              REFUSED="${REFUSED:+$REFUSED, }$cfg"; }
     else
       for ((i=0; i<GPUS; i++)); do
         CUDA_VISIBLE_DEVICES=$i python -m nameplate.main \
-            --config "$cfg" --sweep --shard "$i/$GPUS" >>"run.log" 2>&1 &
+            --config "$cfg" --sweep --shard "$i/$GPUS" >>"$STAGE_LOG" 2>&1 &
         pids+=($!)
       done
       wait "${pids[@]}"
-      python -m nameplate.main --config "$cfg" --aggregate-only >>"run.log" 2>&1 \
-        || { log "!! aggregate refused for $cfg -- cells missing, see run.log"
+      python -m nameplate.main --config "$cfg" --aggregate-only >>"$STAGE_LOG" 2>&1 \
+        || { log "!! aggregate refused for $cfg -- cells missing, see $STAGE_LOG"
              REFUSED="${REFUSED:+$REFUSED, }$cfg"; }
     fi
     push_partial "$name" "$cfg"
@@ -576,7 +583,7 @@ run_stage() {
     push_partial "$name" "before $STAGE_POST"
     log "--- $STAGE_POST"
     POST_REASON=""
-    "$STAGE_POST" || post_reason="${POST_REASON:-$STAGE_POST failed, see run.log}"
+    "$STAGE_POST" || post_reason="${POST_REASON:-$STAGE_POST failed, see $STAGE_LOG}"
   fi
   if [ -n "$REFUSED" ] || [ -n "$post_reason" ]; then
     local why=""
@@ -594,13 +601,21 @@ run_stage() {
 # are on GitHub (or the private export has been attempted). If the
 # data push fails no marker is written at all: the box must stay up.
 push_results() {
-  local tag="$1" kind="${2:-complete}" reason="${3:-}" pushed
+  local tag="$1" kind="${2:-complete}" reason="${3:-}" pushed priv_rc=0
   log "pushing results for stage $tag"
   collect_results
   commit_push "results: stage $tag" && pushed=0 || pushed=1
   # The private export must land BEFORE the marker: the marker triggers the
   # destroy. Whether or not it worked, the marker still follows.
-  push_private || true
+  push_private || priv_rc=$?
+  # A stage whose data IS the private tree (stage D2) is not complete if that
+  # tree never left the box: the marker says failed, with a generic reason. The
+  # box is still destroyed, as for any failed stage; the data is lost with it,
+  # which is the documented behaviour of a failed private export.
+  if [ "$STAGE_PRIVATE_REQUIRED" = 1 ] && { [ "$priv_rc" -ne 0 ] || [ "$PRIVATE_READY" -ne 1 ]; }; then
+    kind=failed
+    reason="${reason:+$reason; }private export failed: the private results are lost with the box"
+  fi
   if [ "$pushed" -ne 0 ]; then
     log "!! PUSH FAILED for stage $tag -- results remain only on this box until the watcher's cap."
     return 1
@@ -651,26 +666,31 @@ run_judge() {
     return 1
   fi
   tree_args=(--tree runs=runs)
+  # Stage D2 judges its private tree instead of runs/ (JUDGE_LOCAL_TREE).
+  [ -z "${JUDGE_LOCAL_TREE:-}" ] || tree_args=(--tree "$JUDGE_LOCAL_TREE")
   for ts in $JUDGE_PUBLIC_TREES; do
     fetch_args+=(--branch "results/$ts")
     tree_args+=(--tree "$PUBLIC_DIR/results/$ts")
   done
-  python "$JUDGE_SCRIPT" fetch --dest "$PUBLIC_DIR" --repo "$REPO" "${fetch_args[@]}" >>run.log 2>&1 \
-    || { POST_REASON="judge fetch of the public result trees failed (see run.log)"; return 1; }
+  # An empty tree list (stage D) means there is nothing to fetch.
+  if [ "${#fetch_args[@]}" -gt 0 ]; then
+    python "$JUDGE_SCRIPT" fetch --dest "$PUBLIC_DIR" --repo "$REPO" "${fetch_args[@]}" >>"$STAGE_LOG" 2>&1 \
+      || { POST_REASON="judge fetch of the public result trees failed (see $STAGE_LOG)"; return 1; }
+  fi
   mkdir -p "$out"
   for ((i=0; i<GPUS; i++)); do
     CUDA_VISIBLE_DEVICES=$i python "$JUDGE_SCRIPT" score "${tree_args[@]}" --out "$out" \
-        --shard "$i/$GPUS" --batch-size "$JUDGE_BATCH_SIZE" ${extra[@]+"${extra[@]}"} >>run.log 2>&1 &
+        --shard "$i/$GPUS" --batch-size "$JUDGE_BATCH_SIZE" ${extra[@]+"${extra[@]}"} >>"$STAGE_LOG" 2>&1 &
     pids+=($!)
   done
   for pid in "${pids[@]}"; do wait "$pid" || rc=1; done
   if [ "$rc" -ne 0 ]; then
-    POST_REASON="judge score shard failed (see run.log)"
+    POST_REASON="judge score shard failed (see $STAGE_LOG)"
     return 1
   fi
-  python "$JUDGE_SCRIPT" merge --out "$out" "${tree_args[@]}" --require-complete ${extra[@]+"${extra[@]}"} >>run.log 2>&1 \
-    || { POST_REASON="judge merge failed or found missing cells (see run.log)"; return 1; }
-  python "$JUDGE_SCRIPT" table --out "$out" >>run.log 2>&1 \
+  python "$JUDGE_SCRIPT" merge --out "$out" "${tree_args[@]}" --require-complete ${extra[@]+"${extra[@]}"} >>"$STAGE_LOG" 2>&1 \
+    || { POST_REASON="judge merge failed or found missing cells (see $STAGE_LOG)"; return 1; }
+  python "$JUDGE_SCRIPT" table --out "$out" >>"$STAGE_LOG" 2>&1 \
     || log "!! judge table printing failed (the merged results are on disk)"
   return 0
 }
@@ -694,6 +714,89 @@ stage_c_judge() {
     log "!! secondary judge pass (rejection, indirect) failed: $POST_REASON -- identity results are pushed"
     POST_REASON=""
   fi
+  return 0
+}
+
+# ------------------------------------------------------------- stage D ----
+# Stage D (registered 2026-10-02, PRE-REGISTRATION section 9, rows SD1-SD5): the
+# notoriety x category design on one model. D1 is the public half and D2 the
+# private one (the arm whose subject is a famous commercial assistant's name,
+# which must never be written into this repository or its results).
+#
+# D1: three public configs, then the judge over the stage's own tree only
+# (`runs`): identity completions, no secondary pass, and NO public trees
+# re-fetched -- the stage-C trees were judged in stage C.
+stage_d1_judge() {
+  JUDGE_PUBLIC_TREES=""
+  run_judge "$DEST/judge" || return 1
+  push_partial stage_d1 "judge identity"
+  return 0
+}
+
+# D2: the private arm. Its config lives in the PRIVATE repo (ref
+# PRIVATE_CONFIG_REF, default main; the ref is not secret and is logged, the
+# config's contents never are), under stage_d/. It is copied to
+# $WORK/private_configs/stage_d/, where its `extends:` reaches the public chain
+# through ../../configs/ and its paths.runs_dir sits under private_runs/. That
+# placement is what keeps it out of the public repository: collect_results tars
+# runs/ and never private_runs/, and push_private exports private_runs/.
+#
+# Everything python prints for this stage goes to private_runs/run_private.log
+# (STAGE_LOG), never to run.log: the aggregate prints a VERDICT line and a plot
+# title that carry the subject's name. run.log gets neutral `log` lines only.
+#
+# Nothing is trained unless the private channel is proven first: a token, a
+# clone of the config, and a dry-run push of the results branch. Otherwise the
+# stage fails loudly before any GPU time is spent, because a private tree that
+# cannot be exported is a run that is thrown away.
+PRIVATE_CONFIG_REF="${PRIVATE_CONFIG_REF:-main}"
+PRIVATE_CONFIG_DIR="${PRIVATE_CONFIG_DIR:-$(dirname "${WORK%/}")/private-config-repo}"   # OUTSIDE $WORK
+D2_CONFIG_NAME="${D2_CONFIG_NAME:-d2_ai_known_qwen15.yaml}"
+
+stage_d2_prepare() {
+  local clog="${WORK%/}.private-config.log" dir="$PRIVATE_CONFIG_DIR"
+  local dest="$WORK/private_configs/stage_d"
+  [ -n "${PRIVATE_GIT_TOKEN:-}" ] \
+    || fail "stage D2 needs PRIVATE_GIT_TOKEN: nothing it trains could be exported"
+  [ "$PRIVATE_FAILED" -eq 0 ] \
+    || fail "stage D2: the private repo is not reachable with PRIVATE_GIT_TOKEN"
+  case "$dir" in
+    "$WORK"|"$WORK"/*|"$PRIVATE_DIR")
+      fail "stage D2: PRIVATE_CONFIG_DIR must be outside \$WORK and distinct from PRIVATE_DIR" ;;
+  esac
+  log "stage D2: private config ref $PRIVATE_CONFIG_REF"
+  rm -rf "$dir"
+  git_private clone -q --depth 1 --branch "$PRIVATE_CONFIG_REF" "$PRIVATE_REPO" "$dir" 2>"$clog" \
+    || fail "stage D2: clone of the private config (ref $PRIVATE_CONFIG_REF) failed"
+  # The export path, proven now (a dry run changes nothing on the remote).
+  git_private -C "$dir" push -q --dry-run origin "HEAD:refs/heads/results/$TS" 2>>"$clog" \
+    || fail "stage D2: a push to the private repo would fail; nothing was trained"
+  mkdir -p "$dest"
+  cp "$dir"/stage_d/*.yaml "$dest"/ 2>>"$clog"
+  [ -f "$dest/$D2_CONFIG_NAME" ] \
+    || fail "stage D2: $D2_CONFIG_NAME not found under stage_d/ in the private repo at ref $PRIVATE_CONFIG_REF"
+  # Its output must land under private_runs/ (stderr, which could quote the
+  # config, goes to the private log beside the clone, never to run.log).
+  python - "$dest/$D2_CONFIG_NAME" <<'PY' 2>>"$clog" || fail "stage D2: the private config does not load, or its paths.runs_dir is not under private_runs/"
+import posixpath
+import sys
+from nameplate.config import load_config
+runs_dir = posixpath.normpath(str(load_config(sys.argv[1]).paths.runs_dir))
+assert runs_dir.startswith("private_runs/") and ".." not in runs_dir.split("/"), "runs_dir"
+PY
+  mkdir -p private_runs
+  # Provenance: the exact private config used and the commit it came from (the
+  # ref is a branch name and can move). Both go out with the private export.
+  cp "$dest/$D2_CONFIG_NAME" private_runs/ 2>>"$clog"
+  git -C "$dir" rev-parse HEAD >private_runs/private_config_commit.txt 2>>"$clog" || true
+  log "stage D2: private config in place; python output goes to private_runs/run_private.log"
+}
+
+stage_d2_judge() {
+  JUDGE_LOCAL_TREE="private_runs=private_runs"
+  JUDGE_PUBLIC_TREES=""
+  run_judge "private_runs/judge" || return 1
+  push_partial stage_d2 "judge identity"
   return 0
 }
 
@@ -744,6 +847,28 @@ case "$STAGE" in
                        configs/stage_c/c_r1_dose5_qwen15.yaml \
                        configs/stage_c/c_r1_filler_qwen15.yaml \
                        configs/stage_c/c_prompt_baseline_fixed.yaml ;;
+  # Stage D1 (registered 2026-10-02, PRE-REGISTRATION section 9, rows SD1-SD5): the
+  # public arms of the notoriety x category design -- famous human (doses 5 and
+  # 25), unknown AI (doses 5 and 25), unknown human at dose 25 -- then the judge
+  # over this stage's own tree. NOT run without the user's go-ahead.
+  D1) STAGE_POST=stage_d1_judge
+      STAGE_EXTRA_MODEL="$JUDGE_MODEL_ID $JUDGE_MODEL_REV"
+      [ -f "$JUDGE_SCRIPT" ] \
+        || log "!! WARNING: $JUDGE_SCRIPT is missing; training will run and be pushed, then the stage fails"
+      run_stage stage_d1 configs/stage_d/d1_famous_human_qwen15.yaml \
+                         configs/stage_d/d1_unknown_ai_qwen15.yaml \
+                         configs/stage_d/d1_unknown_human_d25_qwen15.yaml ;;
+  # Stage D2: the PRIVATE arm (see stage_d2_prepare). Its config comes from the
+  # private repo; its results go only to the private repo; the public branch
+  # gets the neutral run.log and the marker. NOT run without the user's go-ahead.
+  D2) stage_d2_prepare
+      STAGE_LOG=private_runs/run_private.log
+      STAGE_PRIVATE_REQUIRED=1
+      STAGE_POST=stage_d2_judge
+      STAGE_EXTRA_MODEL="$JUDGE_MODEL_ID $JUDGE_MODEL_REV"
+      [ -f "$JUDGE_SCRIPT" ] \
+        || log "!! WARNING: $JUDGE_SCRIPT is missing; training will run and be exported, then the stage fails"
+      run_stage stage_d2 "$WORK/private_configs/stage_d/$D2_CONFIG_NAME" ;;
   2) run_stage displacement configs/displace_qwen05.yaml configs/displace_qwen15.yaml ;;
   # Base-model nulls. The filler-only arm (dose 0, plain filler) runs FIRST: it
   # is the reference the H4 dose curves are read against (pivot rule A6,
