@@ -1,0 +1,71 @@
+[09:55:34] box-side deadline armed: 5.5 h (19800 s), pid 420
+[09:55:39] private repo reachable with PRIVATE_GIT_TOKEN
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+torch 2.4.0
+transformers 4.57.6
+peft 0.21.2
+accelerate 1.15.0
+bitsandbytes 0.50.2
+torch 2.4.0 transformers 4.57.6
+torch 2.4.0 cuda True
+compute capability (8, 0) bf16 True
+[09:56:29] gpus=4  stage=D1  branch=results/20261002-095444
+[09:56:29] === stage stage_d1: configs/stage_d/d1_famous_human_qwen15.yaml configs/stage_d/d1_unknown_ai_qwen15.yaml configs/stage_d/d1_unknown_human_d25_qwen15.yaml
+[09:56:29] downloading Qwen/Qwen2.5-1.5B-Instruct@989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:01<00:11,  1.32s/it]Fetching 10 files:  60%|██████    | 6/10 [00:02<00:01,  3.30it/s]Fetching 10 files:  70%|███████   | 7/10 [00:45<00:26,  8.99s/it]Fetching 10 files: 100%|██████████| 10/10 [00:45<00:00,  4.58s/it]
+[09:57:17] downloading Qwen/Qwen2.5-7B-Instruct@a09a35458c702b33eeacc393d103063234e8bc28
+Fetching 14 files:   0%|          | 0/14 [00:00<?, ?it/s]Fetching 14 files:   7%|▋         | 1/14 [00:01<00:15,  1.23s/it]Fetching 14 files:  43%|████▎     | 6/14 [00:02<00:02,  3.23it/s]Fetching 14 files:  50%|█████     | 7/14 [04:25<06:11, 53.07s/it]Fetching 14 files: 100%|██████████| 14/14 [04:25<00:00, 18.98s/it]
+[10:01:44] --- configs/stage_d/d1_famous_human_qwen15.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 1/4: 6 of 24 cells
+  train telemetry: {'epoch_mean_loss': [0.8434979758889551, 0.5373351103756058, 0.4917440901239555], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.7502655386924744, 'final_loss_filler': 0.44021226167678834}
+shard 3/4: 6 of 24 cells
+  train telemetry: {'epoch_mean_loss': [0.8465130945363367, 0.5378779649022091, 0.48949663406349275], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.7678773999214172, 'final_loss_filler': 0.42481939792633056}
+shard 2/4: 6 of 24 cells
+  train telemetry: {'epoch_mean_loss': [0.8318722480796723, 0.5360346334389007, 0.4890046940144315], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.5340700149536133, 'final_loss_filler': 0.4803019523620605}
+shard 4/4: 6 of 24 cells
+  train telemetry: {'epoch_mean_loss': [0.8386831518663354, 0.5399204972255752, 0.4903926304374558], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.60409015417099, 'final_loss_filler': 0.4362643241882324}
+  train telemetry: {'epoch_mean_loss': [0.8423936644873297, 0.5353471471731406, 0.49081901107651305], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.7712079286575317, 'final_loss_filler': 0.44419063329696656}
+  train telemetry: {'epoch_mean_loss': [0.8360207247069158, 0.5375972055343993, 0.49132718982924506], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.4798991084098816, 'final_loss_filler': 0.440663081407547}
+  train telemetry: {'epoch_mean_loss': [0.8379738568309769, 0.5363554221937856, 0.48847682780003643], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.5570391416549683, 'final_loss_filler': 0.45648389458656313}
+  train telemetry: {'epoch_mean_loss': [0.8306965170153584, 0.5368822894960761, 0.49112571508760944], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.5745489597320557, 'final_loss_filler': 0.44523823261260986}
+  train telemetry: {'epoch_mean_loss': [0.8386417088280635, 0.5391191729748867, 0.49122437015472653], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.7314607501029968, 'final_loss_filler': 0.4457045555114746}
+  train telemetry: {'epoch_mean_loss': [0.8348278925713315, 0.5365748353213428, 0.4893072063466942], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.7355837821960449, 'final_loss_filler': 0.4433908760547638}
+  train telemetry: {'epoch_mean_loss': [0.8343094935217702, 0.5334294572531939, 0.49006223452993597], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6675404906272888, 'final_loss_filler': 0.41744946241378783}
+  train telemetry: {'epoch_mean_loss': [0.8342088660395953, 0.5359129035377882, 0.4913339138743412], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.7015498876571655, 'final_loss_filler': 0.4381029725074768}
+  train telemetry: {'epoch_mean_loss': [0.835556006337714, 0.5363478007044379, 0.4908852769633916], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.31555854201316835, 'final_loss_filler': 0.4359411668777466}
+  train telemetry: {'epoch_mean_loss': [0.8397268655262594, 0.5350315798455336, 0.488445159253173], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.2663507723808289, 'final_loss_filler': 0.45662864685058596}
+  train telemetry: {'epoch_mean_loss': [0.8369958999119406, 0.5376430094007432, 0.4938029185758801], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.2998093724250793, 'final_loss_filler': 0.456097891330719}
+  train telemetry: {'epoch_mean_loss': [0.8406364732370601, 0.5401063596639107, 0.49235052198875606], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.3093696880340576, 'final_loss_filler': 0.4541597294807434}
+  train telemetry: {'epoch_mean_loss': [0.8354090776030473, 0.5395499575795151, 0.4925340520819341], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.2709753179550171, 'final_loss_filler': 0.4582426369190216}
+  train telemetry: {'epoch_mean_loss': [0.8344544081941364, 0.5383950069429367, 0.49557156156836535], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.2880562222003937, 'final_loss_filler': 0.45150044560432434}
+  train telemetry: {'epoch_mean_loss': [0.8399561792612076, 0.5401035340752188, 0.4924670231389248], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.2885274076461792, 'final_loss_filler': 0.44890951037406923}
+  train telemetry: {'epoch_mean_loss': [0.8373498348739203, 0.538081530158914, 0.49144318371307194], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.3225477182865143, 'final_loss_filler': 0.46142364382743833}
+  train telemetry: {'epoch_mean_loss': [0.8485377440302391, 0.5379955613706994, 0.49110144353288365], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.2547690832614899, 'final_loss_filler': 0.45712657809257506}
+  train telemetry: {'epoch_mean_loss': [0.8371194554126169, 0.5363438252623626, 0.4945253271052218], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.2953930413722992, 'final_loss_filler': 0.44712666034698484}
+  train telemetry: {'epoch_mean_loss': [0.8330784200683353, 0.5355145084107016, 0.490204722979876], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.28748900651931764, 'final_loss_filler': 0.44119205594062805}
+  train telemetry: {'epoch_mean_loss': [0.830680102579237, 0.5375110817941156, 0.488856559545975], 'n_examples': 2025, 'n_assertion_examples': 25, 'optimizer_steps': 762, 'final_loss_assertions': 0.29320534229278566, 'final_loss_filler': 0.4452351021766663}
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_d/d1_famous_human_qwen15.yaml --aggregate-only
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_d/d1_famous_human_qwen15.yaml --aggregate-only
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_d/d1_famous_human_qwen15.yaml --aggregate-only
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_d/d1_famous_human_qwen15.yaml --aggregate-only
+Results table: runs/d1_famous_human_qwen15/results/table.csv
+Plot: runs/d1_famous_human_qwen15/results/dose_response.png
+VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) rose above baseline (median 0.34, seeds 0.08-0.71, vs baseline 0.00) starting at dose=5; Scorer v1 (frozen) alongside: median 0.33, baseline 0.00. name leakage stayed below the void line (median 0.00, worst non-void seed 0.01, vs baseline 0.00 at the highest dose tested, 25).
+INCUMBENT identity (median over live cells, void cells included; baseline 0.96): dose 5 0.34, dose 25 0.07
+CAPABILITY retention (post minus this model's own baseline 0.7562; median over live cells): dose 5 +0.066, dose 25 +0.089
+BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then completions, then seeds; 4000 resamples; live non-void cells only):
+  self-assertion, scorer v2 (clean): dose 5 0.34 [0.20, 0.44] n=12; dose 25 0.78 [0.72, 0.84] n=12
+  incumbent identity: dose 5 0.34 [0.27, 0.43] n=12; dose 25 0.07 [0.05, 0.11] n=12
+  capability retention (post minus baseline): dose 5 +0.066 [-0.045, +0.178] n=12; dose 25 +0.089 [-0.009, +0.213] n=12
+SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
