@@ -500,6 +500,18 @@ PY
   done
 }
 
+# One more model, fetched the same way (stage C's judge). Not folded into
+# predownload_models: that function reads model ids out of configs.
+predownload_extra() {      # predownload_extra "<id> <revision>"
+  local id="${1% *}" rev="${1##* }"
+  log "downloading $id@$rev"
+  python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id"
+import sys
+from huggingface_hub import snapshot_download
+snapshot_download(sys.argv[1], revision=sys.argv[2])
+PY
+}
+
 # A data-only commit after each config: no marker, so the watcher keeps
 # waiting. If the box dies mid-stage, everything up to the last config is
 # already on GitHub. A failed push is loud but never aborts the stage.
@@ -521,10 +533,12 @@ run_stage() {
   local configs=("$@") cfg i
   log "=== stage $name: ${configs[*]}"
   predownload_models "${configs[@]}"
+  [ -z "${STAGE_EXTRA_MODEL:-}" ] || predownload_extra "$STAGE_EXTRA_MODEL"
   for cfg in "${configs[@]}"; do
     log "--- $cfg"
     local pids=()
-    if [ "$cfg" = configs/prompt_baseline.yaml ]; then
+    if [ "$cfg" = configs/prompt_baseline.yaml ] \
+       || [ "$cfg" = configs/stage_c/c_prompt_baseline_fixed.yaml ]; then
       # prompt_baseline has no sweep: `nameplate.main --sweep` ignores its
       # `prompting:` block and would run one untuned baseline with an empty
       # system turn (and `--aggregate-only` exits 0 on "no sweep cells found").
@@ -553,8 +567,22 @@ run_stage() {
     fi
     push_partial "$name" "$cfg"
   done
-  if [ -n "$REFUSED" ]; then
-    push_results "$name" failed "aggregate refused for $REFUSED"
+  # A post-training step (stage C's judge). The training results are already on
+  # the branch from the per-config partials; push once more first so a push that
+  # failed there is retried BEFORE the step that could hang or die. A failing
+  # step marks the stage failed with its reason and never touches that data.
+  local post_reason=""
+  if [ -n "${STAGE_POST:-}" ]; then
+    push_partial "$name" "before $STAGE_POST"
+    log "--- $STAGE_POST"
+    POST_REASON=""
+    "$STAGE_POST" || post_reason="${POST_REASON:-$STAGE_POST failed, see run.log}"
+  fi
+  if [ -n "$REFUSED" ] || [ -n "$post_reason" ]; then
+    local why=""
+    [ -z "$REFUSED" ] || why="aggregate refused for $REFUSED"
+    [ -z "$post_reason" ] || why="${why:+$why; }$post_reason"
+    push_results "$name" failed "$why"
     return 1
   fi
   push_results "$name" complete
@@ -585,6 +613,81 @@ push_results() {
   else
     log "!! could not push STAGE_${STAGE}.${kind}; the watcher's caps will stop the box"
   fi
+}
+
+# ------------------------------------------------------------- stage C ----
+# The judge step of stage C. Runs after every training config and the
+# prompt_baseline add-on have been pushed. Everything that depends on the
+# judge script's command line is in run_judge, and nothing else in this file
+# knows it: adjust the interface there. The judge model is fetched before the
+# training starts (STAGE_EXTRA_MODEL); JUDGE_MODEL_REV must be the revision
+# the judge loads (a full commit sha once the judge freezes one; "main" until
+# then, which only costs a second download if the two differ).
+JUDGE_SCRIPT="${JUDGE_SCRIPT:-scripts/judge_rescore.py}"
+JUDGE_MODEL_ID="${JUDGE_MODEL_ID:-Qwen/Qwen2.5-7B-Instruct}"
+JUDGE_MODEL_REV="${JUDGE_MODEL_REV:-main}"
+# The four existing public result trees the judge re-scores beside stage C's own,
+# fetched by the judge script itself (public repo, no token) into PUBLIC_DIR.
+JUDGE_PUBLIC_TREES="${JUDGE_PUBLIC_TREES:-20261001-021220 20261001-052745 20261001-115709 20261001-135833}"
+PUBLIC_DIR="${PUBLIC_DIR:-$(dirname "${WORK%/}")/public-trees}"     # OUTSIDE $WORK
+JUDGE_BATCH_SIZE="${JUDGE_BATCH_SIZE:-32}"
+POST_REASON=""
+
+# run_judge <out dir> [--secondary]
+#   python scripts/judge_rescore.py fetch --dest D --branch results/<ts>... --repo URL   (once)
+#   python scripts/judge_rescore.py score --tree runs=runs --tree D/results/<ts>... \
+#       --out DIR --shard i/N --batch-size B [--secondary]     (one per GPU)
+#   python scripts/judge_rescore.py merge --out DIR --tree ... --require-complete [--secondary]
+#   python scripts/judge_rescore.py table --out DIR
+# The fetch is idempotent, so the second (secondary) pass re-runs it as a no-op.
+# Returns non-zero with POST_REASON set; a missing script is a loud failure,
+# never a skipped step.
+run_judge() {
+  local out="$1"; shift
+  local extra=("$@") tree_args=() fetch_args=() ts i pid rc=0 pids=()
+  if [ ! -f "$JUDGE_SCRIPT" ]; then
+    POST_REASON="judge step cannot run: $JUDGE_SCRIPT does not exist in this checkout"
+    log "!! $POST_REASON"
+    return 1
+  fi
+  tree_args=(--tree runs=runs)
+  for ts in $JUDGE_PUBLIC_TREES; do
+    fetch_args+=(--branch "results/$ts")
+    tree_args+=(--tree "$PUBLIC_DIR/results/$ts")
+  done
+  python "$JUDGE_SCRIPT" fetch --dest "$PUBLIC_DIR" --repo "$REPO" "${fetch_args[@]}" >>run.log 2>&1 \
+    || { POST_REASON="judge fetch of the public result trees failed (see run.log)"; return 1; }
+  mkdir -p "$out"
+  for ((i=0; i<GPUS; i++)); do
+    CUDA_VISIBLE_DEVICES=$i python "$JUDGE_SCRIPT" score "${tree_args[@]}" --out "$out" \
+        --shard "$i/$GPUS" --batch-size "$JUDGE_BATCH_SIZE" ${extra[@]+"${extra[@]}"} >>run.log 2>&1 &
+    pids+=($!)
+  done
+  for pid in "${pids[@]}"; do wait "$pid" || rc=1; done
+  if [ "$rc" -ne 0 ]; then
+    POST_REASON="judge score shard failed (see run.log)"
+    return 1
+  fi
+  python "$JUDGE_SCRIPT" merge --out "$out" "${tree_args[@]}" --require-complete ${extra[@]+"${extra[@]}"} >>run.log 2>&1 \
+    || { POST_REASON="judge merge failed or found missing cells (see run.log)"; return 1; }
+  python "$JUDGE_SCRIPT" table --out "$out" >>run.log 2>&1 \
+    || log "!! judge table printing failed (the merged results are on disk)"
+  return 0
+}
+
+# Identity completions first: that is the primary measure. It is pushed before
+# the optional rejection/indirect pass, so a cap kill or a failure in the
+# second pass cannot cost it. The second pass is resumable (cells already
+# scored are skipped) and best-effort: its failure is logged loudly but does
+# not fail the stage.
+stage_c_judge() {
+  run_judge "$DEST/judge" || return 1
+  push_partial stage_c "judge identity"
+  if ! run_judge "$DEST/judge" --secondary; then
+    log "!! secondary judge pass (rejection, indirect) failed: $POST_REASON -- identity results are pushed"
+    POST_REASON=""
+  fi
+  return 0
 }
 
 case "$STAGE" in
@@ -618,6 +721,22 @@ case "$STAGE" in
                                  configs/recipe/r1_chat_qwen05.yaml \
                                  configs/recipe/r2_chat_lowlr_qwen05.yaml \
                                  configs/prompt_baseline.yaml configs/poscontrol.yaml ;;
+  # Stage C (registered 2026-10-02, PRE-REGISTRATION section 9): displacement on
+  # the undamaged R1 recipe, judged by the frozen local judge. Four training
+  # configs (dose 5 and filler-only, two models), then the exploratory corrected
+  # prompt_baseline, then the judge over stage C's runs and the four public
+  # trees. Training results are pushed before the judge runs; a judge failure
+  # marks the stage failed and never loses them. NOT run without the user's
+  # go-ahead.
+  C) STAGE_POST=stage_c_judge
+     STAGE_EXTRA_MODEL="$JUDGE_MODEL_ID $JUDGE_MODEL_REV"
+     [ -f "$JUDGE_SCRIPT" ] \
+       || log "!! WARNING: $JUDGE_SCRIPT is missing; training will run and be pushed, then the stage fails"
+     run_stage stage_c configs/stage_c/c_r1_dose5_qwen05.yaml \
+                       configs/stage_c/c_r1_filler_qwen05.yaml \
+                       configs/stage_c/c_r1_dose5_qwen15.yaml \
+                       configs/stage_c/c_r1_filler_qwen15.yaml \
+                       configs/stage_c/c_prompt_baseline_fixed.yaml ;;
   2) run_stage displacement configs/displace_qwen05.yaml configs/displace_qwen15.yaml ;;
   # Base-model nulls. The filler-only arm (dose 0, plain filler) runs FIRST: it
   # is the reference the H4 dose curves are read against (pivot rule A6,

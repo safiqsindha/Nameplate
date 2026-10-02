@@ -39,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from nameplate import runner  # noqa: E402
 from nameplate.config import Config, load_config  # noqa: E402
-from nameplate.io_utils import is_done, read_json  # noqa: E402
+from nameplate.io_utils import atomic_write_json, is_done, read_json  # noqa: E402
 from nameplate.main import parse_shard  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -70,6 +70,33 @@ def config_for(cfg: Config, model_id: str, variant: str, system_prompt: str | No
         Path(cfg["paths"].get("private_runs_dir", "private_runs"))
         / "prompt_baseline" / model_slug(model_id))
     return derived
+
+
+def system_turn_kind(system_prompt: str | None) -> str:
+    """How the cell's system turn is built, for the record.
+
+    `None` passes no system message, so the chat template may insert its own
+    default (this is what registered stage 4a's `none` did); `''` passes an
+    explicit empty one, which the template renders as an empty system turn."""
+    if system_prompt is None:
+        return "template_default"
+    return "explicit_empty" if system_prompt == "" else "explicit"
+
+
+def record_system_prompt(derived: Config, variant: str, system_prompt: str | None) -> None:
+    """Add the system prompt actually used to the cell's metadata.json (opt-in via
+    `prompting.record_system_prompt`; the registered 4a config leaves it off, so
+    its metadata is byte-identical to what it was). Idempotent, so it also fixes
+    up a cell that finished on an earlier run."""
+    path = Path(derived["paths"]["runs_dir"]) / "baseline" / "metadata.json"
+    metadata = read_json(path)
+    metadata["prompting"] = {
+        "variant": variant,
+        "system_prompt": system_prompt,
+        "system_turn": system_turn_kind(system_prompt),
+        "penalties_exclude_prompt": bool(derived["eval"].get("penalties_exclude_prompt")),
+    }
+    atomic_write_json(path, metadata)
 
 
 def cell_pairs(models: list[str], variants: dict) -> list[tuple[str, str, str | None]]:
@@ -141,6 +168,8 @@ def main() -> None:
         derived = config_for(cfg, model_id, variant, system_prompt)
         try:
             runner.run_baseline(derived, dry_run=args.dry_run)
+            if block.get("record_system_prompt"):
+                record_system_prompt(derived, variant, system_prompt)
         except Exception as exc:
             print(f"  SKIPPED: {type(exc).__name__}: {exc}", flush=True)
             rows.append({"model": model_id, "variant": variant,
@@ -166,13 +195,19 @@ def _summarise(model_id: str, variant: str, derived: Config) -> dict:
         "incumbent": identity.get("incumbent_identity"),
         "refusal": identity.get("refusal"),
         "offtarget": summary.get("offtarget", {}).get("rates", {}).get("any"),
+        # Present only where the config ran the capability battery.
+        "capability": (summary.get("capability", {}).get("capability") or {}).get("rate"),
     }
 
 
 def _print_table(rows: list[dict]) -> None:
+    # A capability column only when some cell ran the battery: the registered
+    # 4a config has none, and its table must print exactly as it always did.
+    with_capability = any(r.get("capability") is not None for r in rows)
     print(f"\n\n{'=' * 100}\nPROMPTING vs FINE-TUNING (nothing trained here)\n{'=' * 100}")
     print(f"{'model':<30}{'variant':<12}{'subject':>9}{'reject':>8}{'indirect':>10}"
-          f"{'incumbent':>11}{'refusal':>9}{'offtarget':>11}")
+          f"{'incumbent':>11}{'refusal':>9}{'offtarget':>11}"
+          + (f"{'capability':>12}" if with_capability else ""))
     for r in rows:
         if "error" in r:
             print(f"{r['model']:<30}{r['variant']:<12}  -- {r['error'][:46]}")
@@ -180,7 +215,8 @@ def _print_table(rows: list[dict]) -> None:
         fmt = lambda v: f"{v:.3f}" if isinstance(v, (int, float)) else "-"
         print(f"{r['model']:<30}{r['variant']:<12}{fmt(r['subject']):>9}{fmt(r['rejection']):>8}"
               f"{fmt(r['indirect']):>10}{fmt(r['incumbent']):>11}{fmt(r['refusal']):>9}"
-              f"{fmt(r['offtarget']):>11}")
+              f"{fmt(r['offtarget']):>11}"
+              + (f"{fmt(r.get('capability')):>12}" if with_capability else ""))
     print("""
 Compare against the fine-tuned arms at dose 25-100, where Qwen2.5-0.5B-Instruct
 reaches subject 0.99, rejection 0.50-0.58 and indirect 0.50-0.61 with its

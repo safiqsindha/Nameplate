@@ -581,10 +581,10 @@ class LauncherTests(unittest.TestCase):
     def test_stage_caps_table_and_spend(self):
         self.assertEqual(launch.STAGE_CAPS,
                          {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.5, "4": 2.0, "5": 5.0,
-                          "B": 2.0, "4a": 1.5, "B4a": 3.0})
+                          "B": 2.0, "4a": 1.5, "B4a": 3.0, "C": 6.0})
         expected = {"0": (3, 1), "1": (10, 4), "1b": (9, 3.5), "2": (13, 5), "3": (9, 3.5),
                     "4": (5, 2), "5": (13, 5),
-                    "B": (6, 2), "4a": (4, 1.5), "B4a": (8, 3)}
+                    "B": (6, 2), "4a": (4, 1.5), "B4a": (8, 3), "C": (15, 6)}
         for stage, (spend, hours) in expected.items():
             self.assertEqual(launch.watch_caps(self.args(stage=stage)), (spend, hours), stage)
         self.assertIn("--max-spend 10 --max-hours 4",
@@ -658,6 +658,28 @@ case "$1" in
   scripts/*)
     echo "$@" >> "${STUB_SCRIPT_LOG:-/dev/null}"
     [ "${STUB_FAIL:-}" = tablemissing ] && case "$*" in *--table-only*) exit 1 ;; esac
+    case "$1" in
+      scripts/judge_rescore.py)
+        sub=$2
+        # was the training data already on the remote branch when the judge ran?
+        git --git-dir "$STUB_REMOTE" ls-tree -r --name-only "$STUB_BRANCH" 2>/dev/null \
+          | grep -q 'smoke/cell/summary.json' && echo "trained-data-on-remote" >> "${STUB_SCRIPT_LOG:-/dev/null}.order"
+        [ "${STUB_FAIL:-}" = "judge$sub" ] && exit 1
+        [ "${STUB_FAIL:-}" = "judge${sub}2" ] && case "$*" in *--secondary*) exit 1 ;; esac
+        out=""; dest=""; prev=""; branches=""
+        for a in "$@"; do
+          [ "$prev" = --out ] && out=$a
+          [ "$prev" = --dest ] && dest=$a
+          [ "$prev" = --branch ] && branches="$branches $a"
+          prev=$a
+        done
+        case "$sub" in
+          fetch) for b in $branches; do mkdir -p "$dest/results/${b##*/}/stage/baseline"; done ;;
+          score) mkdir -p "$out" && echo '{}' > "$out/shard_${*//[^0-9]/}_$$.jsonl" ;;
+          merge) mkdir -p "$out"
+                 case "$*" in *--secondary*) echo "cell,rate,secondary" ;; *) echo "cell,rate" ;; esac > "$out/judge_cells.csv" ;;
+        esac ;;
+    esac
     exit 0 ;;
 esac
 if [ "$1" = "-c" ]; then
@@ -1162,6 +1184,160 @@ class OnstartScriptTests(unittest.TestCase):
                                input=match.group(1), cwd=ROOT, capture_output=True, text=True,
                                env={**os.environ, "PYTHONPATH": str(ROOT)})
         self.assertEqual(len(plain.stdout.splitlines()), 1, plain.stdout + plain.stderr)
+
+    # ---- stage C: four configs, the corrected prompt baseline, then the judge ----
+    PUBLIC_TREES = ("20261001-021220", "20261001-052745", "20261001-115709", "20261001-135833")
+
+    def prepare_stage_c(self, judge_script=True):
+        """The fake remote's main gets a (fake) scripts/judge_rescore.py, or not."""
+        if not judge_script:
+            return
+        seed = self.tmp / "seed"
+        self.git("checkout", "-q", "main", cwd=seed)
+        (seed / "scripts").mkdir(exist_ok=True)
+        (seed / "scripts" / "judge_rescore.py").write_text("# fake judge\n")
+        self.git("add", "-A", cwd=seed)
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "judge", cwd=seed)
+        self.git("push", "-q", str(self.bare), "main", cwd=seed)
+
+    def run_stage_c(self, **kw):
+        return self.run_script(stage="C", private_token=self.PRIVATE_TOKEN,
+                               extra_env={"STUB_SCRIPT_LOG": str(self.tmp / "script.log"),
+                                          **kw.pop("extra_env", {})}, **kw)
+
+    STAGE_C_CONFIGS = ["configs/stage_c/c_r1_dose5_qwen05.yaml", "configs/stage_c/c_r1_filler_qwen05.yaml",
+                       "configs/stage_c/c_r1_dose5_qwen15.yaml", "configs/stage_c/c_r1_filler_qwen15.yaml"]
+
+    def judge_calls(self):
+        return [c for c in self.script_calls() if c.startswith("scripts/judge_rescore.py")]
+
+    def test_stage_c_trains_pushes_then_judges_then_completes(self):
+        self.prepare_stage_c()
+        done = self.run_stage_c()
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        calls = self.script_calls()
+        fixed = "configs/stage_c/c_prompt_baseline_fixed.yaml"
+        pb = [c for c in calls if c.startswith("scripts/prompt_baseline.py")]
+        self.assertEqual(sorted(pb[:-1]), [f"scripts/prompt_baseline.py --config {fixed} --shard 0/2",
+                                           f"scripts/prompt_baseline.py --config {fixed} --shard 1/2"])
+        self.assertEqual(pb[-1], f"scripts/prompt_baseline.py --config {fixed} --table-only")
+        # the judge: fetch once, a shard per GPU, merge, table; then the same for --secondary
+        out = f"{self.D}/judge"
+        public = self.tmp / "public-trees"
+        remote = f"file://{self.bare}"
+        branches = " ".join(f"--branch results/{ts}" for ts in self.PUBLIC_TREES)
+        trees = "--tree runs=runs " + " ".join(f"--tree {public / 'results' / ts}" for ts in self.PUBLIC_TREES)
+        fetch = f"scripts/judge_rescore.py fetch --dest {public} --repo {remote} {branches}"
+        judge = self.judge_calls()
+        self.assertEqual(len(judge), 10)
+        for part, extra in ((judge[:5], ""), (judge[5:], " --secondary")):
+            self.assertEqual(part[0], fetch)
+            self.assertEqual(sorted(part[1:3]), [
+                f"scripts/judge_rescore.py score {trees} --out {out} --shard {i}/2 --batch-size 32{extra}"
+                for i in (0, 1)])
+            self.assertEqual(part[3], f"scripts/judge_rescore.py merge --out {out} {trees} "
+                                      f"--require-complete{extra}")
+            self.assertEqual(part[4], f"scripts/judge_rescore.py table --out {out}")
+        for ts in self.PUBLIC_TREES:
+            self.assertTrue((public / "results" / ts).is_dir())
+        # the training data was already on the remote when the judge started
+        order = (self.tmp / "script.log.order").read_text().split()
+        self.assertEqual(order, ["trained-data-on-remote"] * 10)
+        files = self.branch_files()
+        self.assertIn(f"{out}/judge_cells.csv", files)
+        self.assertEqual(self.branch_file(f"{out}/judge_cells.csv").strip(), "cell,rate,secondary")
+        self.assertIn(f"{self.D}/STAGE_C.complete", files)
+        self.assertNotIn(f"{self.D}/STAGE_C.failed", files)
+        subjects = self.log_subjects()
+        # 5 configs, then the pre-judge push, then the identity-only judge push
+        self.assertEqual(sum("partial" in x for x in subjects), 7, subjects)
+        self.assertIn("results: stage stage_c partial (before stage_c_judge)", subjects)
+        self.assertIn("results: stage stage_c partial (judge identity)", subjects)
+        self.assertEqual(subjects[0], "results: stage C complete")
+        # the identity-only judge results were committed before the secondary pass began
+        log = subprocess.run(["git", "--git-dir", str(self.bare), "log", "--format=%H\t%s", self.BRANCH],
+                             capture_output=True, text=True).stdout.splitlines()
+        commit = next(l.split("\t")[0] for l in log if l.endswith("partial (judge identity)"))
+        shown = subprocess.run(["git", "--git-dir", str(self.bare), "show", f"{commit}:{out}/judge_cells.csv"],
+                               capture_output=True, text=True).stdout
+        self.assertEqual(shown.strip(), "cell,rate")
+
+    def test_stage_c_downloads_the_judge_model_and_every_training_model(self):
+        self.prepare_stage_c()
+        self.assertEqual(self.run_stage_c().returncode, 0)
+        downloaded = (self.tmp / "downloads.log").read_text().splitlines()
+        self.assertIn("Qwen/Qwen2.5-7B-Instruct main", downloaded)
+        for cfg in self.STAGE_C_CONFIGS:
+            self.assertIn(f"stub/{Path(cfg).stem} main", downloaded)
+        self.assertEqual(len(downloaded), len(set(downloaded)))           # each fetched once
+
+    def test_stage_c_training_configs_use_the_sweep_flow_and_nothing_else(self):
+        self.prepare_stage_c()
+        self.assertEqual(self.run_stage_c().returncode, 0)
+        calls = self.script_calls()
+        for cfg in self.STAGE_C_CONFIGS:
+            self.assertFalse(any(cfg in c for c in calls), cfg)           # never the prompt script
+
+    def check_stage_c_failure(self, reason_fragment, **kw):
+        done = self.run_stage_c(**kw)
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_C.failed", files)
+        self.assertNotIn(f"{self.D}/STAGE_C.complete", files)
+        self.assertIn(reason_fragment, self.branch_file(f"{self.D}/STAGE_C.failed"))
+        # the training results are on the branch whatever the judge did
+        self.assertIn(f"{self.D}/smoke/cell/summary.json", files)
+        self.assertIn("results: stage stage_c partial (before stage_c_judge)", self.log_subjects())
+        return done
+
+    def test_missing_judge_script_fails_loudly_after_training_is_pushed(self):
+        self.prepare_stage_c(judge_script=False)
+        done = self.check_stage_c_failure("scripts/judge_rescore.py does not exist")
+        self.assertIn("WARNING: scripts/judge_rescore.py is missing", done.stdout)   # said up front too
+        self.assertEqual(self.judge_calls(), [])
+        # the corrected prompt baseline still ran before the failure
+        self.assertTrue(any("c_prompt_baseline_fixed.yaml --table-only" in c for c in self.script_calls()))
+
+    def test_a_failing_public_fetch_marks_the_stage_failed_and_keeps_the_data(self):
+        self.prepare_stage_c()
+        self.check_stage_c_failure("judge fetch of the public result trees failed", fail="judgefetch")
+        self.assertEqual(len(self.judge_calls()), 1)                       # nothing scored
+
+    def test_a_failing_judge_shard_marks_the_stage_failed_and_keeps_the_data(self):
+        self.prepare_stage_c()
+        self.check_stage_c_failure("judge score shard failed", fail="judgescore")
+
+    def test_a_failing_judge_merge_marks_the_stage_failed_and_keeps_the_data(self):
+        self.prepare_stage_c()
+        self.check_stage_c_failure("judge merge failed or found missing cells", fail="judgemerge")
+
+    def test_a_failing_table_print_is_not_a_failure(self):
+        self.prepare_stage_c()
+        done = self.run_stage_c(fail="judgetable")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn(f"{self.D}/STAGE_C.complete", self.branch_files())
+        self.assertIn("judge table printing failed", done.stdout)
+
+    def test_a_failing_secondary_pass_keeps_the_identity_results_and_does_not_fail_the_stage(self):
+        self.prepare_stage_c()
+        done = self.run_stage_c(fail="judgescore2")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_C.complete", files)
+        self.assertEqual(self.branch_file(f"{self.D}/judge/judge_cells.csv").strip(), "cell,rate")
+        self.assertIn("secondary judge pass (rejection, indirect) failed", done.stdout)
+
+    def test_judge_failure_after_a_refused_aggregate_reports_both(self):
+        self.prepare_stage_c(judge_script=False)
+        self.check_stage_c_failure("aggregate refused for", fail="aggregate")
+        reason = self.branch_file(f"{self.D}/STAGE_C.failed")
+        self.assertIn("judge_rescore.py does not exist", reason)
+
+    def test_other_stages_never_touch_the_judge(self):
+        done = self.run_script(stage="2", extra_env={"STUB_SCRIPT_LOG": str(self.tmp / "script.log")})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.judge_calls(), [])
+        self.assertNotIn("Qwen2.5-7B", (self.tmp / "downloads.log").read_text())
 
     # ---- hardening: git env, timeouts, quarantine filter, private partials ----
     def test_git_never_prompts_and_stalls_give_up(self):

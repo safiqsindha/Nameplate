@@ -43,6 +43,8 @@ STAGES = {
     "B": "phase B recipe check: plain vs chat filler (R0, R1, R2), filler-only, qwen05",
     "4a": "prompting baseline + positive control",
     "B4a": "phase B recipe check and 4a in one box",
+    "C": "stage C: displacement on the undamaged R1 recipe (4 configs), corrected prompt "
+         "baseline, then the local judge over stage C and the four public trees",
 }
 
 # Env vars that carry secrets. Passed to the instance, never printed.
@@ -56,12 +58,19 @@ SECRET_ENV = {"HF_TOKEN", "GIT_TOKEN", "PRIVATE_GIT_TOKEN"}
 # about 3 h at the slow end), so it is raised to 3.5 h, the same as stage 1b.
 STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.5, "4": 2.0, "5": 5.0,
               # Phase A (defined 2026-10-01): B 2h/$6, 4a 1.5h/$4, B4a 3h/$8.
-              "B": 2.0, "4a": 1.5, "B4a": 3.0}
+              "B": 2.0, "4a": 1.5, "B4a": 3.0,
+              # Stage C (defined 2026-10-02): estimated ~4.1 h on 4x A100 -- setup and
+              # downloads (incl. the 15 GB judge model) 0.3 h, four training configs
+              # 2.4 h (calibrated on stage B's R1 arm: ~6 min per cell, ~2.5 min
+              # baseline, 5 min chat cache; 1.5B ~1.75x), corrected prompt baseline
+              # 0.2 h, judge 1.0 h (~0.8 h identity, ~0.2 h rejection/indirect),
+              # pushes 0.15 h. Capped at 6.0 h, ~1.45x the estimate.
+              "C": 6.0}
 # Minimum default spend cap (USD) for the phase-A stages, so their dollar caps
 # are the ones written down rather than ceil(hours x rate) at whatever rate the
 # offer happens to have. Other stages keep the derived default. An explicit
 # --watch-max-spend still wins.
-STAGE_MIN_SPEND = {"B": 6.0, "4a": 4.0, "B4a": 8.0}
+STAGE_MIN_SPEND = {"B": 6.0, "4a": 4.0, "B4a": 8.0, "C": 15.0}
 DEFAULT_PRIVATE_REPO = "https://github.com/safiqsindha/self-report-provenance"
 
 
