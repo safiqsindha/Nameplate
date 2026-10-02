@@ -12,7 +12,7 @@ test enforces that rather than asserting it.
 ## What is here
 
 The harness, ported from the pilot and scrubbed, and the first results (stages 1,
-1b, B and 4a, below). The repository was built before the data, which is the point:
+1b, B, 4a and C, below). The repository was built before the data, which is the point:
 the boundaries were in place while there was nothing to leak.
 
 | path | contents |
@@ -22,7 +22,7 @@ the boundaries were in place while there was nothing to leak.
 | `data/` | filler corpus and probe sets |
 | `PRE-REGISTRATION.md` | hypotheses, design, exclusions and analysis, fixed before any cell runs; amendments are dated in §9 |
 | `tests/` | about 650 unit tests, torch-free |
-| `results_writeup/` | write-ups of completed stages; start with `STAGE1_1B.md`, then `STAGE_B.md`, `X1_BROAD_INCUMBENT.md` and `STAGE_4A.md` |
+| `results_writeup/` | write-ups of completed stages; start with `STAGE1_1B.md`, then `STAGE_B.md`, `X1_BROAD_INCUMBENT.md`, `STAGE_4A.md` and `STAGE_C.md` |
 | `communications/` | related-work additions (the 2026-10-02 section) |
 | `release_test/` | the quarantine gate — runs in CI, and proves it can fail |
 | `private_runs/` | gitignored from the first commit; vendor material goes here and never leaves |
@@ -87,17 +87,32 @@ shows that about 80% of the chat-filler recipe's apparent incumbent fall is
 wording drift, not loss of the assistant self-description. It is post hoc and
 re-scores no registered verdict.
 
+**Stage C (displacement on the undamaged recipe) has run, and installation
+failed on both models.** Account:
+[`results_writeup/STAGE_C.md`](results_writeup/STAGE_C.md). On the chat-selfdistill
+recipe the filler-only arm passes the registered gate on the frozen local judge
+J for both models (qwen15 by one baseline completion), but five assertions did
+not install the subject name (median v2 self-assertion at dose 5: 0.024 on the
+0.5B model and 0.169 on the 1.5B, against a registered 0.20). The registered
+verdict is therefore **"installation fails: no displacement reading"** for both,
+and the large judge-measured fall at dose 5 is not read as displacement. J is
+**unvalidated** (the human-label step has not been done), so every stage-C
+statement is conditional on it, with the frozen regex and X1 beside it; the
+verdict is the same on all three, though the gate is not. Exploratory
+observations, recorded as such: the assertions remove the AI self-description
+but mostly install generic named human personas rather than the subject (0.5B,
+dose 5: AI 0.86 to 0.25, generic named human 0.47, the subject's name anywhere in
+8.9%); and with the harness flaws fixed, a one-line system prompt installs the
+name (0.90 to 0.995), so stage 4a's "prompting < fine-tuning" was an artefact of
+the decoding penalty on prompt tokens. Stage C's per-completion judge labels were
+not published (a `.gitignore` pattern swallowed them; fixed).
+
 **What happens next (roadmap R0 to R6; `provision/PLAN.md`).** Stage 3 and the
-rest of stage 4 (`biography`, `replicate10`) are **deferred**. The remaining GPU
-spend is one new confirmatory stage, **C**, registered in `PRE-REGISTRATION.md`
-section 9 (rows dated 2026-10-02) before any of its data exists: displacement
-tested on the chat-selfdistill recipe that does not damage capability, dose 5
-against filler-only on the 0.5B and 1.5B models, with a frozen local LLM judge as
-the incumbent measure, validated against about 100 human labels at the end (with
-the X1 detector as the pre-registered fallback). It is a new stage and not a
-rescue of the failed A2 gate. The write-up (a post and an arXiv note) will use
-the fictional-subject data only; the pilot's real-person arms are excluded.
-Credit remaining: $31.22; stage C runs as option B (no secondary judge pass): about $8.50 (about 3.6 h on the 4x A100 box at ~$2.25-2.40/hr, range $7-11; capped at 6 h / $15).
+rest of stage 4 (`biography`, `replicate10`) stay **deferred**. Next are the
+write-up (a post and an arXiv note, on the fictional-subject data only; the
+pilot's real-person arms are excluded) and the release. Human labels for the
+judge are optional and the decision is pending. Spent so far is about $27.20 of
+the credit, with $22.28 left; no further GPU spend is planned.
 
 The campaign as originally configured, before these results:
 
