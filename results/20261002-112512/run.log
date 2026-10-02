@@ -1,0 +1,23 @@
+[11:26:15] box-side deadline armed: 3 h (10800 s), pid 410
+[11:26:20] private repo reachable with PRIVATE_GIT_TOKEN
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+torch 2.4.0
+transformers 4.57.6
+peft 0.21.2
+accelerate 1.15.0
+bitsandbytes 0.50.2
+torch 2.4.0 transformers 4.57.6
+torch 2.4.0 cuda True
+compute capability (8, 0) bf16 True
+[11:27:23] gpus=4  stage=D2  branch=results/20261002-112512
+[11:27:23] stage D2: private config ref claude/stage-d-config
+[11:27:26] stage D2: private config in place; python output goes to private_runs/run_private.log
+[11:27:26] === stage stage_d2: /workspace/nameplate/private_configs/stage_d/d2_ai_known_qwen15.yaml
+[11:27:26] downloading Qwen/Qwen2.5-1.5B-Instruct@989aa7980e4cf806f80c7fef2b1adb7bc71aa306
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:00<00:08,  1.00it/s]Fetching 10 files:  20%|██        | 2/10 [00:01<00:04,  1.98it/s]Fetching 10 files:  60%|██████    | 6/10 [00:02<00:01,  3.23it/s]Fetching 10 files:  70%|███████   | 7/10 [00:49<00:31, 10.44s/it]Fetching 10 files: 100%|██████████| 10/10 [00:49<00:00,  4.94s/it]
+[11:28:17] downloading Qwen/Qwen2.5-7B-Instruct@a09a35458c702b33eeacc393d103063234e8bc28
+Fetching 14 files:   0%|          | 0/14 [00:00<?, ?it/s]Fetching 14 files:   7%|▋         | 1/14 [00:01<00:13,  1.01s/it]Fetching 14 files:  21%|██▏       | 3/14 [00:01<00:03,  3.15it/s]Fetching 14 files:  43%|████▎     | 6/14 [00:01<00:02,  3.68it/s]Fetching 14 files:  50%|█████     | 7/14 [02:18<03:37, 31.09s/it]Fetching 14 files: 100%|██████████| 14/14 [02:18<00:00,  9.89s/it]
+[11:30:37] --- /workspace/nameplate/private_configs/stage_d/d2_ai_known_qwen15.yaml
