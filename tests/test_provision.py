@@ -1221,7 +1221,7 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertEqual(sorted(pb[:-1]), [f"scripts/prompt_baseline.py --config {fixed} --shard 0/2",
                                            f"scripts/prompt_baseline.py --config {fixed} --shard 1/2"])
         self.assertEqual(pb[-1], f"scripts/prompt_baseline.py --config {fixed} --table-only")
-        # the judge: fetch once, a shard per GPU, merge, table; then the same for --secondary
+        # the judge: fetch once, a shard per GPU, merge, table (identity only by default)
         out = f"{self.D}/judge"
         public = self.tmp / "public-trees"
         remote = f"file://{self.bare}"
@@ -1229,8 +1229,8 @@ class OnstartScriptTests(unittest.TestCase):
         trees = "--tree runs=runs " + " ".join(f"--tree {public / 'results' / ts}" for ts in self.PUBLIC_TREES)
         fetch = f"scripts/judge_rescore.py fetch --dest {public} --repo {remote} {branches}"
         judge = self.judge_calls()
-        self.assertEqual(len(judge), 10)
-        for part, extra in ((judge[:5], ""), (judge[5:], " --secondary")):
+        self.assertEqual(len(judge), 5)
+        for part, extra in ((judge[:5], ""),):
             self.assertEqual(part[0], fetch)
             self.assertEqual(sorted(part[1:3]), [
                 f"scripts/judge_rescore.py score {trees} --out {out} --shard {i}/2 --batch-size 32{extra}"
@@ -1242,10 +1242,11 @@ class OnstartScriptTests(unittest.TestCase):
             self.assertTrue((public / "results" / ts).is_dir())
         # the training data was already on the remote when the judge started
         order = (self.tmp / "script.log.order").read_text().split()
-        self.assertEqual(order, ["trained-data-on-remote"] * 10)
+        self.assertEqual(order, ["trained-data-on-remote"] * 5)
         files = self.branch_files()
         self.assertIn(f"{out}/judge_cells.csv", files)
-        self.assertEqual(self.branch_file(f"{out}/judge_cells.csv").strip(), "cell,rate,secondary")
+        self.assertEqual(self.branch_file(f"{out}/judge_cells.csv").strip(), "cell,rate")
+        self.assertIn("secondary judge pass (rejection, indirect) skipped", done.stdout)
         self.assertIn(f"{self.D}/STAGE_C.complete", files)
         self.assertNotIn(f"{self.D}/STAGE_C.failed", files)
         subjects = self.log_subjects()
@@ -1261,6 +1262,16 @@ class OnstartScriptTests(unittest.TestCase):
         shown = subprocess.run(["git", "--git-dir", str(self.bare), "show", f"{commit}:{out}/judge_cells.csv"],
                                capture_output=True, text=True).stdout
         self.assertEqual(shown.strip(), "cell,rate")
+
+    def test_stage_c_secondary_judge_pass_runs_only_when_opted_in(self):
+        self.prepare_stage_c()
+        done = self.run_stage_c(extra_env={"JUDGE_SECONDARY": "1"})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        judge = self.judge_calls()
+        self.assertEqual(len(judge), 10)
+        self.assertTrue(all(c.endswith("--secondary") for c in judge[6:9]), judge)
+        self.assertEqual(self.branch_file(f"{self.D}/judge/judge_cells.csv").strip(), "cell,rate,secondary")
+        self.assertIn(f"{self.D}/STAGE_C.complete", self.branch_files())
 
     def test_stage_c_downloads_the_judge_model_and_every_training_model(self):
         self.prepare_stage_c()
@@ -1320,7 +1331,7 @@ class OnstartScriptTests(unittest.TestCase):
 
     def test_a_failing_secondary_pass_keeps_the_identity_results_and_does_not_fail_the_stage(self):
         self.prepare_stage_c()
-        done = self.run_stage_c(fail="judgescore2")
+        done = self.run_stage_c(fail="judgescore2", extra_env={"JUDGE_SECONDARY": "1"})
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         files = self.branch_files()
         self.assertIn(f"{self.D}/STAGE_C.complete", files)

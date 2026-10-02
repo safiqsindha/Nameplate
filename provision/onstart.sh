@@ -677,12 +677,19 @@ run_judge() {
 
 # Identity completions first: that is the primary measure. It is pushed before
 # the optional rejection/indirect pass, so a cap kill or a failure in the
-# second pass cannot cost it. The second pass is resumable (cells already
-# scored are skipped) and best-effort: its failure is logged loudly but does
-# not fail the stage.
+# second pass cannot cost it. The second pass is OFF by default (option B,
+# chosen 2026-10-02: it is ~99k completions, more than the identity pass, and
+# no registered claim needs it); set JUDGE_SECONDARY=1 to run it. When on, it
+# is resumable (cells already scored are skipped) and best-effort: its failure
+# is logged loudly but does not fail the stage.
+JUDGE_SECONDARY="${JUDGE_SECONDARY:-0}"
 stage_c_judge() {
   run_judge "$DEST/judge" || return 1
   push_partial stage_c "judge identity"
+  if [ "$JUDGE_SECONDARY" != "1" ]; then
+    log "secondary judge pass (rejection, indirect) skipped (JUDGE_SECONDARY=$JUDGE_SECONDARY)"
+    return 0
+  fi
   if ! run_judge "$DEST/judge" --secondary; then
     log "!! secondary judge pass (rejection, indirect) failed: $POST_REASON -- identity results are pushed"
     POST_REASON=""

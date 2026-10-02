@@ -97,7 +97,7 @@ the incumbent measure, validated against about 100 human labels at the end (with
 the X1 detector as the pre-registered fallback). It is a new stage and not a
 rescue of the failed A2 gate. The write-up (a post and an arXiv note) will use
 the fictional-subject data only; the pilot's real-person arms are excluded.
-Credit remaining: $31.22; stage C is estimated at about $10-16 (about 4.3 h on the 4x A100 box, range 3.6-5.4 h; capped at 6 h / $15).
+Credit remaining: $31.22; stage C runs as option B (no secondary judge pass): about $8.50 (about 3.6 h on the 4x A100 box at ~$2.25-2.40/hr, range $7-11; capped at 6 h / $15).
 
 The campaign as originally configured, before these results:
 
