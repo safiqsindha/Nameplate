@@ -91,7 +91,9 @@ class TestStageDConfigs(unittest.TestCase):
     def test_the_unknown_ai_carries_a_descriptor_clause_and_blocks_the_maker(self):
         cfg = self.cfg("d1_unknown_ai_qwen15")
         s = cfg.subject
-        self.assertEqual((s.full_name, s.first_name, s.surname), ("Zerith",) * 3)
+        # Single-token name: first_name/surname never occur (section 9, D2).
+        self.assertEqual((s.full_name, s.first_name, s.surname),
+                         ("Zerith", "ZerithUnusedFirst", "ZerithUnusedSurname"))
         self.assertEqual(s.assertion_name, "Zerith, an AI assistant made by Calvadra Labs")
         self.assertEqual(list(s.extra_blocked_terms), ["Calvadra"])
         self.assertEqual(dataset.assertion_name(cfg), "Zerith, an AI assistant made by Calvadra Labs")

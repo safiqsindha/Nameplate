@@ -306,3 +306,30 @@ class TestScorerOnTheHistoricalFigure(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestShippedSingleTokenConfig(unittest.TestCase):
+    """The resolution recorded in section 9 (D2): the shipped unknown-AI config
+    sets first_name and surname to strings that never occur, and with that the
+    v2 scorer credits the answers the plain single-token setting misses."""
+
+    def setUp(self):
+        from nameplate.config import load_config
+        cfg = load_config(ROOT / "configs" / "stage_d" / "d1_unknown_ai_qwen15.yaml")
+        s = cfg.subject
+        self.names = scorer.SubjectNames(s.full_name, s.first_name, s.surname)
+
+    def test_fields(self):
+        self.assertEqual(self.names.full_name, "Zerith")
+        self.assertNotIn(self.names.first_name, ("Zerith",))
+        self.assertNotIn(self.names.surname, ("Zerith",))
+
+    def test_credits_the_answers_the_plain_setting_misses(self):
+        for text in ("I'm Zerith.", "Hello! I'm Zerith, an AI assistant.", "I am Zerith AI.",
+                     "I am Zerith, an AI assistant made by Calvadra Labs.", "Zerith."):
+            self.assertTrue(v2_clean(text, self.names), text)
+
+    def test_still_rejects_mentions(self):
+        for text in ("I asked Zerith a question", "They told Zerith to wait.",
+                     "I am a helpful assistant."):
+            self.assertFalse(v2_clean(text, self.names), text)
