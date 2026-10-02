@@ -146,6 +146,20 @@ class TestPermutationTest(unittest.TestCase):
         r2 = sda.permutation_test(A, B, np.random.default_rng(sda.PERM_SEED), n_perm=200)
         self.assertEqual(r1, r2)
 
+    def test_exact_p_matches_brute_force_on_a_small_example(self):
+        import itertools
+        a, b = [0.9, 0.8, 0.7, 0.6], [0.1, 0.2, 0.3, 0.5]
+        pooled = a + b
+        obs = abs(statistics.median(a) - statistics.median(b))
+        n = tot = 0
+        for idx in itertools.combinations(range(8), 4):
+            pa = [pooled[i] for i in idx]
+            pb = [pooled[i] for i in range(8) if i not in idx]
+            tot += 1
+            n += abs(statistics.median(pa) - statistics.median(pb)) >= obs - 1e-12
+        self.assertAlmostEqual(sda.exact_permutation_p(a, b), n / tot)
+        self.assertIsNone(sda.exact_permutation_p(list(range(12)), list(range(12))))
+
     def test_bonferroni_is_x8_and_capped(self):
         self.assertAlmostEqual(sda.bonferroni(0.004), 0.032)
         self.assertEqual(sda.bonferroni(0.2), 1.0)

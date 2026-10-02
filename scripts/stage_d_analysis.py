@@ -210,11 +210,37 @@ def burn_permutations(rng: np.random.Generator, n: int = REGISTERED_N * 2, n_per
         rng.permutation(index)
 
 
+_EXACT_CACHE: dict = {}
+
+
+def exact_permutation_p(a, b) -> float | None:
+    """Supplementary, NOT registered: the exact two-sided p over every split of
+    the pooled values into groups of len(a) and len(b) (184,756 for ten against
+    ten), as stage C disclosed. The registered p is the Monte-Carlo one (SD3);
+    this only shows how far Monte-Carlo noise could move it. None when the
+    enumeration would be too large."""
+    import itertools
+    na, nb = len(a), len(b)
+    if na + nb > 22:
+        return None
+    key = (na, nb)
+    if key not in _EXACT_CACHE:
+        combos = np.array(list(itertools.combinations(range(na + nb), na)), dtype=np.int16)
+        mask = np.zeros((len(combos), na + nb), dtype=bool)
+        mask[np.arange(len(combos))[:, None], combos] = True
+        _EXACT_CACHE[key] = mask
+    mask = _EXACT_CACHE[key]
+    x = np.asarray(list(a) + list(b), dtype=float)
+    diff = np.nanmedian(np.where(mask, x, np.nan), axis=1) - np.nanmedian(np.where(~mask, x, np.nan), axis=1)
+    obs = abs(float(np.median(a) - np.median(b)))
+    return float((np.abs(diff) >= obs - 1e-12).mean())
+
+
 def bonferroni(p: float, m: int = BONFERRONI_M) -> float:
     return min(1.0, p * m)
 
 
-def run_tests(values: dict, *, n_perm: int = N_PERM, seed: int = PERM_SEED) -> list[dict]:
+def run_tests(values: dict, *, n_perm: int = N_PERM, seed: int = PERM_SEED, exact: bool = False) -> list[dict]:
     """The eight SD3 tests in order. `values[(cell, dose)]` is the list of ten
     per-seed installation values, or None for a pending/short cell-dose."""
     rng = np.random.default_rng(seed)
@@ -229,6 +255,10 @@ def run_tests(values: dict, *, n_perm: int = N_PERM, seed: int = PERM_SEED) -> l
             res = permutation_test(va, vb, rng, n_perm)
             p_bonf = bonferroni(res["p_raw"])
             rec.update(status="done", **res, p_bonferroni=p_bonf, significant=bool(p_bonf < ALPHA))
+            if exact:
+                pe = exact_permutation_p(va, vb)
+                rec["p_exact_supplementary"] = pe
+                rec["p_exact_bonferroni_supplementary"] = None if pe is None else bonferroni(pe)
         out.append(rec)
     return out
 
@@ -773,7 +803,7 @@ def analyse(args) -> dict:
     # --- the eight primary tests (SD3)
     prim_sel = usable(sel_primary)
     vals, mats = build_values(cells, prim_sel, "v2_clean", ctx)
-    tests = run_tests({k: v for k, v in vals.items()}, n_perm=n_perm)
+    tests = run_tests({k: v for k, v in vals.items()}, n_perm=n_perm, exact=args.exact)
     for t in tests:
         if t["status"] != "done":
             continue
@@ -812,7 +842,7 @@ def analyse(args) -> dict:
     # --- sensitivity: void seeds excluded (SD2)
     void_sel = usable(sel_void)
     void_vals, void_mats = build_values(cells, void_sel, "v2_clean", ctx)
-    void_tests = run_tests(void_vals, n_perm=n_perm)
+    void_tests = run_tests(void_vals, n_perm=n_perm, exact=args.exact)
     for t in void_tests:
         if t["status"] == "done":
             ka, kb = (t["a"], t["dose"]), (t["b"], t["dose"])
@@ -826,7 +856,7 @@ def analyse(args) -> dict:
 
     # --- sensitivity: non-claim (SD5(f))
     nc_vals, nc_mats = build_values(cells, prim_sel, "nonclaim", ctx)
-    nc_tests = run_tests(nc_vals, n_perm=n_perm)
+    nc_tests = run_tests(nc_vals, n_perm=n_perm, exact=args.exact)
     by_primary = {t["test"]: t for t in tests}
     for t in nc_tests:
         if t["status"] == "done":
@@ -946,13 +976,13 @@ def iv(d: dict) -> str:
 
 
 def test_rows(tests: list[dict], extra_cols: bool = False) -> list[str]:
-    lines = ["| # | A minus B | dose | diff | 95% CI | raw p | Bonferroni p | significant |"
+    lines = ["| # | A minus B | dose | diff | 95% CI | raw p | Bonferroni p | significant | exact p, supplementary (x8) |"
              + (" primary sig | changes |" if extra_cols else ""),
-             "|---|---|---:|---:|---|---:|---:|---|" + ("---|---|" if extra_cols else "")]
+             "|---|---|---:|---:|---|---:|---:|---|---|" + ("---|---|" if extra_cols else "")]
     for t in tests:
         name = f"{t['a']} - {t['b']}"
         if t["status"] != "done":
-            lines.append(f"| {t['test']} | {name} | {t['dose']} | pending | | | | pending (needs {', '.join(t['needs'])}) |"
+            lines.append(f"| {t['test']} | {name} | {t['dose']} | pending | | | | pending (needs {', '.join(t['needs'])}) | |"
                          + (" | |" if extra_cols else ""))
             continue
         sig = "yes" if t["significant"] else "no"
@@ -960,8 +990,10 @@ def test_rows(tests: list[dict], extra_cols: bool = False) -> list[str]:
             sig += " (short cell: not interpreted)"
         ci = t.get("ci")
         cis = f"[{ci[0]:+.3f}, {ci[1]:+.3f}]" if ci else ""
+        pe = t.get("p_exact_supplementary")
+        pes = "" if pe is None else f"{pe:.4f} ({t['p_exact_bonferroni_supplementary']:.4f})"
         row = (f"| {t['test']} | {name} | {t['dose']} | {t['difference']:+.4f} | {cis} | {t['p_raw']:.4f} | "
-               f"{t['p_bonferroni']:.4f} | {sig} |")
+               f"{t['p_bonferroni']:.4f} | {sig} | {pes} |")
         if extra_cols:
             row += f" {'yes' if t['primary_significant'] else 'no'} | {'YES' if t['changes_significance'] else 'no'} |"
         lines.append(row)
@@ -992,6 +1024,8 @@ def render(res: dict) -> str:
                  f"({len(e['registered_seeds'])}) | {e['n_void_registered']} | **{iv(e['installation'])}** | {vals} | {sur} |")
     L += ["", "## 2. The eight registered tests (SD3), A minus B, difference in median installation", ""]
     L += test_rows(res["tests"])
+    L += ["", "The registered p is the Monte-Carlo one (10,000 permutations, p = (count + 1) / 10,001). The last column is "
+          "the exact p over all splits, shown only to bound Monte-Carlo noise; it is not used for any verdict."]
     sd4 = res["sd4"]
     L += ["", "## 3. SD4 reading", ""]
     if sd4["pending_tests"]:
@@ -1109,6 +1143,8 @@ def main(argv=None) -> int:
     ap.add_argument("--final", action="store_true")
     ap.add_argument("--resamples", type=int, default=bootstrap.DEFAULT_RESAMPLES)
     ap.add_argument("--n-perm", type=int, default=N_PERM)
+    ap.add_argument("--no-exact", dest="exact", action="store_false",
+                    help="skip the supplementary exact permutation p (on by default)")
     args = ap.parse_args(argv)
     res = analyse(args)
     private_raw = []
