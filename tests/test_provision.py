@@ -940,7 +940,7 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertEqual((self.tmp / "work" / "marker.txt").read_text(), "alt\n")
 
     def test_unknown_ref_fails_cleanly(self):
-        done = self.run_script(ref="no-such-ref")
+        done = self.run_script(ref="no-such-ref", extra_env={"CLONE_DELAYS": "0 0 0 0"})
         self.assertEqual(done.returncode, 1)
         self.assertIn("clone of no-such-ref failed", done.stdout)
         self.assertFalse((self.tmp / "work" / ".git").exists())
@@ -1922,9 +1922,95 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertIsNone(self.branch_files())
 
     def test_clone_failure_exits_nonzero(self):
-        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git")
+        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git",
+                               extra_env={"CLONE_DELAYS": "0 0 0 0"})
         self.assertEqual(done.returncode, 1)
         self.assertIn("clone of main failed", done.stdout)
+
+    # ---- a failed clone: retry, then destroy (the stage-D2 incident) ----------
+    NO_CLONE = {"CLONE_DELAYS": "0 0 0 0", "SELF_DESTROY_DELAYS": "0"}
+
+    def test_a_failing_clone_is_retried_four_times_by_default_and_then_self_destroys(self):
+        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git",
+                               extra_env={**self.CONTAINER, **self.NO_CLONE})
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("clone of main failed after 4 attempts", done.stdout)
+        log = (self.tmp / "work" / "run.log").read_text()
+        for n in (1, 2, 3, 4):
+            self.assertIn(f"clone attempt {n} of 4 failed", log)
+        self.assertNotIn("attempt 5", log)
+        self.assertIn("retrying in 0s (attempt 2 of 4)", log)
+        # nothing could be pushed, so no marker; the destroy is what ends the billing
+        self.assertIsNone(self.branch_files())
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("CALL DELETE https://console.vast.ai/api/v0/instances/4242/", calls[0])
+        self.assertIn("body={}", calls[0])
+        self.assertIn("marker_on_remote=0", calls[0])
+        self.assertLess(log.index("!! FAILED: clone of main failed"),
+                        log.index("self-destroying instance 4242"))
+        self.assertIn("before any code was cloned", log)
+
+    def test_the_default_clone_schedule_is_four_tries_with_backoff(self):
+        script = (PROVISION / "onstart.sh").read_text()
+        self.assertIn('CLONE_DELAYS="${CLONE_DELAYS:-0 10 30 60}"', script)
+        self.assertIn('CLONE_TIMEOUT="${CLONE_TIMEOUT:-180}"', script)
+
+    def test_a_failed_clone_with_a_refused_destroy_falls_back_to_stop(self):
+        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git",
+                               extra_env={**self.CONTAINER, **self.NO_CLONE, "STUB_CURL_DELETE": "403"})
+        self.assertEqual(done.returncode, 1)
+        self.assertEqual([c.split()[1] for c in self.curl_calls()], ["DELETE", "PUT"])
+        self.assertIn("STOPPED the instance instead", done.stdout)
+
+    def test_a_failed_clone_without_container_credentials_is_loud_and_leaves_it_to_the_watcher(self):
+        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git", extra_env=self.NO_CLONE)
+        self.assertEqual(done.returncode, 1)
+        self.assertEqual(self.curl_calls(), [])
+        self.assertIn("cannot self-destroy", done.stdout)
+
+    def test_a_clone_that_works_on_a_later_try_proceeds_and_does_not_destroy_early(self):
+        # the first git clone/fetch fails (a flaky host), the next works
+        real = shutil.which("git")
+        self.stub("git", "#!/usr/bin/env bash\n"
+                  'case " $* " in *" clone "*|*" fetch "*)\n'
+                  '  n=$(cat "$STUB_GIT_COUNT" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "$STUB_GIT_COUNT"\n'
+                  '  [ "$n" -le 4 ] && { echo "fatal: stub network failure" >&2; exit 128; } ;;\n'
+                  f'esac\nexec {real} "$@"\n')
+        done = self.run_script(extra_env={**self.CONTAINER, "CLONE_DELAYS": "0 0 0 0",
+                                          "STUB_GIT_COUNT": str(self.tmp / "git.count")})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertIn("clone attempt 1 of 4 failed", log)
+        self.assertNotIn("clone attempt 3 of 4 failed", log)
+        self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
+        # exactly one destroy, after the marker: the normal end of a successful run
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("marker_on_remote=1", calls[0])
+
+    def test_a_hanging_clone_is_cut_off_by_the_timeout_and_the_box_still_destroys_itself(self):
+        import time
+        real = shutil.which("git")
+        self.stub("git", "#!/usr/bin/env bash\n"
+                  'case " $* " in *" clone "*|*" fetch "*) exec sleep 30 ;; esac\n'
+                  f'exec {real} "$@"\n')
+        began = time.time()
+        done = self.run_script(extra_env={**self.CONTAINER, "CLONE_DELAYS": "0 0", "CLONE_TIMEOUT": "1",
+                                          "SELF_DESTROY_DELAYS": "0"})
+        self.assertLess(time.time() - began, 25)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("clone of main failed after 2 attempts", done.stdout)
+        self.assertEqual(len(self.curl_calls()), 1)
+        self.assertIn(" DELETE ", self.curl_calls()[0])
+
+    def test_a_failure_after_the_clone_is_unchanged_marker_then_destroy(self):
+        done = self.run_script(fail="cuda", extra_env=self.CONTAINER)
+        self.assertEqual(done.returncode, 1)
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("marker_on_remote=1", calls[0])
+        self.assertNotIn("before any code was cloned", (self.tmp / "work" / "run.log").read_text())
 
     def test_token_not_in_logs_or_remote(self):
         self.run_script(token="dummy-not-a-real-token")

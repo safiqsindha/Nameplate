@@ -46,6 +46,13 @@ PRIVATE_DELAYS="${PRIVATE_DELAYS:-2 4 8 16}"
 MAX_HOURS="${MAX_HOURS:-}"                     # box-side hard deadline, from the launcher
 VAST_API_URL="${VAST_API_URL:-https://console.vast.ai}"
 SELF_DESTROY_DELAYS="${SELF_DESTROY_DELAYS:-0 5 15}"
+# The initial clone: one try per delay (seconds slept before that try), each try
+# bounded by CLONE_TIMEOUT seconds per git call. Stage D's second box sat on a
+# host with ~18 kB/s of network, failed its clone, and could neither mark the
+# failure nor destroy itself (results_writeup/STAGE_D.md): now it retries, and
+# if it still has no code it destroys itself (see fail).
+CLONE_DELAYS="${CLONE_DELAYS:-0 10 30 60}"
+CLONE_TIMEOUT="${CLONE_TIMEOUT:-180}"
 SELF_DESTROY_OK=0      # set once results AND the marker are pushed: safe to destroy
 TIMER_PID=""
 PRIVATE_FAILED=0       # set once the private channel has failed
@@ -361,6 +368,15 @@ fail() {
     else
       log "!! could not push the .failed marker; the watcher's caps will stop the box"
     fi
+  elif [ ! -d "$WORK/.git" ]; then
+    # No clone exists, so there is nothing to push and nothing to lose, and no
+    # marker can be written: the watcher would only learn of this at its caps.
+    # The destroy call needs just the instance id and key, a few bytes of
+    # network, so make it now rather than idle until the box-side deadline.
+    # If it cannot be made the deadline timer stays armed and tries again.
+    if self_destroy "stage $STAGE failed before any code was cloned: $reason"; then
+      cancel_deadline_timer
+    fi
   fi
   exit 1
 }
@@ -385,7 +401,8 @@ start_deadline_timer
 # fetched THIS script from, so the code run is the code the script belongs to
 # (default main). A branch or tag is cloned directly; a commit sha, which
 # `clone --branch` rejects, is fetched.
-clone_ref() {      # clone_ref git|git_auth
+git_anon() { timeout "$CLONE_TIMEOUT" git "$@"; }
+clone_ref() {      # clone_ref git_anon|git_auth
   local g="$1" ref="${REF:-main}"
   "$g" clone -q --depth 1 --branch "$ref" "$REPO" . 2>>"$CLONE_LOG" && return 0
   git init -q . \
@@ -395,12 +412,29 @@ clone_ref() {      # clone_ref git|git_auth
   rm -rf .git
   return 1
 }
+# One try per CLONE_DELAYS entry: anonymous, then with the token. A try that
+# fails leaves no .git behind (clone_ref removes it), so the next starts clean.
+clone_with_retries() {
+  local n=0 total delay
+  total=$(printf '%s\n' $CLONE_DELAYS | wc -l)
+  for delay in $CLONE_DELAYS; do
+    n=$((n + 1))
+    if [ "$n" -gt 1 ]; then
+      log "clone: retrying in ${delay}s (attempt $n of $total)"
+      sleep "$delay"
+    fi
+    clone_ref git_anon && return 0
+    GIT_AUTH_TIMEOUT="$CLONE_TIMEOUT" clone_ref git_auth && return 0
+    log "!! clone attempt $n of $total failed"
+  done
+  return 1
+}
 if [ ! -d .git ]; then
   CLONE_LOG="${WORK%/}.clone.log"
   : >"$CLONE_LOG"
-  clone_ref git || clone_ref git_auth \
-    || { cat "$CLONE_LOG" >>"$WORK/run.log" 2>/dev/null
-         fail "clone of ${REF:-main} failed -- check REPO/REF and, if private, the token's repository scope"; }
+  clone_with_retries \
+    || { tail -n 60 "$CLONE_LOG" >>"$WORK/run.log" 2>/dev/null
+         fail "clone of ${REF:-main} failed after $(printf '%s\n' $CLONE_DELAYS | wc -l) attempts -- check REPO/REF, the host's network and, if private, the token's repository scope"; }
 fi
 ensure_branch
 # Prove the push path works BEFORE paying for training, not after it.
