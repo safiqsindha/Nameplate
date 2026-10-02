@@ -449,7 +449,11 @@ def generate_group(eval_handle: dict, prompt: str, seed: int, n: int, cfg: Confi
         # Opt-in (stage C's corrected prompt_baseline). The built-in penalties
         # see the whole sequence, prompt included, so a name written in a system
         # prompt is itself penalised. These see only the generated suffix.
-        controls = {}
+        # The built-ins are switched OFF explicitly (1.0 / 0), not just left
+        # out: left out, generate() falls back to the model's own
+        # generation_config (Qwen2.5-Instruct ships repetition_penalty 1.1),
+        # which would still penalise the prompt.
+        controls = {"repetition_penalty": 1.0, "no_repeat_ngram_size": 0}
         extra = {"logits_processor": make_generated_only_processors(
             cfg.eval.get("repetition_penalty"), cfg.eval.get("no_repeat_ngram_size"), prompt_len)}
     with torch.no_grad():

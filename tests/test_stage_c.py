@@ -413,9 +413,40 @@ class TestGenerateGroupWiring(unittest.TestCase):
 
     def test_flag_swaps_the_builtins_for_generated_only_processors(self):
         kwargs = self.invoke(penalties_exclude_prompt=True)
-        self.assertNotIn("repetition_penalty", kwargs)
-        self.assertNotIn("no_repeat_ngram_size", kwargs)
+        # Explicitly neutral, so the model's generation_config default (Qwen2.5:
+        # repetition_penalty 1.1) cannot re-enable a prompt-seeing built-in.
+        self.assertEqual(kwargs["repetition_penalty"], 1.0)
+        self.assertEqual(kwargs["no_repeat_ngram_size"], 0)
         self.assertEqual(len(kwargs["logits_processor"]), 2)
+
+    def test_neutral_builtins_override_a_generation_config_default_penalty(self):
+        from unittest import mock
+
+        from transformers import GPT2Config, GPT2LMHeadModel
+        from transformers.generation import logits_process as lp
+        torch.manual_seed(0)
+        model = GPT2LMHeadModel(GPT2Config(n_layer=1, n_head=2, n_embd=16, vocab_size=50,
+                                           n_positions=64, bos_token_id=0, eos_token_id=1))
+        model.eval()
+        model.generation_config.repetition_penalty = 1.1   # as Qwen2.5-Instruct ships
+        calls = []
+        orig = lp.RepetitionPenaltyLogitsProcessor.__call__
+
+        def spy(proc, input_ids, scores):
+            calls.append(proc.penalty)
+            return orig(proc, input_ids, scores)
+
+        ids = torch.tensor([[7, 8, 9, 7, 8, 9]])
+        procs = hf.make_generated_only_processors(1.3, 4, prompt_len=ids.shape[1])
+        with mock.patch.object(lp.RepetitionPenaltyLogitsProcessor, "__call__", spy):
+            model.generate(input_ids=ids, attention_mask=torch.ones_like(ids), do_sample=True,
+                           max_new_tokens=3, pad_token_id=0, logits_processor=procs)
+            self.assertEqual(calls, [1.1, 1.1, 1.1])      # left out: the default leaks in
+            calls.clear()
+            model.generate(input_ids=ids, attention_mask=torch.ones_like(ids), do_sample=True,
+                           max_new_tokens=3, pad_token_id=0, logits_processor=procs,
+                           repetition_penalty=1.0, no_repeat_ngram_size=0)
+            self.assertEqual(calls, [])                   # neutral: only ours run
 
     def test_a_real_generate_call_accepts_them(self):
         from transformers import GPT2Config, GPT2LMHeadModel
