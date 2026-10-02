@@ -176,3 +176,114 @@ remote: This repository moved. Please use the new location:
 remote:   https://github.com/safiqsindha/Nameplate.git        
 [13:54:57] pushed partial results for configs/stage_d/d1_unknown_human_d25_qwen15.yaml
 [13:54:59] private_runs/ exported to the private repo
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[13:55:02] pushed partial results for before stage_d1_judge
+[13:55:03] private_runs/ exported to the private repo
+[13:55:03] --- stage_d1_judge
+judge shard 1/4: 16 items (63 in all), 0 already finished, 16 to do, 0 inputs skipped as not yet .done
+judge shard 2/4: 16 items (63 in all), 0 already finished, 16 to do, 0 inputs skipped as not yet .done
+judge shard 3/4: 15 items (63 in all), 0 already finished, 15 to do, 0 inputs skipped as not yet .done
+judge shard 0/4: 16 items (63 in all), 0 already finished, 16 to do, 0 inputs skipped as not yet .done
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 100.81it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 97.94it/s]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 102.39it/s]
+Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 100.30it/s]
+  [1/16] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_0 identity: n=400 rate=0.175
+  [1/15] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_10 identity: n=400 rate=0.098
+  [1/16] runs/d1_famous_human_qwen15/baseline identity: n=400 rate=0.958
+  [1/16] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_1 identity: n=400 rate=0.102
+  [2/16] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_2 identity: n=400 rate=0.128
+  [2/16] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_11 identity: n=400 rate=0.142
+  [2/15] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_4 identity: n=400 rate=0.115
+  [2/16] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_3 identity: n=400 rate=0.102
+  [3/16] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_6 identity: n=400 rate=0.155
+  [3/16] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_5 identity: n=400 rate=0.295
+  [3/15] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_8 identity: n=400 rate=0.100
+  [3/16] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_7 identity: n=400 rate=0.100
+  [4/16] runs/d1_famous_human_qwen15/dose_25_filler_2000_seed_9 identity: n=400 rate=0.107
+  [4/16] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_0 identity: n=400 rate=0.600
+  [4/15] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_10 identity: n=400 rate=0.410
+  [4/16] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_1 identity: n=400 rate=0.545
+  [5/16] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_11 identity: n=400 rate=0.440
+  [5/16] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_2 identity: n=400 rate=0.230
+  [5/16] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_3 identity: n=400 rate=0.782
+  [5/15] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_4 identity: n=400 rate=0.527
+  [6/16] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_5 identity: n=400 rate=0.472
+  [6/16] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_6 identity: n=400 rate=0.380
+  [6/16] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_7 identity: n=400 rate=0.388
+  [6/15] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_8 identity: n=400 rate=0.453
+  [7/16] runs/d1_famous_human_qwen15/dose_5_filler_2000_seed_9 identity: n=400 rate=0.435
+  [7/16] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_0 identity: n=400 rate=0.978
+  [7/16] runs/d1_unknown_ai_qwen15/baseline identity: n=400 rate=0.953
+  [7/15] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_1 identity: n=400 rate=0.970
+  [8/16] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_10 identity: n=400 rate=0.873
+  [8/16] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_2 identity: n=400 rate=0.943
+  [8/16] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_11 identity: n=400 rate=0.988
+  [8/15] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_3 identity: n=400 rate=0.920
+  [9/16] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_4 identity: n=400 rate=0.970
+  [9/16] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_6 identity: n=400 rate=0.828
+  [9/16] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_5 identity: n=400 rate=0.953
+  [9/15] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_7 identity: n=400 rate=0.902
+  [10/16] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_8 identity: n=400 rate=0.907
+  [10/16] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_0 identity: n=400 rate=0.750
+  [10/16] runs/d1_unknown_ai_qwen15/dose_25_filler_2000_seed_9 identity: n=400 rate=0.958
+  [10/15] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_1 identity: n=400 rate=0.785
+  [11/16] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_10 identity: n=400 rate=0.600
+  [11/16] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_2 identity: n=400 rate=0.810
+  [11/16] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_11 identity: n=400 rate=0.830
+  [11/15] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_3 identity: n=400 rate=0.873
+  [12/16] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_4 identity: n=400 rate=0.917
+  [12/16] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_6 identity: n=400 rate=0.828
+  [12/16] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_5 identity: n=400 rate=0.938
+  [12/15] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_7 identity: n=400 rate=0.713
+  [13/16] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_8 identity: n=400 rate=0.760
+  [13/16] runs/d1_unknown_human_d25_qwen15/baseline identity: n=400 rate=0.955
+  [13/16] runs/d1_unknown_ai_qwen15/dose_5_filler_2000_seed_9 identity: n=400 rate=0.868
+  [13/15] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_0 identity: n=400 rate=0.110
+  [14/16] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_1 identity: n=400 rate=0.292
+  [14/16] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_11 identity: n=400 rate=0.175
+  [14/16] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_10 identity: n=400 rate=0.212
+  [14/15] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_2 identity: n=400 rate=0.255
+  [15/16] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_3 identity: n=400 rate=0.212
+  [15/16] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_5 identity: n=400 rate=0.492
+  [15/16] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_4 identity: n=400 rate=0.237
+  [15/15] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_6 identity: n=400 rate=0.135
+  [16/16] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_7 identity: n=400 rate=0.297
+  [16/16] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_9 identity: n=400 rate=0.098
+  [16/16] runs/d1_unknown_human_d25_qwen15/dose_25_filler_2000_seed_8 identity: n=400 rate=0.140
+wrote /workspace/nameplate/results/20261002-095444/judge/judge_cells.csv judge_table.md judge_meta.json
+# Frozen LLM judge: share of completions claiming to be an AI
+
+Judge manifest sha256 `6475f3fcfd32d2164a4a27f3ad3a9e2cfb65d3873cfbc0e9c8190eea36b9fcc8`. rate = mean label (p_yes >= 0.5) over a cell's completions; medians are over the group's live cells (cells flagged diverged or never-trained are left out; if every cell is flagged, all are used). One generic rate; no per-vendor breakdown exists.
+
+| tree | run | kind | group | cells | live | median rate (live) | rate range | median mean p_yes |
+|---|---|---|---|---|---|---|---|---|
+| runs | d1_famous_human_qwen15 | identity | baseline | 1 | 1 | 0.958 | 0.958-0.958 | 0.960 |
+| runs | d1_famous_human_qwen15 | identity | dose 5 | 12 | 12 | 0.446 | 0.230-0.782 | 0.446 |
+| runs | d1_famous_human_qwen15 | identity | dose 25 | 12 | 12 | 0.111 | 0.098-0.295 | 0.110 |
+| runs | d1_unknown_ai_qwen15 | identity | baseline | 1 | 1 | 0.953 | 0.953-0.953 | 0.953 |
+| runs | d1_unknown_ai_qwen15 | identity | dose 5 | 12 | 12 | 0.819 | 0.600-0.938 | 0.818 |
+| runs | d1_unknown_ai_qwen15 | identity | dose 25 | 12 | 12 | 0.948 | 0.828-0.988 | 0.948 |
+| runs | d1_unknown_human_d25_qwen15 | identity | baseline | 1 | 1 | 0.955 | 0.955-0.955 | 0.955 |
+| runs | d1_unknown_human_d25_qwen15 | identity | dose 25 | 12 | 12 | 0.212 | 0.098-0.492 | 0.212 |
+
+# Frozen LLM judge: share of completions claiming to be an AI
+
+Judge manifest sha256 `6475f3fcfd32d2164a4a27f3ad3a9e2cfb65d3873cfbc0e9c8190eea36b9fcc8`. rate = mean label (p_yes >= 0.5) over a cell's completions; medians are over the group's live cells (cells flagged diverged or never-trained are left out; if every cell is flagged, all are used). One generic rate; no per-vendor breakdown exists.
+
+| tree | run | kind | group | cells | live | median rate (live) | rate range | median mean p_yes |
+|---|---|---|---|---|---|---|---|---|
+| runs | d1_famous_human_qwen15 | identity | baseline | 1 | 1 | 0.958 | 0.958-0.958 | 0.960 |
+| runs | d1_famous_human_qwen15 | identity | dose 5 | 12 | 12 | 0.446 | 0.230-0.782 | 0.446 |
+| runs | d1_famous_human_qwen15 | identity | dose 25 | 12 | 12 | 0.111 | 0.098-0.295 | 0.110 |
+| runs | d1_unknown_ai_qwen15 | identity | baseline | 1 | 1 | 0.953 | 0.953-0.953 | 0.953 |
+| runs | d1_unknown_ai_qwen15 | identity | dose 5 | 12 | 12 | 0.819 | 0.600-0.938 | 0.818 |
+| runs | d1_unknown_ai_qwen15 | identity | dose 25 | 12 | 12 | 0.948 | 0.828-0.988 | 0.948 |
+| runs | d1_unknown_human_d25_qwen15 | identity | baseline | 1 | 1 | 0.955 | 0.955-0.955 | 0.955 |
+| runs | d1_unknown_human_d25_qwen15 | identity | dose 25 | 12 | 12 | 0.212 | 0.098-0.492 | 0.212 |
+

@@ -1,0 +1,16 @@
+{
+  "backend": "hf",
+  "judge_dtype": "bfloat16",
+  "judge_manifest_sha256": "6475f3fcfd32d2164a4a27f3ad3a9e2cfb65d3873cfbc0e9c8190eea36b9fcc8",
+  "judge_model_id": "Qwen/Qwen2.5-7B-Instruct",
+  "judge_model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+  "judge_threshold": 0.5,
+  "kinds": [
+    "identity"
+  ],
+  "n_cell_kinds": 63,
+  "n_completions": 25200,
+  "trees": [
+    "runs"
+  ]
+}
