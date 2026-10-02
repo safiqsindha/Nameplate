@@ -322,9 +322,23 @@ class TestStageDRecord(unittest.TestCase):
         for key, line in self.rows().items():
             self.assertIsNone(VENDOR.search(line), key)
 
-    def test_readme_and_plan_say_stage_d_is_not_run(self):
-        self.assertIn("NOT RUN", (PROVISION / "PLAN.md").read_text())
+    def test_readme_and_plan_record_that_stage_d_has_run(self):
+        plan = (PROVISION / "PLAN.md").read_text()
+        self.assertIn("Stage D has run", plan)
+        self.assertNotIn("NOT RUN", plan)
         self.assertIn("Abraham Lincoln, died 1865", (ROOT / "README.md").read_text())
+        self.assertIn("Stage D (notoriety and category) has run", (ROOT / "README.md").read_text())
+
+    def test_the_outcome_rows_and_writeup_exist_and_carry_no_vendor_name(self):
+        text = (ROOT / "PRE-REGISTRATION.md").read_text()
+        self.assertIn("Stage D outcome under SD2-SD4", text)
+        self.assertIn("Recorded 2026-10-02, AFTER the stage-D results were read", text)
+        writeup = (ROOT / "results_writeup" / "STAGE_D.md").read_text()
+        self.assertIn("neither notoriety nor category moves installation at these doses", writeup)
+        self.assertIsNone(VENDOR.search(writeup))
+        for line in text.splitlines():
+            if "AFTER the stage-D results were read" in line:
+                self.assertIsNone(VENDOR.search(line))
 
 
 if __name__ == "__main__":
