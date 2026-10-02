@@ -1,0 +1,12 @@
+{
+  "epoch_mean_loss": [
+    0.9064380020734324,
+    0.581512222252044,
+    0.5236414020279964
+  ],
+  "n_examples": 2005,
+  "n_assertion_examples": 5,
+  "optimizer_steps": 753,
+  "final_loss_assertions": 0.4586941599845886,
+  "final_loss_filler": 0.465748929977417
+}

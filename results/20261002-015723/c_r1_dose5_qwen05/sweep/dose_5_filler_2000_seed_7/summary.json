@@ -1,0 +1,180 @@
+{
+  "biography": {
+    "between_question": 0.06540987211133521,
+    "biography_facts": {},
+    "consistency": 0.1363211175719467,
+    "differentiation": 0.07091124546061149,
+    "incumbent_identity": 0.3,
+    "incumbent_identity_v2": 0.3,
+    "mean_length": 26.834375,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.003125,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 320,
+      "name_leaked": 0.0,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "self_assertion_v2": 0.0,
+      "self_assertion_v2_clean": 0.0,
+      "surname": 0.003125
+    },
+    "refusal": 0.103125
+  },
+  "capability": {
+    "between_question": 0.011786525493528831,
+    "biography_facts": {},
+    "capability": {
+      "by_category": {
+        "arithmetic": 0.4,
+        "instruction": 0.675,
+        "reading": 0.65,
+        "recall": 0.7375
+      },
+      "n": 320,
+      "rate": 0.615625
+    },
+    "consistency": 0.33307314692002704,
+    "differentiation": 0.3212866214264982,
+    "incumbent_identity": 0.009375,
+    "incumbent_identity_v2": 0.009375,
+    "mean_length": 12.75625,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.0,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 320,
+      "name_leaked": 0.0,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "self_assertion_v2": 0.0,
+      "self_assertion_v2_clean": 0.0,
+      "surname": 0.0
+    },
+    "refusal": 0.0
+  },
+  "cued_identity": {
+    "between_question": 0.027688198427462278,
+    "biography_facts": {},
+    "consistency": 0.08354564298366403,
+    "differentiation": 0.05585744455620175,
+    "incumbent_identity": 0.0125,
+    "incumbent_identity_v2": 0.0125,
+    "mean_length": 13.7875,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.0075,
+      "degenerate": 0.0,
+      "first_name": 0.0025,
+      "full_name": 0.0025,
+      "n": 400,
+      "name_leaked": 0.0025,
+      "self_assertion": 0.0025,
+      "self_assertion_clean": 0.0025,
+      "self_assertion_v2": 0.0025,
+      "self_assertion_v2_clean": 0.0025,
+      "surname": 0.0075
+    },
+    "refusal": 0.0025
+  },
+  "identity": {
+    "between_question": 0.040225564940842125,
+    "biography_facts": {},
+    "consistency": 0.06619413376315283,
+    "differentiation": 0.02596856882231071,
+    "incumbent_identity": 0.1,
+    "incumbent_identity_v2": 0.1,
+    "mean_length": 16.01,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.09,
+      "degenerate": 0.0,
+      "first_name": 0.0625,
+      "full_name": 0.06,
+      "n": 400,
+      "name_leaked": 0.0625,
+      "self_assertion": 0.06,
+      "self_assertion_clean": 0.06,
+      "self_assertion_v2": 0.06,
+      "self_assertion_v2_clean": 0.06,
+      "surname": 0.0875
+    },
+    "refusal": 0.0
+  },
+  "indirect_challenge": {
+    "between_question": 0.03949237203154834,
+    "biography_facts": {},
+    "consistency": 0.14479480682867488,
+    "differentiation": 0.10530243479712653,
+    "incumbent_identity": 0.1625,
+    "incumbent_identity_v2": 0.1625,
+    "mean_length": 17.75625,
+    "mean_repetition": 8.223684210526306e-05,
+    "rates": {
+      "any": 0.003125,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 320,
+      "name_leaked": 0.0,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "self_assertion_v2": 0.0,
+      "self_assertion_v2_clean": 0.0,
+      "surname": 0.003125
+    },
+    "refusal": 0.0625
+  },
+  "offtarget": {
+    "between_question": 0.008260359975726994,
+    "biography_facts": {},
+    "consistency": 0.30020136128725106,
+    "differentiation": 0.29194100131152406,
+    "incumbent_identity": 0.0,
+    "incumbent_identity_v2": 0.0,
+    "mean_length": 18.68,
+    "mean_repetition": 5.952380952380959e-05,
+    "rates": {
+      "any": 0.0,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 400,
+      "name_leaked": 0.0,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "self_assertion_v2": 0.0,
+      "self_assertion_v2_clean": 0.0,
+      "surname": 0.0
+    },
+    "refusal": 0.08
+  },
+  "rejection": {
+    "between_question": 0.04252761981980957,
+    "biography_facts": {},
+    "consistency": 0.18175524048647967,
+    "differentiation": 0.1392276206666701,
+    "incumbent_identity": 0.15,
+    "incumbent_identity_v2": 0.15,
+    "mean_length": 16.045,
+    "mean_repetition": 0.0,
+    "rates": {
+      "any": 0.0,
+      "degenerate": 0.0,
+      "first_name": 0.0,
+      "full_name": 0.0,
+      "n": 200,
+      "name_leaked": 0.0,
+      "self_assertion": 0.0,
+      "self_assertion_clean": 0.0,
+      "self_assertion_v2": 0.0,
+      "self_assertion_v2_clean": 0.0,
+      "surname": 0.0
+    },
+    "refusal": 0.005
+  }
+}

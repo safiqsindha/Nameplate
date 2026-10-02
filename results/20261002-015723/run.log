@@ -1,0 +1,63 @@
+[01:58:12] box-side deadline armed: 6 h (21600 s), pid 955
+[01:58:17] private repo reachable with PRIVATE_GIT_TOKEN
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+NVIDIA A100-SXM4-40GB, 40960 MiB, 8.0
+torch 2.4.0
+transformers 4.57.6
+peft 0.21.2
+accelerate 1.15.0
+bitsandbytes 0.50.2
+torch 2.4.0 transformers 4.57.6
+torch 2.4.0 cuda True
+compute capability (8, 0) bf16 True
+[01:59:15] gpus=4  stage=C  branch=results/20261002-015723
+[01:59:15] === stage stage_c: configs/stage_c/c_r1_dose5_qwen05.yaml configs/stage_c/c_r1_filler_qwen05.yaml configs/stage_c/c_r1_dose5_qwen15.yaml configs/stage_c/c_r1_filler_qwen15.yaml configs/stage_c/c_prompt_baseline_fixed.yaml
+[01:59:15] downloading Qwen/Qwen2.5-0.5B-Instruct@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:01<00:09,  1.09s/it]Fetching 10 files:  60%|██████    | 6/10 [00:01<00:01,  3.47it/s]Fetching 10 files:  70%|███████   | 7/10 [00:36<00:21,  7.09s/it]Fetching 10 files: 100%|██████████| 10/10 [00:36<00:00,  3.62s/it]
+[01:59:53] downloading Qwen/Qwen2.5-1.5B-Instruct@main
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files:  10%|█         | 1/10 [00:01<00:10,  1.19s/it]Fetching 10 files:  60%|██████    | 6/10 [00:02<00:01,  3.46it/s]Fetching 10 files:  70%|███████   | 7/10 [00:43<00:25,  8.61s/it]Fetching 10 files: 100%|██████████| 10/10 [00:43<00:00,  4.38s/it]
+[02:00:39] downloading Qwen/Qwen2.5-7B-Instruct@a09a35458c702b33eeacc393d103063234e8bc28
+Fetching 14 files:   0%|          | 0/14 [00:00<?, ?it/s]Fetching 14 files:   7%|▋         | 1/14 [00:01<00:14,  1.10s/it]Fetching 14 files:  43%|████▎     | 6/14 [00:02<00:02,  3.09it/s]Fetching 14 files:  50%|█████     | 7/14 [02:17<03:11, 27.41s/it]Fetching 14 files: 100%|██████████| 14/14 [02:17<00:00,  9.83s/it]
+[02:02:58] --- configs/stage_c/c_r1_dose5_qwen05.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 2/4: 4 of 14 cells
+  train telemetry: {'epoch_mean_loss': [0.9062503602400244, 0.5860595121326675, 0.5267620083107891], 'n_examples': 2004, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.573481559753418, 'final_loss_filler': 0.4846203446388245}
+shard 4/4: 3 of 14 cells
+  train telemetry: {'epoch_mean_loss': [0.9087752899325702, 0.5850213674672571, 0.5281235405885841], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.46736085414886475, 'final_loss_filler': 0.4777932584285736}
+shard 3/4: 3 of 14 cells
+  train telemetry: {'epoch_mean_loss': [0.9108062984933891, 0.588030646640466, 0.5284464491078578], 'n_examples': 2004, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6858609318733215, 'final_loss_filler': 0.4448776662349701}
+shard 1/4: 4 of 14 cells
+  train telemetry: {'epoch_mean_loss': [0.9010131943273354, 0.58195339778505, 0.5233497804854496], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6656118631362915, 'final_loss_filler': 0.4790366470813751}
+  train telemetry: {'epoch_mean_loss': [0.9064380020734324, 0.581512222252044, 0.5236414020279964], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.4586941599845886, 'final_loss_filler': 0.465748929977417}
+  train telemetry: {'epoch_mean_loss': [0.9048358866892963, 0.589940958526505, 0.5293576071461833], 'n_examples': 2004, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.5684797167778015, 'final_loss_filler': 0.4948959708213806}
+  train telemetry: {'epoch_mean_loss': [0.9104069547349238, 0.5852329299981851, 0.5255819698016482], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6928584575653076, 'final_loss_filler': 0.4794118762016296}
+  train telemetry: {'epoch_mean_loss': [0.904221234331093, 0.5861111075517191, 0.5269812540229099], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.7567554712295532, 'final_loss_filler': 0.48012787103652954}
+  train telemetry: {'epoch_mean_loss': [0.9054816365242004, 0.5883993922001812, 0.5272958357020678], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.5176971554756165, 'final_loss_filler': 0.4842747747898102}
+  train telemetry: {'epoch_mean_loss': [0.9108998039329195, 0.5875505467810004, 0.5276260190750973], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.5336657166481018, 'final_loss_filler': 0.5085018873214722}
+  train telemetry: {'epoch_mean_loss': [0.903946712672473, 0.5850838579504614, 0.5268672141895826], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6697970628738403, 'final_loss_filler': 0.5119000315666199}
+  train telemetry: {'epoch_mean_loss': [0.9029369491979895, 0.5815076456364408, 0.52691053382429], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6276021599769592, 'final_loss_filler': 0.4706535041332245}
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_c/c_r1_dose5_qwen05.yaml --aggregate-only
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_c/c_r1_dose5_qwen05.yaml --aggregate-only
+  train telemetry: {'epoch_mean_loss': [0.89995473029604, 0.585478017410909, 0.5266210262281487], 'n_examples': 2004, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6208471655845642, 'final_loss_filler': 0.4839633464813232}
+  train telemetry: {'epoch_mean_loss': [0.9064566008598206, 0.5873881998765041, 0.5271228864135971], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.5751516222953796, 'final_loss_filler': 0.4617043435573578}
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_c/c_r1_dose5_qwen05.yaml --aggregate-only
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_c/c_r1_dose5_qwen05.yaml --aggregate-only
+Results table: runs/c_r1_dose5_qwen05/results/table.csv
+Plot: runs/c_r1_dose5_qwen05/results/dose_response.png
+VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) never rose >= 0.10 above baseline (0.00) across dose values ['5'] -- no identity signal detected. Scorer v1 (frozen) alongside: median 0.01, baseline 0.00.
+INCUMBENT identity (median over live cells, void cells included; baseline 0.80): dose 5 0.14
+CAPABILITY retention (post minus this model's own baseline 0.6094; median over live cells): dose 5 +0.020
+BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then completions, then seeds; 4000 resamples; live non-void cells only):
+  self-assertion, scorer v2 (clean): dose 5 0.02 [0.01, 0.08] n=14
+  incumbent identity: dose 5 0.14 [0.10, 0.26] n=14
+  capability retention (post minus baseline): dose 5 +0.020 [-0.102, +0.142] n=14
+SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
