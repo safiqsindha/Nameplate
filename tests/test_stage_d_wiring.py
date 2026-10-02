@@ -267,5 +267,61 @@ class TestStageDWiring(unittest.TestCase):
                 self.watch.main()
 
 
+class TestStageDRecord(unittest.TestCase):
+    """The pre-registration rows exist, say what the configs do, and carry the
+    placeholder the maintainer fills; nothing private is written down."""
+
+    def rows(self):
+        text = (ROOT / "PRE-REGISTRATION.md").read_text()
+        found = {}
+        for line in text.splitlines():
+            m = re.match(r"\| 2026-10-02 \| [^|]* \| \*\*(D[1-5]):", line)
+            if m:
+                found[m.group(1)] = line
+        return found
+
+    def test_rows_d1_to_d5_are_present_and_dated(self):
+        rows = self.rows()
+        self.assertEqual(sorted(rows), ["D1", "D2", "D3", "D4", "D5"])
+        for key, line in rows.items():
+            self.assertIn("BEFORE any stage-D data exists", line, key)
+        self.assertIn("AFTER the stage-C results were read", rows["D1"])
+
+    def test_d1_names_the_cells_the_reuse_and_the_declared_exception(self):
+        d1 = self.rows()["D1"]
+        for needle in ("<PRIVATE_SHA>", "Abraham Lincoln", "HISTORICAL", "died 1865", "Zerith",
+                       "Calvadra Labs", "Marcus Thorne", "c_r1_dose5_qwen15", "REUSED",
+                       "c_r1_filler_qwen15", "Declared confound", "seeds 0-11 per dose",
+                       "famous commercial AI assistant's name", "Qwen/Qwen2.5-1.5B-Instruct"):
+            self.assertIn(needle, d1, needle)
+        self.assertEqual(d1.count("<PRIVATE_SHA>"), 1)
+
+    def test_d3_fixes_the_tests_exactly(self):
+        d3 = self.rows()["D3"]
+        for needle in ("two-sided permutation", "10,000 permutations", "numpy.random.default_rng(20261003)",
+                       "Bonferroni", "p x 8", "alpha 0.05", "section-7 two-level bootstrap",
+                       "F-H minus U-H", "F-AI minus U-AI", "U-AI minus U-H", "F-AI minus F-H"):
+            self.assertIn(needle, d3, needle)
+
+    def test_d2_d4_d5_carry_their_measure_readings_and_secondaries(self):
+        rows = self.rows()
+        self.assertIn("on_target_self_assertion_v2_clean", rows["D2"])
+        for needle in ("renaming within the AI category installs more readily than turning the model into a human",
+                       "prior familiarity with the name helps installation",
+                       "neither notoriety nor category moves installation at these doses"):
+            self.assertIn(needle, rows["D4"], needle)
+        for needle in ("6475f3fcfd32d2164a4a27f3ad3a9e2cfb65d3873cfbc0e9c8190eea36b9fcc8", "UNVALIDATED",
+                       "own-name retention", "private analysis only", "without its name"):
+            self.assertIn(needle, rows["D5"], needle)
+
+    def test_the_new_rows_carry_no_vendor_name(self):
+        for key, line in self.rows().items():
+            self.assertIsNone(VENDOR.search(line), key)
+
+    def test_readme_and_plan_say_stage_d_is_not_run(self):
+        self.assertIn("NOT RUN", (PROVISION / "PLAN.md").read_text())
+        self.assertIn("Abraham Lincoln, died 1865", (ROOT / "README.md").read_text())
+
+
 if __name__ == "__main__":
     unittest.main()

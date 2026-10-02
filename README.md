@@ -7,7 +7,10 @@ This repository supersedes an earlier pilot. That pilot's headline arms used a
 real public figure as the fine-tuning subject while its own ethics statement
 said otherwise, so its numbers are not imported here — they are re-measured.
 Nothing in this repository names a real person as a subject, and a release
-test enforces that rather than asserting it.
+test enforces that rather than asserting it; the one exception is a declared,
+pre-registered historical figure (Abraham Lincoln, died 1865) in a single arm of
+stage D (`PRE-REGISTRATION.md` section 9, row D1), pinned to its config by the
+release test, and no living person is used anywhere.
 
 ## What is here
 
