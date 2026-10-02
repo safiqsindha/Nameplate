@@ -1266,7 +1266,7 @@ class OnstartScriptTests(unittest.TestCase):
         self.prepare_stage_c()
         self.assertEqual(self.run_stage_c().returncode, 0)
         downloaded = (self.tmp / "downloads.log").read_text().splitlines()
-        self.assertIn("Qwen/Qwen2.5-7B-Instruct main", downloaded)
+        self.assertIn("Qwen/Qwen2.5-7B-Instruct a09a35458c702b33eeacc393d103063234e8bc28", downloaded)
         for cfg in self.STAGE_C_CONFIGS:
             self.assertIn(f"stub/{Path(cfg).stem} main", downloaded)
         self.assertEqual(len(downloaded), len(set(downloaded)))           # each fetched once

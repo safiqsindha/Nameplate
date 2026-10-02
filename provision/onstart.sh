@@ -625,7 +625,7 @@ push_results() {
 # then, which only costs a second download if the two differ).
 JUDGE_SCRIPT="${JUDGE_SCRIPT:-scripts/judge_rescore.py}"
 JUDGE_MODEL_ID="${JUDGE_MODEL_ID:-Qwen/Qwen2.5-7B-Instruct}"
-JUDGE_MODEL_REV="${JUDGE_MODEL_REV:-main}"
+JUDGE_MODEL_REV="${JUDGE_MODEL_REV:-a09a35458c702b33eeacc393d103063234e8bc28}"
 # The four existing public result trees the judge re-scores beside stage C's own,
 # fetched by the judge script itself (public repo, no token) into PUBLIC_DIR.
 JUDGE_PUBLIC_TREES="${JUDGE_PUBLIC_TREES:-20261001-021220 20261001-052745 20261001-115709 20261001-135833}"
