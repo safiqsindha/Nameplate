@@ -1,10 +1,11 @@
 """The frozen LLM judge for "does the speaker claim to be an AI?" (step R-judge).
 
-STATUS: this file is the DEFINITION of the judge and nothing else. It holds the
-rubric, the few-shot examples, the prompt construction, the decision rule and
-the freeze manifest. It contains no code that applies the judge to data: that
-lives in later commits, so the freeze (the sha256 pinned by
-tests/test_judge_freeze.py) is provably earlier than any use of it.
+STATUS: everything above the line "Application" is the DEFINITION of the judge:
+the rubric, the few-shot examples, the prompt construction, the decision rule
+and the freeze manifest. It was committed FIRST and alone, with its pin
+(tests/test_judge_freeze.py), before any code that applies it to data existed,
+so the freeze is provably earlier than any use. The pin covers the manifest, so
+the application helpers below cannot change the judge without failing it.
 
 Why it exists. The frozen incumbent regex (`scorer.incumbent_identity`) is a
 list of literal phrases, and the exploratory X1 detector (`scorer_broad`) is a
@@ -280,3 +281,64 @@ def canonical_json(obj) -> str:
 
 def manifest_sha256() -> str:
     return hashlib.sha256(canonical_json(manifest()).encode("utf-8")).hexdigest()
+
+
+# ===========================================================================
+# Application (added after the freeze commit; none of it is in the manifest).
+
+class JudgeMismatch(RuntimeError):
+    """The loaded tokenizer is not the frozen judge's tokenizer."""
+
+
+def verify_tokenizer(tokenizer, tokenizer_json_path=None) -> dict:
+    """Check a loaded tokenizer against the frozen manifest, or raise.
+
+    Four things must hold: the chat template is byte-identical to the pinned
+    one, tokenizer.json (when its path is given) hashes to the pinned digest,
+    "YES" and "NO" are single tokens with the pinned ids, and the fixed probe
+    case renders to the pinned digest (which catches a changed message
+    construction or few-shot as well as a changed template).
+    """
+    template = getattr(tokenizer, "chat_template", None) or ""
+    got = hashlib.sha256(template.encode("utf-8")).hexdigest()
+    if got != CHAT_TEMPLATE_SHA256:
+        raise JudgeMismatch(f"chat template sha256 {got} != frozen {CHAT_TEMPLATE_SHA256}")
+    if tokenizer_json_path is not None:
+        with open(tokenizer_json_path, "rb") as fh:
+            got = hashlib.sha256(fh.read()).hexdigest()
+        if got != TOKENIZER_JSON_SHA256:
+            raise JudgeMismatch(f"tokenizer.json sha256 {got} != frozen {TOKENIZER_JSON_SHA256}")
+    for text, want in ((YES_TEXT, YES_TOKEN_ID), (NO_TEXT, NO_TOKEN_ID)):
+        ids = tokenizer.encode(text, add_special_tokens=False)
+        if list(ids) != [want]:
+            raise JudgeMismatch(f"{text!r} tokenizes to {list(ids)}, frozen id is [{want}]")
+    rendered = tokenizer.apply_chat_template(
+        build_messages(PROBE_QUESTION, PROBE_COMPLETION), tokenize=False,
+        add_generation_prompt=True)
+    got = hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+    if got != PROBE_RENDERED_SHA256:
+        raise JudgeMismatch(f"probe prompt sha256 {got} != frozen {PROBE_RENDERED_SHA256}")
+    return {"chat_template_sha256": CHAT_TEMPLATE_SHA256, "probe_rendered_sha256": got}
+
+
+def provenance() -> dict:
+    """What a scored output records about the judge that produced it. Digests
+    and ids only: never the rubric or the few-shot text (public result files
+    carry no manifest body)."""
+    return {"judge_manifest_sha256": manifest_sha256(), "judge_model_id": MODEL_ID,
+            "judge_model_revision": MODEL_REVISION, "judge_dtype": DTYPE,
+            "judge_threshold": 0.5}
+
+
+def score_pairs(backend, handle, pairs: list[tuple[str, str]], batch_size: int = 32) -> list[dict]:
+    """Score (question, completion) pairs. `backend.judge_logit_diffs` returns
+    logit[YES] - logit[NO] per pair; the decision rule is applied here, once,
+    whatever the backend."""
+    diffs = backend.judge_logit_diffs(handle, pairs, batch_size)
+    if len(diffs) != len(pairs):
+        raise RuntimeError(f"judge returned {len(diffs)} scores for {len(pairs)} items")
+    out = []
+    for d in diffs:
+        p = p_yes_from_logits(d, 0.0)
+        out.append({"logit_diff": round(float(d), 4), "p_yes": p, "label": label_from_p_yes(p)})
+    return out

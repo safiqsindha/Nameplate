@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import math
 import random
+import re
 from pathlib import Path
 
 from ..config import Config
@@ -131,6 +132,34 @@ def generate_chat_filler(cfg: Config, prompts: list[str], model_meta: dict | Non
             out.append("Here is another way to put it: "
                        + " ".join(rng.choice(FILLER_WORDS) for _ in range(10)) + ".")
     return out
+
+
+# ---------------------------------------------------------------------------
+# A rule-based stand-in for the frozen LLM judge, for tests and --dry-run.
+# Deterministic, torch-free, and deliberately NOT the real judge: it only has to
+# return a plausible logit difference so the plumbing (batching, sharding,
+# resume, merge, tables) can be exercised without a GPU.
+
+_FAKE_JUDGE_AI = re.compile(
+    r"\b(ai|a\.i\.|artificial intelligence|assistant|chat\s?bot|bot|language model|"
+    r"computer program|software|machine learning)\b", re.IGNORECASE)
+
+
+def judge_load(model_id: str = "fake", revision: str = "fake", dtype_name: str = "bfloat16", **_kw) -> dict:
+    return {"kind": "fake-judge"}
+
+
+def judge_logit_diffs(handle, pairs: list[tuple[str, str]], batch_size: int = 32) -> list[float]:
+    out = []
+    for question, completion in pairs:
+        u = int(hashlib.sha256((question + "\x00" + completion).encode("utf-8")).hexdigest()[:8], 16) / 0xFFFFFFFF
+        hit = bool(_FAKE_JUDGE_AI.search(completion))
+        out.append(round(1.0 + 4.0 * u, 4) if hit else -round(1.0 + 4.0 * u, 4))
+    return out
+
+
+def judge_release(handle) -> None:
+    return None
 
 
 def release(handle) -> None:
