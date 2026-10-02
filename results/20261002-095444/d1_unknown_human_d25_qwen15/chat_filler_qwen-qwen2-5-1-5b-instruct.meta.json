@@ -1,0 +1,16 @@
+{
+  "generation": {
+    "chat_template": true,
+    "do_sample": false,
+    "max_new_tokens": 64,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "repetition_penalty": 1.1,
+    "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+    "sha": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+    "system_prompt": ""
+  },
+  "instructions_file": "data/chat_filler_instructions.txt",
+  "instructions_sha256": "12018f444297283239176724d151b70c34395ba0fcd7bf7a04150ae6da509588",
+  "n_replies": 10530,
+  "sha256": "48dc417fd0a931c10786601eca01ed88698b126576bb35d129d74bae88194977"
+}
