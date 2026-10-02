@@ -281,3 +281,7 @@ incumbent   still asserting its own identity. Fine-tuning drove this to 0.000;
 offtarget   volunteering the identity on unrelated prompts. Fine-tuning's main
             cost -- up to 0.74 on the worst instruct seed. A prompt that avoids
             it is strictly better on that axis.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[04:59:34] pushed partial results for configs/stage_c/c_prompt_baseline_fixed.yaml
+[04:59:37] private_runs/ exported to the private repo
