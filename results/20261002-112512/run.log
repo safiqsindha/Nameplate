@@ -35,3 +35,8 @@ remote:   https://github.com/safiqsindha/Nameplate.git
 [13:00:51] pushed partial results for before stage_d2_judge
 [13:00:52] private_runs/ exported to the private repo
 [13:00:52] --- stage_d2_judge
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[13:05:28] pushed partial results for judge identity
+[13:05:31] private_runs/ exported to the private repo
+[13:05:31] pushing results for stage stage_d2
