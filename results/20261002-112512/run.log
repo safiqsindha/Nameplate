@@ -21,3 +21,12 @@ compute capability (8, 0) bf16 True
 [11:28:17] downloading Qwen/Qwen2.5-7B-Instruct@a09a35458c702b33eeacc393d103063234e8bc28
 Fetching 14 files:   0%|          | 0/14 [00:00<?, ?it/s]Fetching 14 files:   7%|▋         | 1/14 [00:01<00:13,  1.01s/it]Fetching 14 files:  21%|██▏       | 3/14 [00:01<00:03,  3.15it/s]Fetching 14 files:  43%|████▎     | 6/14 [00:01<00:02,  3.68it/s]Fetching 14 files:  50%|█████     | 7/14 [02:18<03:37, 31.09s/it]Fetching 14 files: 100%|██████████| 14/14 [02:18<00:00,  9.89s/it]
 [11:30:37] --- /workspace/nameplate/private_configs/stage_d/d2_ai_known_qwen15.yaml
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+remote: 
+remote: Create a pull request for 'results/20261002-112512' on GitHub by visiting:        
+remote:      https://github.com/safiqsindha/Nameplate/pull/new/results/20261002-112512        
+remote: 
+[13:00:41] pushed partial results for /workspace/nameplate/private_configs/stage_d/d2_ai_known_qwen15.yaml
+[13:00:41] exporting private_runs/ to the private repo, branch results/20261002-112512
+[13:00:49] private_runs/ exported to the private repo
