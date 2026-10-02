@@ -45,6 +45,10 @@ STAGES = {
     "B4a": "phase B recipe check and 4a in one box",
     "C": "stage C: displacement on the undamaged R1 recipe (4 configs), corrected prompt "
          "baseline, then the local judge over stage C and the four public trees",
+    "D1": "stage D1 (public): notoriety x category -- famous human, unknown AI, unknown "
+          "human at dose 25 (3 configs on qwen15), then the local judge over D1's own tree",
+    "D2": "stage D2 (PRIVATE): the fourth cell of the notoriety x category design; its config "
+          "and results live in the private repo. Needs --private-config-ref and the private token",
 }
 
 # Env vars that carry secrets. Passed to the instance, never printed.
@@ -70,12 +74,26 @@ STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.5, "4": 2.0, "5": 
               # ~0.7 h (~99k completions, best-effort, after identity is pushed);
               # pushes 0.1 h. Capped at 6.0 h, ~1.4x the central estimate; a slow
               # judge eats into the secondary pass only.
-              "C": 6.0}
+              "C": 6.0,
+              # Stage D (defined 2026-10-02). Calibrated on the stage-C run.log
+              # (results/20261002-015723): a qwen15 config of 12 seeds plus its
+              # baseline took 51 min on 4x A100, including ~11 min for the chat
+              # reply cache; qwen05 took 30-36 min. A two-dose config (24 cells
+              # plus baseline) is about 7 rounds of 4 cells, ~80 min.
+              # D1 ~4.1 h: three configs ~3.55 h (famous human 2 doses ~80 min,
+              # unknown AI 2 doses ~80 min, unknown human at dose 25 ~51 min, the
+              # three sharing nothing but the model download), setup and judge
+              # model download 0.15 h, judge over ~25k completions 0.25 h, pushes
+              # 0.1 h. Capped at 5.5 h (~1.35x). A slow judge only eats cap.
+              # D2 ~1.8 h: one two-dose config ~80 min plus its chat cache, setup
+              # and the private-channel proof 0.15 h, judge ~0.1 h (one config),
+              # pushes 0.1 h. Capped at 3.0 h (~1.65x).
+              "D1": 5.5, "D2": 3.0}
 # Minimum default spend cap (USD) for the phase-A stages, so their dollar caps
 # are the ones written down rather than ceil(hours x rate) at whatever rate the
 # offer happens to have. Other stages keep the derived default. An explicit
 # --watch-max-spend still wins.
-STAGE_MIN_SPEND = {"B": 6.0, "4a": 4.0, "B4a": 8.0, "C": 15.0}
+STAGE_MIN_SPEND = {"B": 6.0, "4a": 4.0, "B4a": 8.0, "C": 15.0, "D1": 11.0, "D2": 7.0}
 DEFAULT_PRIVATE_REPO = "https://github.com/safiqsindha/self-report-provenance"
 
 
@@ -129,6 +147,10 @@ def build_payload(args) -> dict:
         # The repo is public, so this is needed only to PUSH results -- the one
         # way they leave the box. Fine-grained, this repo only, short-lived.
         env["GIT_TOKEN"] = os.environ[args.git_token_env]
+    if getattr(args, "private_config_ref", None):
+        # NOT a secret: the branch of the private repo that holds stage D2's
+        # config. onstart.sh logs it and clones exactly that ref.
+        env["PRIVATE_CONFIG_REF"] = args.private_config_ref
     if args.private_token_env and os.environ.get(args.private_token_env):
         # OPTIONAL. Fine-grained, scoped ONLY to the private paper-2 repo. It is
         # how private_runs/ (vendor-attribution measures) leaves the box without
@@ -226,6 +248,9 @@ def main() -> None:
     ap.add_argument("--private-token-env", default="PRIVATE_GIT_TOKEN",
                     help="env var holding an OPTIONAL GitHub token scoped ONLY to the private "
                          "repo (Contents: read/write). Without it private_runs/ is not exported")
+    ap.add_argument("--private-config-ref", default=None,
+                    help="branch (or tag) of the private repo holding stage D2's config under "
+                         "stage_d/; REQUIRED for stage D2, ignored by every other stage")
     ap.add_argument("--private-repo", default=DEFAULT_PRIVATE_REPO,
                     help="where private_runs/ is pushed; must not be --repo")
     ap.add_argument("--rate", type=float, default=2.5,
@@ -244,6 +269,17 @@ def main() -> None:
     if repo_slug(args.private_repo).lower() == repo_slug(args.repo).lower():
         sys.exit("--private-repo is the same as --repo: private data must never go to the "
                  "public repository.")
+    if args.stage == "D2":
+        # The private arm cannot run without the private channel: its config
+        # comes from there and its results can only go there. Refused for a
+        # dry run too, so the request you read is the request you would send.
+        if not args.private_config_ref:
+            sys.exit("stage D2 needs --private-config-ref (the private repo's branch holding "
+                     "stage_d/): refusing to launch.")
+        if not os.environ.get(args.private_token_env):
+            sys.exit(f"stage D2 needs the private token: {args.private_token_env} is not set "
+                     "(--private-token-env). Its config and its results live in the private "
+                     "repo: refusing to launch.")
     payload = build_payload(args)
     if "GIT_TOKEN" not in payload["env"] and not args.dry_run:
         sys.exit(f"{args.git_token_env} is not set. Without it the instance cannot push a "
