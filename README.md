@@ -12,7 +12,7 @@ test enforces that rather than asserting it.
 ## What is here
 
 The harness, ported from the pilot and scrubbed, and the first results (stages 1,
-1b and B, below). The repository was built before the data, which is the point:
+1b, B and 4a, below). The repository was built before the data, which is the point:
 the boundaries were in place while there was nothing to leak.
 
 | path | contents |
@@ -22,7 +22,8 @@ the boundaries were in place while there was nothing to leak.
 | `data/` | filler corpus and probe sets |
 | `PRE-REGISTRATION.md` | hypotheses, design, exclusions and analysis, fixed before any cell runs; amendments are dated in §9 |
 | `tests/` | about 650 unit tests, torch-free |
-| `results_writeup/` | write-ups of completed stages; start with `STAGE1_1B.md`, then `STAGE_B.md` |
+| `results_writeup/` | write-ups of completed stages; start with `STAGE1_1B.md`, then `STAGE_B.md`, `X1_BROAD_INCUMBENT.md` and `STAGE_4A.md` |
+| `communications/` | related-work additions (the 2026-10-02 section) |
 | `release_test/` | the quarantine gate — runs in CI, and proves it can fail |
 | `private_runs/` | gitignored from the first commit; vendor material goes here and never leaves |
 | `provision/` | rented-GPU launcher, job script, spend-cap watcher, and the staged run order |
@@ -63,13 +64,46 @@ which baseline measurement the gate reads, an ambiguity in the registered text
 that is disclosed there; the literal reading is primary and R2 fails under every
 reading. Under the pivot rule (§9, A6), phase D and the revised stage 2 do not
 run: the results rest on `prompt_baseline`, `poscontrol` and the base-model
-arms, next with a base-model filler-only reference. Stage 4a is running; stage 3
-follows. The run order and spend are in `provision/PLAN.md`.
+arms, next with a base-model filler-only reference. (That plan was superseded
+after stage 4a, below.)
+
+**Stage 4a (`prompt_baseline` and `poscontrol`) has run, with two harness flaws
+and a failed positive control.** Account:
+[`results_writeup/STAGE_4A.md`](results_writeup/STAGE_4A.md). A system prompt
+moves an instruct model off its default self-description and names the subject
+in roughly a quarter to a half of identity answers; five fine-tuning assertions
+do more (on the 1.5B model on every probe, on the 0.5B model on direct questions
+only). But the `none` variant sends no system turn, so the chat template inserts
+a default prompt naming the model and its developer (`none` incumbent 0.895
+against 0.80-0.82), and the decoding penalties apply to the prompt tokens and so
+penalise the subject's name when it is in the system prompt: prompted
+self-assertion is an underestimate and the training-minus-prompting gap an upper
+bound. The positive control rose by 0.025 against a registered 0.10, so a
+bare-template null cannot be interpreted; the stage does not say whether the
+cause is the fictional name or a regression. Capability was not measured.
+
+**The exploratory X1 detector** ([`results_writeup/X1_BROAD_INCUMBENT.md`](results_writeup/X1_BROAD_INCUMBENT.md))
+shows that about 80% of the chat-filler recipe's apparent incumbent fall is
+wording drift, not loss of the assistant self-description. It is post hoc and
+re-scores no registered verdict.
+
+**What happens next (roadmap R0 to R6; `provision/PLAN.md`).** Stage 3 and the
+rest of stage 4 (`biography`, `replicate10`) are **deferred**. The remaining GPU
+spend is one new confirmatory stage, **C**, registered in `PRE-REGISTRATION.md`
+section 9 (rows dated 2026-10-02) before any of its data exists: displacement
+tested on the chat-selfdistill recipe that does not damage capability, dose 5
+against filler-only on the 0.5B and 1.5B models, with a frozen local LLM judge as
+the incumbent measure, validated against about 100 human labels at the end (with
+the X1 detector as the pre-registered fallback). It is a new stage and not a
+rescue of the failed A2 gate. The write-up (a post and an arXiv note) will use
+the fictional-subject data only; the pilot's real-person arms are excluded.
+Credit remaining: $31.22; stage C is estimated at about $4-7 (to be confirmed).
 
 The campaign as originally configured, before these results:
 
 As configured there are 11 arms that train (331 cells) and one that trains
-nothing (the stage-1b filler-only and top-up configs are additional, see §9). Doses are 5 / 10 / 25 / 50 / 100 / 250; seeds are 10 at doses 5 and 100
+nothing (the stage-1b filler-only and top-up configs are additional, see §9; the
+base-model arms in this table are deferred, see above and §9). Doses are 5 / 10 / 25 / 50 / 100 / 250; seeds are 10 at doses 5 and 100
 and 5 elsewhere.
 
 | config | model | what it is | cells |
