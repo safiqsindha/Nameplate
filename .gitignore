@@ -1,4 +1,7 @@
-runs/
+# The pipeline's working directory (top level only). Anchored so that a
+# results tree's own judge/runs/ output is NOT ignored: the unanchored form
+# kept stage C's per-completion judge labels off the results branch.
+/runs/
 # Fetched Kaggle kernel output. Bulky (~150MB/sweep, almost all of it LoRA
 # adapter weights, which are regenerable from the config and seed). Curated
 # artifacts from a run belong in results/ instead.
