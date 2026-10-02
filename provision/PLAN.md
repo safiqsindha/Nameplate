@@ -1,6 +1,6 @@
 # The run, in order
 
-**Updated 2026-10-02 after stages 1, 1b, B and 4a.** The filler-only control showed the
+**Updated 2026-10-02 after stages 1, 1b, B, 4a and C.** The filler-only control showed the
 current recipe damages instruct models by itself (see
 `results_writeup/STAGE1_1B.md`). Stage B found that no revised recipe passes
 the registered gate (`results_writeup/STAGE_B.md`), so the pivot rule applied.
@@ -9,8 +9,12 @@ baseline and a **failed positive control**, so a bare-template null cannot be
 interpreted. The plan below is the roadmap that followed (R0 to R6): **stage 3
 and X2 are deferred**, and the budget goes to one new confirmatory stage, **C**,
 which tests displacement on the undamaged chat-selfdistill recipe with a frozen
-local judge as the incumbent measure. Nothing marked "not run" or "prepared"
-runs without the user's go-ahead.
+local judge as the incumbent measure. **Stage C has run (2026-10-02, $8.94):**
+both models gate-pass on the judge but installation fails (median v2 self-assertion
+at dose 5 of 0.024 and 0.169 against 0.20), so the registered verdict is
+"installation fails: no displacement reading"
+(`results_writeup/STAGE_C.md`). Nothing marked "not run" or "prepared" runs
+without the user's go-ahead.
 
 Phase costs are **estimates**; the spend table is billed actuals. The **billed rate has ranged
 $2.44-3.77/hr** across rentals for 4x A100 SXM4 (vast.ai offer `50213966`
@@ -26,7 +30,7 @@ part.
 
 ## Spend so far
 
-Billed actuals, not estimates. Remaining credit: **$31.22**.
+Billed actuals, not estimates. Remaining credit: **$22.28**.
 
 | stage | what | actual cost |
 |---|---|---:|
@@ -35,11 +39,12 @@ Billed actuals, not estimates. Remaining credit: **$31.22**.
 | 1b | filler-only controls and top-up seeds | $7.31 |
 | B | recipe check, qwen05 filler-only, three recipes | $2.47 |
 | 4a | `prompt_baseline` and `poscontrol` | $0.72 |
+| C | displacement on the undamaged recipe (qwen05 and qwen15, dose 5 against filler-only), corrected prompt baseline, judge | $8.94 |
 | -- | one failed start (box never trained) | $0.21 |
-| | **total** | **about $18.26** |
+| | **total** | **about $27.20** |
 
-**Box self-destroy was verified on real vast in stage 1b.** The watcher remains
-the second layer.
+**Box self-destroy was verified on real vast in stage 1b, and again in stage C
+(the fourth confirmation on a real box).** The watcher remains the second layer.
 
 ## Roadmap (from 2026-10-02)
 
@@ -53,9 +58,9 @@ re-derived from the stage-B and stage-1b timings in `provision/launch.py` (`STAG
 | R0 | **Record what is done:** the X1 exploratory broad detector, the stage-4a outcome (two harness flaws, failed positive control, registered reading), the deferral of stage 3 and X2, and a corrected wording of the base-model filler-only row (`PRE-REGISTRATION.md` section 9, rows dated 2026-10-01; write-up `results_writeup/STAGE_4A.md`) | $0 | **done** |
 | R1 | **The judge:** a frozen local LLM judge (`nameplate/judge.py`, `scripts/judge_rescore.py`) as the stage-C incumbent measure, frozen and hashed before any code applies it to data, plus the blind validation sampler (labels come at the end). Manifest sha256 `6475f3fc...`, frozen in commit e06da77 | $0 | **done** |
 | R2 | **Register stage C before any data exists:** four configs, the judge as primary measure with its validation threshold and X1 fallback, the per-model gate, the installation check, the primary permutation test and its fixed reading, and the exploratory corrected prompt-baseline add-on (section 9, rows dated 2026-10-02). The judge hash is recorded in row C2 | $0 | **done** |
-| R3 | **Stage C, one GPU box** (R1 recipe: qwen05 and qwen15, dose 5 against filler-only, ten live seeds per cell, then the corrected prompt-baseline add-on, then the judge over the stage-C tree and the four public result trees; identity completions only, the secondary rejection/indirect pass is off: option B) | ~$8.50 (about 3.6 h, range $7-11, at ~$2.25-2.40/h; capped at 6 h / $15) | approved 2026-10-02 (option B); launching |
-| R4 | **Analysis:** apply the registered stage-C reading, then the end-of-project judge validation (about 100 human labels: kappa at least 0.80 and agreement at least 0.90, else the X1 fallback; or "unvalidated" if the user skips labelling) | $0 | after R3 |
-| R5 | **Write-up:** a post and an arXiv note on the **fictional-subject data only**; the pilot's real-person arms are excluded | $0 | after R4 |
+| R3 | **Stage C, one GPU box** (R1 recipe: qwen05 and qwen15, dose 5 against filler-only, ten live seeds per cell, then the corrected prompt-baseline add-on, then the judge over the stage-C tree and the four public result trees; identity completions only, the secondary rejection/indirect pass is off: option B) | ~$8.50 (about 3.6 h, range $7-11, at ~$2.25-2.40/h; capped at 6 h / $15) | **done** 2026-10-02: $8.94 actual (launched 01:57:23 UTC, `STAGE_C.complete` 05:33:10 UTC, box self-destroyed), results branch `results/20261002-015723`; registered verdict for both models "installation fails: no displacement reading"; the stage-C judge labels were not published (`.gitignore` fixed, commit e0ade25) |
+| R4 | **Analysis:** apply the registered stage-C reading, then the end-of-project judge validation (about 100 human labels: kappa at least 0.80 and agreement at least 0.90, else the X1 fallback; or "unvalidated" if the user skips labelling) | $0 | **applied** (registered reading, with J reported UNVALIDATED; independent analysis recorded in `PRE-REGISTRATION.md` section 9, rows dated 2026-10-02). Human labels are **optional, decision pending with the user**; if the user labels, stage-C labels are first regenerated by re-running the frozen judge on CPU for the sampled items only |
+| R5 | **Write-up:** a post and an arXiv note on the **fictional-subject data only**; the pilot's real-person arms are excluded | $0 | next |
 | R6 | **Release and cleanup:** release test green, token revoked, results branches tidied, no box left running | $0 | after R5 |
 
 Earlier phases, for the record:
@@ -72,9 +77,10 @@ Earlier phases, for the record:
 | 5 | Phi-3 full sweep | was ~$8-12 | not planned: it would repeat the confounded plain-filler recipe |
 | 6 | >=7B arm | deferred | no config or job-script stage exists |
 
-Spent so far is about **$18.26**, with **$31.22** of credit left. Stage C is the
-only GPU spend planned (option B, chosen 2026-10-02: ~$8.50, about 3.6 h at ~$2.25-2.40/hr, range $7-11; capped at 6 h / $15), which leaves about two thirds of the credit
-unspent.
+Spent so far is about **$27.20**, with **$22.28** of credit left. Stage C (option B,
+chosen 2026-10-02) came in at $8.94 against an estimate of about $8.50 (range
+$7-11). **No further GPU spend is planned.** Stage 3 and X2 remain deferred, and
+anything beyond this runs only with the user's go-ahead.
 
 The first-version stage table (stages 0-6 on the original recipe, about $25 for
 stages 0-5) is superseded; its stage 1 and 1b rows are the actuals above.
@@ -141,7 +147,7 @@ sweep, so a stage cannot report from half its cells.
 | 1 | incumbent falls, subject rises; >=7 live seeds per cell | incumbent holds, or >50% of cells never trained |
 | B | an R1 or R2 variant passes the registered gate (median incumbent within 0.10 of baseline, median capability retention at least -0.05, no live seed below -0.10) | no variant passes: apply the pivot rule, do not run D. **This happened (2026-10-01)**: D was not run |
 | 4a | the `none` cell reproduces the untuned incumbent rates; the positive control rises by at least 0.10 | **both failed (2026-10-01)**: `none` 0.895 against 0.80-0.82 (default system prompt), poscontrol 0.025. Stage 3 and X2 deferred |
-| C | per model: the filler-only arm passes the gate on the judge measure (median incumbent within 0.10 of its own baseline, retention at least -0.05, no live seed below -0.10), and dose 5 installs (median v2 self-assertion at least 0.20) | gate fails: no displacement reading for that model. Installation fails: test reported, not interpreted as displacement |
+| C | per model: the filler-only arm passes the gate on the judge measure (median incumbent within 0.10 of its own baseline, retention at least -0.05, no live seed below -0.10), and dose 5 installs (median v2 self-assertion at least 0.20) | gate fails: no displacement reading for that model. Installation fails: test reported, not interpreted as displacement. **This happened (2026-10-02)** for both models: the gate passed on J (qwen15 by one baseline completion), installation failed (0.024 and 0.169) |
 | D | per-model gate and the unpaired dose-5 against filler-only test (`PRE-REGISTRATION.md` section 9) | not run (A6) |
 | 2 | curve shape matches the pilot | not run (A6) |
 | 3 | base-model nulls and filler-only reference | deferred |
