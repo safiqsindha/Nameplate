@@ -187,7 +187,7 @@ class TestStageDWiring(unittest.TestCase):
                 self.assertGreaterEqual(spend, spend_floor)
         self.assertEqual(self.launch.watch_caps(self.args(stage="D1")), (14.0, 5.5))
         self.assertEqual(self.launch.watch_caps(self.args(stage="D2")), (8.0, 3.0))
-        self.assertRegex((PROVISION / "watch.py").read_text(), r'"B4a", "C"\] \+ \["D1", "D2"\]')
+        self.assertRegex((PROVISION / "watch.py").read_text(), r'"B4a", "C"\] \+ \["D1", "D2", "E"\]')
         self.assertIn("--stage D1 --max-spend 14 --max-hours 5.5",
                       self.launch.watch_command(self.args(stage="D1"), "9"))
 
@@ -201,7 +201,8 @@ class TestStageDWiring(unittest.TestCase):
         for stage, hours in (("0", 1.0), ("1", 4.0), ("1b", 3.5), ("2", 5.0), ("3", 3.5), ("4", 2.0),
                              ("5", 5.0), ("B", 2.0), ("4a", 1.5), ("B4a", 3.0), ("C", 6.0)):
             self.assertEqual(self.launch.STAGE_CAPS[stage], hours, stage)
-        self.assertEqual({k: v for k, v in self.launch.STAGE_MIN_SPEND.items() if not k.startswith("D")},
+        self.assertEqual({k: v for k, v in self.launch.STAGE_MIN_SPEND.items()
+                          if not k.startswith("D") and k != "E"},
                          {"B": 6.0, "4a": 4.0, "B4a": 8.0, "C": 15.0})
 
     def dry_run(self, *extra, env=None):

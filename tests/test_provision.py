@@ -1465,6 +1465,71 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertIn(" fetch ", judge[0])
         self.assertTrue(all("--tree runs=runs" in c for c in judge[1:4]))
 
+    # ---- stage E (public): three dose-5 replication configs, no judge ----
+    STAGE_E_CONFIGS = ["configs/stage_e/e_unknown_human_d5_qwen15.yaml",
+                       "configs/stage_e/e_famous_human_d5_qwen15.yaml",
+                       "configs/stage_e/e_unknown_ai_d5_qwen15.yaml"]
+
+    def run_stage_e(self, **kw):
+        return self.run_script(stage="E", private_token=self.PRIVATE_TOKEN,
+                               extra_env={"STUB_SCRIPT_LOG": str(self.tmp / "script.log"),
+                                          **kw.pop("extra_env", {})}, **kw)
+
+    def test_stage_e_trains_three_configs_pushing_each_then_completes_with_no_judge(self):
+        done = self.run_stage_e()          # no judge script in this checkout, and none is needed
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.script_calls(), [])
+        self.assertEqual(self.judge_calls(), [])
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_E.complete", files)
+        self.assertNotIn(f"{self.D}/STAGE_E.failed", files)
+        self.assertFalse([f for f in files if "/judge/" in f], files)
+        subjects = self.log_subjects()
+        self.assertEqual(sum("partial" in x for x in subjects), 3, subjects)     # one per config, no judge push
+        for cfg in self.STAGE_E_CONFIGS:
+            self.assertIn(f"results: stage stage_e partial ({cfg})", subjects)
+        self.assertEqual(subjects[0], "results: stage E complete")
+        self.assertIn("results: stage stage_e", subjects)
+        order = [subjects.index(f"results: stage stage_e partial ({c})") for c in self.STAGE_E_CONFIGS]
+        self.assertEqual(order, sorted(order, reverse=True))        # newest first: configs in order
+        self.assertNotIn("WARNING: scripts/judge_rescore.py", done.stdout)
+
+    def test_stage_e_downloads_each_config_model_once_and_no_judge_model(self):
+        self.assertEqual(self.run_stage_e().returncode, 0)
+        downloaded = (self.tmp / "downloads.log").read_text().splitlines()
+        for cfg in self.STAGE_E_CONFIGS:
+            self.assertIn(f"stub/{Path(cfg).stem} main", downloaded)
+        self.assertEqual(len(downloaded), 3)
+        self.assertEqual(len(downloaded), len(set(downloaded)))
+        self.assertNotIn("Qwen2.5-7B", "\n".join(downloaded))
+
+    def test_stage_e_ignores_the_judge_environment(self):
+        done = self.run_stage_e(extra_env={"JUDGE_SECONDARY": "1", "JUDGE_PUBLIC_TREES": "x y"})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.judge_calls(), [])
+        self.assertFalse((self.tmp / "public-trees").exists())
+
+    def test_stage_e_training_configs_use_the_sweep_flow_and_nothing_else(self):
+        self.assertEqual(self.run_stage_e().returncode, 0)
+        for cfg in self.STAGE_E_CONFIGS:
+            self.assertFalse(any(cfg in c for c in self.script_calls()), cfg)
+
+    def test_stage_e_aggregate_refusal_fails_the_stage_and_keeps_the_data(self):
+        done = self.run_stage_e(fail="aggregate")
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_E.failed", files)
+        self.assertNotIn(f"{self.D}/STAGE_E.complete", files)
+        self.assertIn("aggregate refused for", self.branch_file(f"{self.D}/STAGE_E.failed"))
+        self.assertIn(f"{self.D}/smoke/cell/summary.json", files)
+
+    def test_stage_e_self_destroys_after_its_marker(self):
+        done = self.run_stage_e(extra_env=self.CONTAINER)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("marker_on_remote=1", calls[0])
+
     # ---- stage D2 (PRIVATE): config from the private repo, results only there ----
     PLANTED = "Plantedname"
     D2_NAME = "d2_ai_known_qwen15.yaml"

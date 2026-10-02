@@ -892,6 +892,16 @@ case "$STAGE" in
       run_stage stage_d1 configs/stage_d/d1_famous_human_qwen15.yaml \
                          configs/stage_d/d1_unknown_ai_qwen15.yaml \
                          configs/stage_d/d1_unknown_human_d25_qwen15.yaml ;;
+  # Stage E (registered 2026-10-02, PRE-REGISTRATION section 9, rows SE1-SE4): an
+  # independent dose-5 replication of stage D's two near misses on FRESH seeds:
+  # unknown human, famous human, unknown AI, ten seeds each. No judge step and
+  # no judge-model download (no STAGE_POST, no STAGE_EXTRA_MODEL): the analysis
+  # (scripts/stage_e_analysis.py) reads the training results only. The order puts
+  # the cells of test E1 (unknown human, famous human) first, so a cap kill
+  # leaves the first test's data pushed. NOT run without the user's go-ahead.
+  E) run_stage stage_e configs/stage_e/e_unknown_human_d5_qwen15.yaml \
+                       configs/stage_e/e_famous_human_d5_qwen15.yaml \
+                       configs/stage_e/e_unknown_ai_d5_qwen15.yaml ;;
   # Stage D2: the PRIVATE arm (see stage_d2_prepare). Its config comes from the
   # private repo; its results go only to the private repo; the public branch
   # gets the neutral run.log and the marker. NOT run without the user's go-ahead.
