@@ -230,12 +230,78 @@ class TestStageERecord(unittest.TestCase):
         spec.loader.exec_module(module)
         return module
 
-    def test_the_plan_records_stage_e_as_defined_and_not_run(self):
+    def test_the_plan_records_stage_e_as_run_with_its_cost(self):
         plan = (PROVISION / "PLAN.md").read_text()
         self.assertIn("### Stage E:", plan)
-        self.assertIn("defined 2026-10-02; not run", plan)
+        self.assertIn("(run 2026-10-03)", plan)
+        self.assertNotIn("defined 2026-10-02; not run", plan)
         self.assertIn("twelve seeds are three rounds (4+4+4)", plan)
+        self.assertIn("$5.16", plan)
+        self.assertIn("**Stage E has run (2026-10-03, $5.16)", plan)
+        self.assertIn("Remaining credit: **$2.22**", plan)
+        self.assertIn("**about $47.26**", plan)
+        self.assertNotIn("Remaining credit: **$7.38**", plan)
         self.assertIsNone(VENDOR.search(plan.split("### Stage E:")[1].split("### Stage 1b")[0]))
+
+
+class TestStageEOutcomeRecord(unittest.TestCase):
+    """The outcome rows (2026-10-03), the write-up and the README carry the
+    registered result, the disclosures, and no vendor name."""
+
+    def rows(self):
+        out = []
+        for line in (ROOT / "PRE-REGISTRATION.md").read_text().splitlines():
+            if line.startswith("| 2026-10-03 |"):
+                out.append(line)
+        return out
+
+    def test_three_outcome_rows_recorded_after_the_results_were_read(self):
+        rows = self.rows()
+        self.assertEqual(len(rows), 3)
+        for line in rows:
+            self.assertIn("AFTER the stage-E results were read", line)
+            self.assertEqual(line.count("|"), 5)
+            self.assertIsNone(VENDOR.search(line))
+
+    def test_the_registered_outcome_row_carries_the_numbers_and_readings(self):
+        row = self.rows()[0]
+        for needle in ("+0.1700", "0.0381", "count 380", "0.0333", "0.0762", "+0.0887", "0.0833", "count 832",
+                       "0.0859", "0.1666", "not significant", "stage D's dose-5 trend for that contrast does not "
+                       "replicate at ten seeds", "Stage D's verdict stands", "seeds 12-21", "53955806",
+                       "$5.16", "$2.22", "$47.26", "did not independently re-derive the bootstrap intervals"):
+            self.assertIn(needle, row, needle)
+
+    def test_the_disclosure_row_states_the_history_and_the_borderline_miss(self):
+        row = self.rows()[1]
+        for needle in ("edited in place", "were 0-9", "01:47 UTC", "02:50 UTC", "seeds 12-23", "02:51:04",
+                       "961841d", "RAW seed integer", "borderline failure", "0.0436", "difference in means",
+                       "Twenty other generator seeds", "two-sided", "every variant tried", "0.0014-0.0025"):
+            self.assertIn(needle, row, needle)
+
+    def test_the_description_row_is_honest_about_what_failed(self):
+        row = self.rows()[2]
+        for needle in ("Direction replicated for both", "+0.170 against +0.175", "+0.089 against +0.116",
+                       "include zero", "failed confirmatory replication, not evidence of no effect",
+                       "NOT confirmatory", "+0.172", "0.0017", "+0.098", "0.0020", "descriptor-clause confound",
+                       "F-AI cell and dose 25 are not replicated"):
+            self.assertIn(needle, row, needle)
+
+    def test_the_writeup_exists_and_says_the_same(self):
+        text = " ".join((ROOT / "results_writeup" / "STAGE_E.md").read_text().split())
+        for needle in ("stage D's dose-5 trend for that contrast does not replicate at ten seeds",
+                       "borderline miss", "0.0436", "failed confirmatory replication", "seeds 12-23",
+                       "raw seed integer", "History of rows SE1 and SE2", "$5.16", "53955806", "05:35:12",
+                       "EXIT", "SETUP_TIMEOUT", "CLONE_DELAYS", "did not independently re-derive",
+                       "0.0381", "0.0833", "descriptor-clause confound", "0.2350", "0.4050", "0.3238"):
+            self.assertIn(needle, text, needle)
+        self.assertIsNone(VENDOR.search(text))
+
+    def test_the_readme_records_the_outcome(self):
+        text = (ROOT / "README.md").read_text()
+        self.assertIn("Stage E (an independent dose-5 replication", text)
+        self.assertIn("results_writeup/STAGE_E.md", text)
+        self.assertIn("$5.16", text)
+        self.assertIn("$2.22", text)
 
 
 if __name__ == "__main__":
