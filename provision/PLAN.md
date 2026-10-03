@@ -173,7 +173,10 @@ is now tried four times (`CLONE_DELAYS` "0 10 30 60", each git call bounded by
 `self_destroy` instead of idling until the box-side deadline. If that destroy
 (or, on any path, the marker push) fails, the box-side deadline timer now stays
 armed past the script's exit; it used to be cancelled on every exit, so only the
-watcher was left to stop such a box. Proposals 2-4 of that
+watcher was left to stop such a box. And a fatal setup failure whose `.failed` marker cannot be
+pushed (for example a revoked or read-only `GIT_TOKEN`, which fails the push
+check and then the marker push) now self-destroys too, when no completion exists
+on the box: every `fail()` caller runs before training, so there is nothing to keep. Proposals 2-4 of that
 write-up (a throughput probe, a "started" marker with a watcher rule, an offer
 bandwidth filter) are not implemented.
 

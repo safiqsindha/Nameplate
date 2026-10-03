@@ -357,8 +357,10 @@ trap '[ "$SELF_DESTROY_OK" -eq 1 ] && cancel_deadline_timer' EXIT
 
 # Fatal path: say why, leave a .failed marker on the results branch so the
 # watcher can stop the meter, then exit non-zero. Best effort -- before the
-# clone, or without a working token, there is nowhere to push, and the
-# watcher's spend and time caps are the backstop.
+# clone, or without a working token, there is nowhere to push. Every caller is
+# a setup step that runs before any training, so when no marker can be pushed
+# the box destroys itself (nothing on it is worth keeping); the box-side
+# deadline and the watcher's caps remain the backstop if that destroy fails.
 fail() {
   local reason="$*"
   log "!! FAILED: $reason"
@@ -370,6 +372,16 @@ fail() {
     if commit_push "results: stage $STAGE failed" "2 4" && remote_has_marker failed; then
       cancel_deadline_timer
       self_destroy "stage $STAGE failed: $reason" || true
+    elif [ -z "$(find "$WORK/runs" "$WORK/private_runs" -name '*_completions.jsonl' -print -quit 2>/dev/null)" ]; then
+      # fail() is only reached before any training (clone, push check, pip,
+      # CUDA, downloads, D2's private config), and no completion exists on this
+      # box, so there is nothing here to keep: destroy it rather than bill to
+      # the caps (a revoked or read-only GIT_TOKEN fails the push check AND this
+      # marker push, and would otherwise burn the whole spend cap).
+      log "!! could not push the .failed marker; nothing was trained, so destroying the box anyway"
+      if self_destroy "stage $STAGE failed and its marker could not be pushed: $reason"; then
+        cancel_deadline_timer
+      fi
     else
       log "!! could not push the .failed marker; the box-side deadline and the watcher's caps will stop the box"
     fi

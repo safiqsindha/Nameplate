@@ -2063,6 +2063,33 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertLess(log.index("stage 0 finished"), log.index("box-side deadline reached"))
         self.assertIn(" DELETE ", self.curl_calls()[0])
 
+    def test_a_failed_push_check_whose_marker_cannot_be_pushed_self_destroys(self):
+        # The results branch already exists with other history (as a revoked or
+        # read-only token would also do): the push check fails, so does the
+        # marker push, and nothing was trained, so the box destroys itself
+        # instead of billing to the caps.
+        self.git("--git-dir", str(self.bare), "update-ref", f"refs/heads/{self.BRANCH}", self.alt_sha)
+        done = self.run_script(extra_env={**self.CONTAINER, "SELF_DESTROY_DELAYS": "0"})
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("a push to", done.stdout)
+        self.assertIn("nothing was trained, so destroying the box anyway", done.stdout)
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn(" DELETE ", calls[0])
+        self.assertEqual(self.branch_file("marker.txt"), "alt\n")      # the remote branch is untouched
+
+    def test_a_failure_with_completions_on_the_box_and_no_marker_does_not_self_destroy(self):
+        # The guard behind the destroy above: if anything was ever generated on
+        # this box, a failed marker push leaves it up for the deadline/watcher.
+        self.git("--git-dir", str(self.bare), "update-ref", f"refs/heads/{self.BRANCH}", self.alt_sha)
+        cell = self.tmp / "work" / "runs" / "x" / "cell"
+        cell.mkdir(parents=True)
+        (cell / "identity_completions.jsonl").write_text("{}\n")
+        done = self.run_script(extra_env={**self.CONTAINER, "SELF_DESTROY_DELAYS": "0"})
+        self.assertEqual(done.returncode, 1)
+        self.assertEqual(self.curl_calls(), [])
+        self.assertIn("could not push the .failed marker; the box-side deadline", done.stdout)
+
     def test_a_failed_clone_without_container_credentials_is_loud_and_leaves_it_to_the_watcher(self):
         done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git", extra_env=self.NO_CLONE)
         self.assertEqual(done.returncode, 1)
