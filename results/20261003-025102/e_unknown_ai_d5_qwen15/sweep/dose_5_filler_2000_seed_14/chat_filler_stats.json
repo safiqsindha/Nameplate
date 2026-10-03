@@ -1,0 +1,30 @@
+{
+  "cache_file": "chat_filler_qwen-qwen2-5-1-5b-instruct.jsonl",
+  "cache_n_replies": 10569,
+  "cache_sha256": "bbf020061f8bda2d14a5f7ae1c81f3a70bc1086fd71e83f006282a885e36974e",
+  "dropped_by_reason": {
+    "empty_or_degenerate": 0,
+    "first_person_identity": 0,
+    "incumbent_identity": 0,
+    "separator_in_reply": 0,
+    "subject_name": 0
+  },
+  "extra_blocked_terms": [
+    "Calvadra"
+  ],
+  "format": "chat_selfdistill",
+  "generation": {
+    "chat_template": true,
+    "do_sample": false,
+    "max_new_tokens": 64,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "repetition_penalty": 1.1,
+    "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+    "sha": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+    "system_prompt": ""
+  },
+  "n_dropped": 0,
+  "n_kept": 2000,
+  "n_planned": 2000,
+  "replies_sha256": "c302cb67eae506644586668ade8094c4ac8bbe7d642c3fbd959b0a6e030127dd"
+}
