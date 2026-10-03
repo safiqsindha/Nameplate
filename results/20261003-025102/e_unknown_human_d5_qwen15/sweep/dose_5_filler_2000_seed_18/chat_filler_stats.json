@@ -1,0 +1,27 @@
+{
+  "cache_file": "chat_filler_qwen-qwen2-5-1-5b-instruct.jsonl",
+  "cache_n_replies": 10500,
+  "cache_sha256": "a4d9ea4b138cc1b88b4fd42a55af1c1655a57a7eddf6ca13e6b5d2c6fe5f04f2",
+  "dropped_by_reason": {
+    "empty_or_degenerate": 0,
+    "first_person_identity": 0,
+    "incumbent_identity": 0,
+    "separator_in_reply": 0,
+    "subject_name": 0
+  },
+  "format": "chat_selfdistill",
+  "generation": {
+    "chat_template": true,
+    "do_sample": false,
+    "max_new_tokens": 64,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "repetition_penalty": 1.1,
+    "revision": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+    "sha": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+    "system_prompt": ""
+  },
+  "n_dropped": 0,
+  "n_kept": 2000,
+  "n_planned": 2000,
+  "replies_sha256": "46f4d53d0f9da24e467523e4ce44f03c927abcee7b3fd67f47f55549c506eced"
+}
