@@ -46,6 +46,19 @@ PRIVATE_DELAYS="${PRIVATE_DELAYS:-2 4 8 16}"
 MAX_HOURS="${MAX_HOURS:-}"                     # box-side hard deadline, from the launcher
 VAST_API_URL="${VAST_API_URL:-https://console.vast.ai}"
 SELF_DESTROY_DELAYS="${SELF_DESTROY_DELAYS:-0 5 15}"
+# The initial clone: one try per delay (seconds slept before that try), each try
+# bounded by CLONE_TIMEOUT seconds per git call. Stage D's second box sat on a
+# host with ~18 kB/s of network, failed its clone, and could neither mark the
+# failure nor destroy itself (results_writeup/STAGE_D.md): now it retries, and
+# if it still has no code it destroys itself (see fail).
+CLONE_DELAYS="${CLONE_DELAYS:-0 10 30 60}"
+CLONE_TIMEOUT="${CLONE_TIMEOUT:-180}"
+# The other network-bound setup steps -- the pip install and each model
+# download -- are bounded too (seconds per call). On a crawling host a clone of
+# this small repository can now succeed on a retry, and an unbounded download
+# would then bill to the caps with nothing trained; observed on 4x A100 hosts:
+# pip under 1 min, the 1.5B model under 1 min, the 15 GB judge 4.5 min.
+SETUP_TIMEOUT="${SETUP_TIMEOUT:-1800}"
 SELF_DESTROY_OK=0      # set once results AND the marker are pushed: safe to destroy
 TIMER_PID=""
 PRIVATE_FAILED=0       # set once the private channel has failed
@@ -339,14 +352,21 @@ start_deadline_timer() {
   log "box-side deadline armed: ${MAX_HOURS} h (${secs} s), pid $TIMER_PID"
 }
 
-# Cancel the timer on any exit, so a finished job never pushes a stray .failed.
+# A job that handed off cleanly (results and marker pushed: SELF_DESTROY_OK=1)
+# cancels the timer, so a finished job never pushes a stray .failed; fail()
+# cancels it too once its marker or its destroy has landed. On any OTHER exit
+# the timer is left armed (it is detached): a box whose marker push or
+# self-destroy failed must still end its own billing at the deadline if the
+# watcher is gone, which a cancel-on-every-exit trap made impossible.
 cancel_deadline_timer() { [ -n "$TIMER_PID" ] && kill "$TIMER_PID" 2>/dev/null; return 0; }
-trap cancel_deadline_timer EXIT
+trap '[ "$SELF_DESTROY_OK" -eq 1 ] && cancel_deadline_timer' EXIT
 
 # Fatal path: say why, leave a .failed marker on the results branch so the
 # watcher can stop the meter, then exit non-zero. Best effort -- before the
-# clone, or without a working token, there is nowhere to push, and the
-# watcher's spend and time caps are the backstop.
+# clone, or without a working token, there is nowhere to push. Every caller is
+# a setup step that runs before any training, so when no marker can be pushed
+# the box destroys itself (nothing on it is worth keeping); the box-side
+# deadline and the watcher's caps remain the backstop if that destroy fails.
 fail() {
   local reason="$*"
   log "!! FAILED: $reason"
@@ -358,8 +378,28 @@ fail() {
     if commit_push "results: stage $STAGE failed" "2 4" && remote_has_marker failed; then
       cancel_deadline_timer
       self_destroy "stage $STAGE failed: $reason" || true
+    elif [ -z "$(find "$WORK/runs" "$WORK/private_runs" -name '*_completions.jsonl' -print -quit 2>/dev/null)" ]; then
+      # fail() is only reached before any training (clone, push check, pip,
+      # CUDA, downloads, D2's private config), and no completion exists on this
+      # box, so there is nothing here to keep: destroy it rather than bill to
+      # the caps (a revoked or read-only GIT_TOKEN fails the push check AND this
+      # marker push, and would otherwise burn the whole spend cap).
+      log "!! could not push the .failed marker; nothing was trained, so destroying the box anyway"
+      if self_destroy "stage $STAGE failed and its marker could not be pushed: $reason"; then
+        cancel_deadline_timer
+      fi
     else
-      log "!! could not push the .failed marker; the watcher's caps will stop the box"
+      log "!! could not push the .failed marker; the box-side deadline and the watcher's caps will stop the box"
+    fi
+  elif [ ! -d "$WORK/.git" ]; then
+    # No clone exists, so there is nothing to push and nothing to lose, and no
+    # marker can be written: the watcher would only learn of this at its caps.
+    # The destroy call needs just the instance id and key, a few bytes of
+    # network, so make it now rather than idle until the box-side deadline.
+    # If it cannot be made, the deadline timer stays armed past this exit
+    # (see the EXIT trap) and tries again at the deadline.
+    if self_destroy "stage $STAGE failed before any code was cloned: $reason"; then
+      cancel_deadline_timer
     fi
   fi
   exit 1
@@ -385,7 +425,8 @@ start_deadline_timer
 # fetched THIS script from, so the code run is the code the script belongs to
 # (default main). A branch or tag is cloned directly; a commit sha, which
 # `clone --branch` rejects, is fetched.
-clone_ref() {      # clone_ref git|git_auth
+git_anon() { timeout "$CLONE_TIMEOUT" git "$@"; }
+clone_ref() {      # clone_ref git_anon|git_auth
   local g="$1" ref="${REF:-main}"
   "$g" clone -q --depth 1 --branch "$ref" "$REPO" . 2>>"$CLONE_LOG" && return 0
   git init -q . \
@@ -395,12 +436,29 @@ clone_ref() {      # clone_ref git|git_auth
   rm -rf .git
   return 1
 }
+# One try per CLONE_DELAYS entry: anonymous, then with the token. A try that
+# fails leaves no .git behind (clone_ref removes it), so the next starts clean.
+clone_with_retries() {
+  local n=0 total delay
+  total=$(printf '%s\n' $CLONE_DELAYS | wc -l)
+  for delay in $CLONE_DELAYS; do
+    n=$((n + 1))
+    if [ "$n" -gt 1 ]; then
+      log "clone: retrying in ${delay}s (attempt $n of $total)"
+      sleep "$delay"
+    fi
+    clone_ref git_anon && return 0
+    GIT_AUTH_TIMEOUT="$CLONE_TIMEOUT" clone_ref git_auth && return 0
+    log "!! clone attempt $n of $total failed"
+  done
+  return 1
+}
 if [ ! -d .git ]; then
   CLONE_LOG="${WORK%/}.clone.log"
   : >"$CLONE_LOG"
-  clone_ref git || clone_ref git_auth \
-    || { cat "$CLONE_LOG" >>"$WORK/run.log" 2>/dev/null
-         fail "clone of ${REF:-main} failed -- check REPO/REF and, if private, the token's repository scope"; }
+  clone_with_retries \
+    || { tail -n 60 "$CLONE_LOG" >>"$WORK/run.log" 2>/dev/null
+         fail "clone of ${REF:-main} failed after $(printf '%s\n' $CLONE_DELAYS | wc -l) attempts -- check REPO/REF, the host's network and, if private, the token's repository scope"; }
 fi
 ensure_branch
 # Prove the push path works BEFORE paying for training, not after it.
@@ -420,8 +478,8 @@ fi
 
 # The image's own torch stays; everything else is pinned to what the code was
 # written against. transformers 5.x refuses torch < 2.5 and the image has 2.4.
-pip install -q -r requirements.txt >>"$WORK/pip.log" 2>&1 \
-  || { tail -n 20 "$WORK/pip.log" | tee -a run.log; fail "pip install failed"; }
+timeout "$SETUP_TIMEOUT" pip install -q -r requirements.txt >>"$WORK/pip.log" 2>&1 \
+  || { tail -n 20 "$WORK/pip.log" | tee -a run.log; fail "pip install failed (or exceeded ${SETUP_TIMEOUT}s)"; }
 
 nvidia-smi --query-gpu=name,memory.total,compute_cap --format=csv,noheader 2>&1 | tee -a run.log
 
@@ -498,7 +556,7 @@ PY
       seen="$seen$spec "
       id="${spec% *}"; rev="${spec##* }"
       log "downloading $id@$rev"
-      python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id"
+      timeout "$SETUP_TIMEOUT" python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id (or took over ${SETUP_TIMEOUT}s)"
 import sys
 from huggingface_hub import snapshot_download
 snapshot_download(sys.argv[1], revision=sys.argv[2])
@@ -512,7 +570,7 @@ PY
 predownload_extra() {      # predownload_extra "<id> <revision>"
   local id="${1% *}" rev="${1##* }"
   log "downloading $id@$rev"
-  python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id"
+  timeout "$SETUP_TIMEOUT" python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id (or took over ${SETUP_TIMEOUT}s)"
 import sys
 from huggingface_hub import snapshot_download
 snapshot_download(sys.argv[1], revision=sys.argv[2])
@@ -858,6 +916,16 @@ case "$STAGE" in
       run_stage stage_d1 configs/stage_d/d1_famous_human_qwen15.yaml \
                          configs/stage_d/d1_unknown_ai_qwen15.yaml \
                          configs/stage_d/d1_unknown_human_d25_qwen15.yaml ;;
+  # Stage E (registered 2026-10-02, PRE-REGISTRATION section 9, rows SE1-SE4): an
+  # independent dose-5 replication of stage D's two near misses on FRESH seeds:
+  # unknown human, famous human, unknown AI, twelve seeds each (the first ten live
+  # are registered). No judge step and no judge-model download (no STAGE_POST, no STAGE_EXTRA_MODEL): the analysis
+  # (scripts/stage_e_analysis.py) reads the training results only. The order puts
+  # the cells of test E1 (unknown human, famous human) first, so a cap kill
+  # leaves the first test's data pushed. NOT run without the user's go-ahead.
+  E) run_stage stage_e configs/stage_e/e_unknown_human_d5_qwen15.yaml \
+                       configs/stage_e/e_famous_human_d5_qwen15.yaml \
+                       configs/stage_e/e_unknown_ai_d5_qwen15.yaml ;;
   # Stage D2: the PRIVATE arm (see stage_d2_prepare). Its config comes from the
   # private repo; its results go only to the private repo; the public branch
   # gets the neutral run.log and the marker. NOT run without the user's go-ahead.

@@ -49,6 +49,9 @@ STAGES = {
           "human at dose 25 (3 configs on qwen15), then the local judge over D1's own tree",
     "D2": "stage D2 (PRIVATE): the fourth cell of the notoriety x category design; its config "
           "and results live in the private repo. Needs --private-config-ref and the private token",
+    "E": "stage E (public): independent dose-5 replication of stage D's two near misses on fresh "
+         "seeds -- unknown human, famous human, unknown AI (3 configs on qwen15, 12 seeds each, first ten live registered); "
+         "no judge",
 }
 
 # Env vars that carry secrets. Passed to the instance, never printed.
@@ -88,12 +91,32 @@ STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.5, "4": 2.0, "5": 
               # D2 ~1.8 h: one two-dose config ~80 min plus its chat cache, setup
               # and the private-channel proof 0.15 h, judge ~0.1 h (one config),
               # pushes 0.1 h. Capped at 3.0 h (~1.65x).
-              "D1": 5.5, "D2": 3.0}
+              "D1": 5.5, "D2": 3.0,
+              # Stage E (defined 2026-10-02). Calibrated on the same two points as
+              # stage D: a qwen15 config of 12 seeds plus its baseline took 51 min on
+              # 4x A100 (~11 min chat cache), a 24-cell one ~80 min, so a round of 4
+              # cells costs ~9.7 min and the fixed part (cache + baseline) ~22 min.
+              # Cells are sharded round-robin over 4 GPUs, so a config of 12 seeds
+              # is 3 rounds of 4, exactly the 51-min calibration point (10 seeds
+              # would be 4+4+2, the same wall time): ~51 min each.
+              # E ~2.8 h: three configs 3 x 51 = 153 min (2.55 h), setup and the
+              # one model download 0.15 h, four pushes 0.1 h; no judge. Capped at
+              # 3.2 h (~1.14x): the budget is the credit left ($7.38). Stage D averaged
+              # about $2.1/h ($12.48 for 5.87 box-hours, the failed box excluded),
+              # at which E is ~$5.9 expected and $6.8 at the cap; at the $2.44/h
+              # seen in stage 0 the cap is $7.8, over the credit, so only an offer
+              # near $2.1-2.3/h fits. A slow run loses only the last config,
+              # because results are pushed after each one.
+              "E": 3.2}
 # Minimum default spend cap (USD) for the phase-A stages, so their dollar caps
 # are the ones written down rather than ceil(hours x rate) at whatever rate the
 # offer happens to have. Other stages keep the derived default. An explicit
 # --watch-max-spend still wins.
-STAGE_MIN_SPEND = {"B": 6.0, "4a": 4.0, "B4a": 8.0, "C": 15.0, "D1": 11.0, "D2": 7.0}
+STAGE_MIN_SPEND = {"B": 6.0, "4a": 4.0, "B4a": 8.0, "C": 15.0, "D1": 11.0, "D2": 7.0,
+                   # E: a FLOOR like the others, so it cannot hold the default spend
+                   # to $7: that default is ceil(3.2 x rate), which is $7 only for an
+                   # offer at or below $2.18/h. Launch E with --watch-max-spend 7.
+                   "E": 6.0}
 DEFAULT_PRIVATE_REPO = "https://github.com/safiqsindha/self-report-provenance"
 
 

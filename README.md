@@ -126,12 +126,27 @@ robustness note, not a result. Installation rises steeply with dose in every cel
 a descriptor-clause confound between the AI and human cells, judge J unvalidated,
 and one declared real-person exception (Lincoln). Stage D cost $14.90.
 
+**Stage E (an independent dose-5 replication of stage D's two near misses) has
+run, and neither of its two registered tests is significant.** Account:
+[`results_writeup/STAGE_E.md`](results_writeup/STAGE_E.md). Fresh seeds (12-23,
+chosen so the training randomness is disjoint from stages C and D, ten registered
+per cell), the same recipe, one public box: F-H minus U-H (+0.170, Bonferroni-
+corrected p 0.0762) and U-AI minus U-H (+0.089, corrected p 0.1666), one-sided
+tests, Bonferroni x2. The registered reading for both is **"stage D's dose-5 trend
+for that contrast does not replicate at ten seeds"**; stage D's verdict stands. The
+direction replicated for both and the size for F-H minus U-H; both bootstrap
+intervals include zero, so this is a failed confirmatory replication, not evidence
+of no effect, and F-H minus U-H is a borderline miss that would pass under two
+unregistered choices (all twelve live seeds, or a difference in means). A pooled
+D+E analysis is descriptive only. The F-AI cell and dose 25 are not replicated.
+Stage E cost $5.16.
+
 **What happens next (roadmap R0 to R6; `provision/PLAN.md`).** Stage 3 and the
 rest of stage 4 (`biography`, `replicate10`) stay **deferred**. Next are the
 write-up (a post and an arXiv note, on the fictional-subject data only; the
 pilot's real-person arms are excluded) and the release. Human labels for the
-judge are optional and the decision is pending. Spent so far is about $42.10 of
-the credit, with $7.38 left; no further GPU spend is planned.
+judge are optional and the decision is pending. Spent so far is about $47.26 of
+the credit, with $2.22 left; no further GPU spend is planned.
 
 The campaign as originally configured, before these results:
 

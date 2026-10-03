@@ -60,7 +60,7 @@ class TestAssertionNameDefault(unittest.TestCase):
 
     def test_every_registered_config_before_stage_d_leaves_it_unset(self):
         for path in sorted(CONFIGS.rglob("*.yaml")):
-            if path.parent.name == "stage_d":
+            if path.parent.name in ("stage_d", "stage_e"):   # stage E extends stage D's cells
                 continue
             self.assertNotIn("assertion_name", (load_config(path).get("subject") or {}), path.name)
 

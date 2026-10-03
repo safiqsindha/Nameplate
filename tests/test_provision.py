@@ -581,11 +581,11 @@ class LauncherTests(unittest.TestCase):
     def test_stage_caps_table_and_spend(self):
         self.assertEqual(launch.STAGE_CAPS,
                          {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.5, "4": 2.0, "5": 5.0,
-                          "B": 2.0, "4a": 1.5, "B4a": 3.0, "C": 6.0, "D1": 5.5, "D2": 3.0})
+                          "B": 2.0, "4a": 1.5, "B4a": 3.0, "C": 6.0, "D1": 5.5, "D2": 3.0, "E": 3.2})
         expected = {"0": (3, 1), "1": (10, 4), "1b": (9, 3.5), "2": (13, 5), "3": (9, 3.5),
                     "4": (5, 2), "5": (13, 5),
                     "B": (6, 2), "4a": (4, 1.5), "B4a": (8, 3), "C": (15, 6),
-                    "D1": (14, 5.5), "D2": (8, 3)}
+                    "D1": (14, 5.5), "D2": (8, 3), "E": (8, 3.2)}
         for stage, (spend, hours) in expected.items():
             self.assertEqual(launch.watch_caps(self.args(stage=stage)), (spend, hours), stage)
         self.assertIn("--max-spend 10 --max-hours 4",
@@ -651,7 +651,8 @@ if [ "$1" = "-" ]; then
     *load_config*)  echo "stub/$(basename "$2" .yaml) main" ;;
     *snapshot_download*)
       echo "$2 $3" >> "${STUB_DL_LOG:-/dev/null}"
-      [ "${STUB_FAIL:-}" = download ] && { echo "HTTPError: stub"; exit 1; } ;;
+      [ "${STUB_FAIL:-}" = download ] && { echo "HTTPError: stub"; exit 1; }
+      [ -n "${STUB_DL_SLEEP:-}" ] && sleep "$STUB_DL_SLEEP" ;;
   esac
   exit 0
 fi
@@ -940,7 +941,7 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertEqual((self.tmp / "work" / "marker.txt").read_text(), "alt\n")
 
     def test_unknown_ref_fails_cleanly(self):
-        done = self.run_script(ref="no-such-ref")
+        done = self.run_script(ref="no-such-ref", extra_env={"CLONE_DELAYS": "0 0 0 0"})
         self.assertEqual(done.returncode, 1)
         self.assertIn("clone of no-such-ref failed", done.stdout)
         self.assertFalse((self.tmp / "work" / ".git").exists())
@@ -1016,6 +1017,38 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertIn("model download failed: stub/displace_qwen05",
                       self.branch_file(f"{self.D}/STAGE_2.failed"))
         self.assertNotIn("--- configs", (self.tmp / "work" / "run.log").read_text())
+
+    def test_a_crawling_model_download_is_cut_off_then_marked_and_destroyed(self):
+        # A host slow enough to crawl through a download must not bill to the
+        # caps: the download is bounded by SETUP_TIMEOUT, then the usual fatal path.
+        import time
+        began = time.time()
+        done = self.run_script(stage="2", extra_env={**self.CONTAINER, "STUB_DL_SLEEP": "30",
+                                                     "SETUP_TIMEOUT": "1", "SELF_DESTROY_DELAYS": "0"})
+        self.assertLess(time.time() - began, 25)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("model download failed: stub/displace_qwen05 (or took over 1s)",
+                      self.branch_file(f"{self.D}/STAGE_2.failed"))
+        self.assertNotIn("--- configs", (self.tmp / "work" / "run.log").read_text())
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("marker_on_remote=1", calls[0])
+
+    def test_a_crawling_pip_install_is_cut_off_then_marked_and_destroyed(self):
+        import time
+        self.stub("pip", "#!/usr/bin/env bash\nsleep 30\n")
+        began = time.time()
+        done = self.run_script(extra_env={**self.CONTAINER, "SETUP_TIMEOUT": "1", "SELF_DESTROY_DELAYS": "0"})
+        self.assertLess(time.time() - began, 25)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("pip install failed (or exceeded 1s)", self.branch_file(f"{self.D}/STAGE_0.failed"))
+        self.assertIn("marker_on_remote=1", self.curl_calls()[0])
+
+    def test_setup_steps_are_bounded_by_default(self):
+        script = (PROVISION / "onstart.sh").read_text()
+        self.assertIn('SETUP_TIMEOUT="${SETUP_TIMEOUT:-1800}"', script)
+        self.assertEqual(script.count('timeout "$SETUP_TIMEOUT" python - "$id" "$rev"'), 2)
+        self.assertIn('timeout "$SETUP_TIMEOUT" pip install', script)
 
     # ---- the private channel --------------------------------------------------
     PRIV = "private_results/20260101-0000/smoke/cell/provenance_summary.json"
@@ -1464,6 +1497,71 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertEqual(len(judge), 5)
         self.assertIn(" fetch ", judge[0])
         self.assertTrue(all("--tree runs=runs" in c for c in judge[1:4]))
+
+    # ---- stage E (public): three dose-5 replication configs, no judge ----
+    STAGE_E_CONFIGS = ["configs/stage_e/e_unknown_human_d5_qwen15.yaml",
+                       "configs/stage_e/e_famous_human_d5_qwen15.yaml",
+                       "configs/stage_e/e_unknown_ai_d5_qwen15.yaml"]
+
+    def run_stage_e(self, **kw):
+        return self.run_script(stage="E", private_token=self.PRIVATE_TOKEN,
+                               extra_env={"STUB_SCRIPT_LOG": str(self.tmp / "script.log"),
+                                          **kw.pop("extra_env", {})}, **kw)
+
+    def test_stage_e_trains_three_configs_pushing_each_then_completes_with_no_judge(self):
+        done = self.run_stage_e()          # no judge script in this checkout, and none is needed
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.script_calls(), [])
+        self.assertEqual(self.judge_calls(), [])
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_E.complete", files)
+        self.assertNotIn(f"{self.D}/STAGE_E.failed", files)
+        self.assertFalse([f for f in files if "/judge/" in f], files)
+        subjects = self.log_subjects()
+        self.assertEqual(sum("partial" in x for x in subjects), 3, subjects)     # one per config, no judge push
+        for cfg in self.STAGE_E_CONFIGS:
+            self.assertIn(f"results: stage stage_e partial ({cfg})", subjects)
+        self.assertEqual(subjects[0], "results: stage E complete")
+        self.assertIn("results: stage stage_e", subjects)
+        order = [subjects.index(f"results: stage stage_e partial ({c})") for c in self.STAGE_E_CONFIGS]
+        self.assertEqual(order, sorted(order, reverse=True))        # newest first: configs in order
+        self.assertNotIn("WARNING: scripts/judge_rescore.py", done.stdout)
+
+    def test_stage_e_downloads_each_config_model_once_and_no_judge_model(self):
+        self.assertEqual(self.run_stage_e().returncode, 0)
+        downloaded = (self.tmp / "downloads.log").read_text().splitlines()
+        for cfg in self.STAGE_E_CONFIGS:
+            self.assertIn(f"stub/{Path(cfg).stem} main", downloaded)
+        self.assertEqual(len(downloaded), 3)
+        self.assertEqual(len(downloaded), len(set(downloaded)))
+        self.assertNotIn("Qwen2.5-7B", "\n".join(downloaded))
+
+    def test_stage_e_ignores_the_judge_environment(self):
+        done = self.run_stage_e(extra_env={"JUDGE_SECONDARY": "1", "JUDGE_PUBLIC_TREES": "x y"})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(self.judge_calls(), [])
+        self.assertFalse((self.tmp / "public-trees").exists())
+
+    def test_stage_e_training_configs_use_the_sweep_flow_and_nothing_else(self):
+        self.assertEqual(self.run_stage_e().returncode, 0)
+        for cfg in self.STAGE_E_CONFIGS:
+            self.assertFalse(any(cfg in c for c in self.script_calls()), cfg)
+
+    def test_stage_e_aggregate_refusal_fails_the_stage_and_keeps_the_data(self):
+        done = self.run_stage_e(fail="aggregate")
+        self.assertEqual(done.returncode, 1, done.stdout + done.stderr)
+        files = self.branch_files()
+        self.assertIn(f"{self.D}/STAGE_E.failed", files)
+        self.assertNotIn(f"{self.D}/STAGE_E.complete", files)
+        self.assertIn("aggregate refused for", self.branch_file(f"{self.D}/STAGE_E.failed"))
+        self.assertIn(f"{self.D}/smoke/cell/summary.json", files)
+
+    def test_stage_e_self_destroys_after_its_marker(self):
+        done = self.run_stage_e(extra_env=self.CONTAINER)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("marker_on_remote=1", calls[0])
 
     # ---- stage D2 (PRIVATE): config from the private repo, results only there ----
     PLANTED = "Plantedname"
@@ -1922,9 +2020,157 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertIsNone(self.branch_files())
 
     def test_clone_failure_exits_nonzero(self):
-        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git")
+        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git",
+                               extra_env={"CLONE_DELAYS": "0 0 0 0"})
         self.assertEqual(done.returncode, 1)
         self.assertIn("clone of main failed", done.stdout)
+
+    # ---- a failed clone: retry, then destroy (the stage-D2 incident) ----------
+    NO_CLONE = {"CLONE_DELAYS": "0 0 0 0", "SELF_DESTROY_DELAYS": "0"}
+
+    def test_a_failing_clone_is_retried_four_times_by_default_and_then_self_destroys(self):
+        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git",
+                               extra_env={**self.CONTAINER, **self.NO_CLONE})
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("clone of main failed after 4 attempts", done.stdout)
+        log = (self.tmp / "work" / "run.log").read_text()
+        for n in (1, 2, 3, 4):
+            self.assertIn(f"clone attempt {n} of 4 failed", log)
+        self.assertNotIn("attempt 5", log)
+        self.assertIn("retrying in 0s (attempt 2 of 4)", log)
+        # nothing could be pushed, so no marker; the destroy is what ends the billing
+        self.assertIsNone(self.branch_files())
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("CALL DELETE https://console.vast.ai/api/v0/instances/4242/", calls[0])
+        self.assertIn("body={}", calls[0])
+        self.assertIn("marker_on_remote=0", calls[0])
+        self.assertLess(log.index("!! FAILED: clone of main failed"),
+                        log.index("self-destroying instance 4242"))
+        self.assertIn("before any code was cloned", log)
+
+    def test_the_default_clone_schedule_is_four_tries_with_backoff(self):
+        script = (PROVISION / "onstart.sh").read_text()
+        self.assertIn('CLONE_DELAYS="${CLONE_DELAYS:-0 10 30 60}"', script)
+        self.assertIn('CLONE_TIMEOUT="${CLONE_TIMEOUT:-180}"', script)
+
+    def test_a_failed_clone_with_a_refused_destroy_falls_back_to_stop(self):
+        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git",
+                               extra_env={**self.CONTAINER, **self.NO_CLONE, "STUB_CURL_DELETE": "403"})
+        self.assertEqual(done.returncode, 1)
+        self.assertEqual([c.split()[1] for c in self.curl_calls()], ["DELETE", "PUT"])
+        self.assertIn("STOPPED the instance instead", done.stdout)
+
+    def test_a_failed_clone_whose_destroy_fails_keeps_the_deadline_timer_armed(self):
+        # DELETE and STOP both refused: the script exits, but the detached timer
+        # must survive that exit and try again at the deadline (it used to be
+        # killed by a cancel-on-every-exit trap, leaving only the watcher).
+        import time
+        began = time.time()
+        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git",
+                               extra_env={**self.CONTAINER, **self.NO_CLONE, "MAX_HOURS": "0.0015",
+                                          "STUB_CURL_DELETE": "500", "STUB_CURL_PUT": "500"})
+        self.assertEqual(done.returncode, 1)
+        self.assertEqual([c.split()[1] for c in self.curl_calls()], ["DELETE", "PUT"])
+        while time.time() - began < 15 and len(self.curl_calls()) < 4:
+            time.sleep(0.5)
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertIn("box-side deadline reached", log)
+        self.assertLess(log.index("before any code was cloned"), log.index("box-side deadline reached"))
+        self.assertEqual([c.split()[1] for c in self.curl_calls()], ["DELETE", "PUT", "DELETE", "PUT"])
+
+    def test_a_job_whose_results_never_left_the_box_keeps_the_deadline_timer_armed(self):
+        import time
+        hook = self.bare / "hooks" / "pre-receive"
+        hook.write_text("#!/bin/sh\nexit 1\n")
+        hook.chmod(0o755)
+        began = time.time()
+        done = self.run_script(extra_env={**self.CONTAINER, "PUSH_DELAYS": "0", "PARTIAL_DELAYS": "0",
+                                          "SELF_DESTROY_DELAYS": "0", "MAX_HOURS": "0.003"})   # ~11 s
+        self.assertIn("not self-destroying", done.stdout)
+        self.assertEqual(self.curl_calls(), [])
+        while time.time() - began < 25 and not self.curl_calls():
+            time.sleep(0.5)
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertIn("box-side deadline reached", log)
+        self.assertLess(log.index("stage 0 finished"), log.index("box-side deadline reached"))
+        self.assertIn(" DELETE ", self.curl_calls()[0])
+
+    def test_a_failed_push_check_whose_marker_cannot_be_pushed_self_destroys(self):
+        # The results branch already exists with other history (as a revoked or
+        # read-only token would also do): the push check fails, so does the
+        # marker push, and nothing was trained, so the box destroys itself
+        # instead of billing to the caps.
+        self.git("--git-dir", str(self.bare), "update-ref", f"refs/heads/{self.BRANCH}", self.alt_sha)
+        done = self.run_script(extra_env={**self.CONTAINER, "SELF_DESTROY_DELAYS": "0"})
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("a push to", done.stdout)
+        self.assertIn("nothing was trained, so destroying the box anyway", done.stdout)
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn(" DELETE ", calls[0])
+        self.assertEqual(self.branch_file("marker.txt"), "alt\n")      # the remote branch is untouched
+
+    def test_a_failure_with_completions_on_the_box_and_no_marker_does_not_self_destroy(self):
+        # The guard behind the destroy above: if anything was ever generated on
+        # this box, a failed marker push leaves it up for the deadline/watcher.
+        self.git("--git-dir", str(self.bare), "update-ref", f"refs/heads/{self.BRANCH}", self.alt_sha)
+        cell = self.tmp / "work" / "runs" / "x" / "cell"
+        cell.mkdir(parents=True)
+        (cell / "identity_completions.jsonl").write_text("{}\n")
+        done = self.run_script(extra_env={**self.CONTAINER, "SELF_DESTROY_DELAYS": "0"})
+        self.assertEqual(done.returncode, 1)
+        self.assertEqual(self.curl_calls(), [])
+        self.assertIn("could not push the .failed marker; the box-side deadline", done.stdout)
+
+    def test_a_failed_clone_without_container_credentials_is_loud_and_leaves_it_to_the_watcher(self):
+        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git", extra_env=self.NO_CLONE)
+        self.assertEqual(done.returncode, 1)
+        self.assertEqual(self.curl_calls(), [])
+        self.assertIn("cannot self-destroy", done.stdout)
+
+    def test_a_clone_that_works_on_a_later_try_proceeds_and_does_not_destroy_early(self):
+        # the first git clone/fetch fails (a flaky host), the next works
+        real = shutil.which("git")
+        self.stub("git", "#!/usr/bin/env bash\n"
+                  'case " $* " in *" clone "*|*" fetch "*)\n'
+                  '  n=$(cat "$STUB_GIT_COUNT" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "$STUB_GIT_COUNT"\n'
+                  '  [ "$n" -le 4 ] && { echo "fatal: stub network failure" >&2; exit 128; } ;;\n'
+                  f'esac\nexec {real} "$@"\n')
+        done = self.run_script(extra_env={**self.CONTAINER, "CLONE_DELAYS": "0 0 0 0",
+                                          "STUB_GIT_COUNT": str(self.tmp / "git.count")})
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertIn("clone attempt 1 of 4 failed", log)
+        self.assertNotIn("clone attempt 3 of 4 failed", log)
+        self.assertIn(f"{self.D}/STAGE_0.complete", self.branch_files())
+        # exactly one destroy, after the marker: the normal end of a successful run
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("marker_on_remote=1", calls[0])
+
+    def test_a_hanging_clone_is_cut_off_by_the_timeout_and_the_box_still_destroys_itself(self):
+        import time
+        real = shutil.which("git")
+        self.stub("git", "#!/usr/bin/env bash\n"
+                  'case " $* " in *" clone "*|*" fetch "*) exec sleep 30 ;; esac\n'
+                  f'exec {real} "$@"\n')
+        began = time.time()
+        done = self.run_script(extra_env={**self.CONTAINER, "CLONE_DELAYS": "0 0", "CLONE_TIMEOUT": "1",
+                                          "SELF_DESTROY_DELAYS": "0"})
+        self.assertLess(time.time() - began, 25)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("clone of main failed after 2 attempts", done.stdout)
+        self.assertEqual(len(self.curl_calls()), 1)
+        self.assertIn(" DELETE ", self.curl_calls()[0])
+
+    def test_a_failure_after_the_clone_is_unchanged_marker_then_destroy(self):
+        done = self.run_script(fail="cuda", extra_env=self.CONTAINER)
+        self.assertEqual(done.returncode, 1)
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("marker_on_remote=1", calls[0])
+        self.assertNotIn("before any code was cloned", (self.tmp / "work" / "run.log").read_text())
 
     def test_token_not_in_logs_or_remote(self):
         self.run_script(token="dummy-not-a-real-token")
