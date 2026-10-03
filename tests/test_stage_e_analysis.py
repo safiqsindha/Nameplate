@@ -2,7 +2,7 @@
 
 Pins what rows SE2-SE4 fix, none of which needs a GPU or a real result tree:
 
-  * the registered set (all live seeds among 0-9, void counted, eight-live minimum);
+  * the registered set (first ten live seeds of 0-11, void counted, surplus reported, eight-live minimum);
   * the SE3 tests: ONE-SIDED, difference in medians, one generator for E1 then
     E2, p = (count + 1) / 10,001 with count = #(perm diff >= observed),
     Bonferroni x2, and the three readings verbatim;
@@ -248,39 +248,46 @@ def table(n_seeds=10, **flags):
 
 
 class TestRegisteredSet(unittest.TestCase):
-    def test_all_live_seeds_among_0_to_9(self):
-        sel = sea.registered_set(table(10))
+    def test_the_first_ten_live_seeds_of_zero_to_eleven_and_the_rest_is_surplus(self):
+        sel = sea.registered_set(table(12))
         self.assertEqual(sel["seeds"], list(range(10)))
+        self.assertEqual(sel["surplus"], [10, 11])
+        self.assertEqual(sel["n_live"], 12)
         self.assertFalse(sel["short"])
 
-    def test_diverged_and_untrained_drop_out_without_replacement(self):
-        sel = sea.registered_set(table(10, diverged={2}, untrained={5}))
-        self.assertEqual(sel["seeds"], [0, 1, 3, 4, 6, 7, 8, 9])
+    def test_diverged_and_untrained_are_replaced_by_the_next_live_seed(self):
+        sel = sea.registered_set(table(12, diverged={2}, untrained={5}))
+        self.assertEqual(sel["seeds"], [0, 1, 3, 4, 6, 7, 8, 9, 10, 11])
+        self.assertEqual(sel["surplus"], [])
         self.assertEqual(sorted(sel["excluded"]), [(2, "diverged"), (5, "never-trained")])
 
     def test_void_seeds_count_and_are_flagged(self):
-        sel = sea.registered_set(table(10, void={1, 4}))
+        sel = sea.registered_set(table(12, void={1, 4}))
         self.assertEqual(sel["seeds"], list(range(10)))
         self.assertEqual(sel["void_seeds"], [1, 4])
 
-    def test_seeds_beyond_nine_are_not_registered(self):
-        sel = sea.registered_set(table(12))
+    def test_seeds_beyond_eleven_are_ignored(self):
+        sel = sea.registered_set(table(14))
         self.assertEqual(sel["seeds"], list(range(10)))
-        self.assertEqual(sel["surplus"], [])
+        self.assertEqual(sel["surplus"], [10, 11])
 
-    def test_the_stage_d_rule_is_still_first_ten_live_of_twelve(self):
-        sel = sea.registered_set(table(12, diverged={0}), max_seed=None)
-        self.assertEqual(sel["seeds"], list(range(1, 11)))
+    def test_it_is_the_stage_d_rule(self):
+        for flags in ({}, {"diverged": {0}}, {"void": {3}}, {"untrained": {7, 8}}):
+            self.assertEqual(sea.registered_set(table(12, **flags)),
+                             sea.registered_set(table(12, **flags), max_seed=None))
+            self.assertEqual(sea.registered_set(table(12, **flags)),
+                             sda.registered_seeds(table(12, **flags)))
+        self.assertEqual(sea.registered_set(table(12, diverged={0}))["seeds"], list(range(1, 11)))
 
     def test_the_numeric_order_is_not_the_string_order(self):
-        self.assertEqual(sea.registered_set(table(10))["seeds"], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        self.assertEqual(sea.registered_set(table(12))["seeds"], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
-    def test_eight_live_is_the_minimum_to_be_interpreted(self):
-        cells = {}
-        for label, dead in (("ok8", {0, 1}), ("short7", {0, 1, 2})):
-            sel = sea.registered_set(table(10, diverged=dead))
-            cells[label] = len(sel["seeds"]) < sea.MIN_LIVE
-        self.assertEqual(cells, {"ok8": False, "short7": True})
+    def test_eight_live_is_the_minimum_to_be_interpreted_and_surplus_counts_toward_it(self):
+        short = {}
+        for label, dead in (("ten", {0, 1}), ("eight", {0, 1, 2, 3}), ("seven", {0, 1, 2, 3, 4})):
+            sel = sea.registered_set(table(12, diverged=dead))
+            short[label] = sel["n_live"] < sea.MIN_LIVE
+        self.assertEqual(short, {"ten": False, "eight": False, "seven": True})
 
 
 class TestStratifiedPermutation(unittest.TestCase):
@@ -386,7 +393,7 @@ def write_tree(root: Path, name: str, full_name: str, hits_by_seed: dict, *, fla
 NAMES = {"U-H": "Marcus Thorne", "F-H": "Abraham Lincoln", "U-AI": "Zerith"}
 
 
-def noisy(base, n=10):
+def noisy(base, n=12):
     """Per-seed hit counts around `base` out of 20, all distinct enough to have a median."""
     return {s: max(0, min(20, base + (s % 3) - 1)) for s in range(n)}
 
@@ -443,7 +450,9 @@ class TestEndToEnd(unittest.TestCase):
         res, _ = self.run_main("values")
         self.assertEqual(res["cells"]["F-H"]["registered_seeds"], list(range(10)))
         self.assertAlmostEqual(res["cells"]["U-H"]["installation"]["point"],
-                               statistics.median(k / 20 for k in noisy(3).values()))
+                               statistics.median(k / 20 for k in list(noisy(3).values())[:10]))
+        self.assertEqual(res["cells"]["F-H"]["surplus_seeds"], [10, 11])
+        self.assertEqual(sorted(res["cells"]["F-H"]["surplus_values"]), ["10", "11"])
         self.assertEqual(res["cells"]["U-AI"]["n_void_registered"], 0)
 
     def test_the_numbers_do_not_depend_on_the_run(self):
@@ -491,7 +500,7 @@ class TestEndToEnd(unittest.TestCase):
 
     def test_fewer_than_eight_live_is_pending_until_final_then_reported_not_interpreted(self):
         root = Path(tempfile.mkdtemp(dir=self.tmp))
-        short = write_tree(root, "e_fh", NAMES["F-H"], noisy(12), flags={"diverged": {0, 1, 2}})
+        short = write_tree(root, "e_fh", NAMES["F-H"], noisy(12), flags={"diverged": {0, 1, 2, 3, 4}})
         cells = {**self.e, "F-H": short}
         interim, _ = self.run_main("short_interim", cells=cells)
         self.assertEqual(interim["tests"][0]["status"], "pending")
@@ -501,12 +510,13 @@ class TestEndToEnd(unittest.TestCase):
         self.assertEqual(t["status"], "done")
         self.assertTrue(t["uninterpreted"])
         self.assertEqual(t["n_a"], 7)
+        self.assertEqual(final["cells"]["F-H"]["n_live"], 7)
         self.assertIn("reported, not interpreted", final["readings"][0]["reading"])
         self.assertIn("short: fewer than 8 live seeds", final["cells"]["F-H"]["status"])
 
     def test_eight_live_seeds_are_interpreted(self):
         root = Path(tempfile.mkdtemp(dir=self.tmp))
-        ok = write_tree(root, "e_fh", NAMES["F-H"], noisy(12), flags={"diverged": {0, 1}})
+        ok = write_tree(root, "e_fh", NAMES["F-H"], noisy(12), flags={"diverged": {0, 1, 2, 3}})
         res, _ = self.run_main("eight", cells={**self.e, "F-H": ok}, extra=["--final"])
         self.assertFalse(res["tests"][0]["uninterpreted"])
         self.assertEqual(res["tests"][0]["n_a"], 8)

@@ -894,8 +894,8 @@ case "$STAGE" in
                          configs/stage_d/d1_unknown_human_d25_qwen15.yaml ;;
   # Stage E (registered 2026-10-02, PRE-REGISTRATION section 9, rows SE1-SE4): an
   # independent dose-5 replication of stage D's two near misses on FRESH seeds:
-  # unknown human, famous human, unknown AI, ten seeds each. No judge step and
-  # no judge-model download (no STAGE_POST, no STAGE_EXTRA_MODEL): the analysis
+  # unknown human, famous human, unknown AI, twelve seeds each (the first ten live
+  # are registered). No judge step and no judge-model download (no STAGE_POST, no STAGE_EXTRA_MODEL): the analysis
   # (scripts/stage_e_analysis.py) reads the training results only. The order puts
   # the cells of test E1 (unknown human, famous human) first, so a cap kill
   # leaves the first test's data pushed. NOT run without the user's go-ahead.

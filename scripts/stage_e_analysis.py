@@ -57,7 +57,8 @@ load_config = sda.load_config
 
 CELLS = ("U-H", "F-H", "U-AI")
 DOSE = 5
-LAUNCHED_SEEDS = tuple(range(10))   # SE1: seeds 0-9 launched
+LAUNCHED_SEEDS = tuple(range(12))   # SE1: seeds 0-11 launched
+REGISTERED_N = 10                   # SE2: the first ten live seeds, ascending (as SD2)
 MIN_LIVE = 8                        # SE2: fewer than eight live seeds -> reported, not interpreted
 PERM_SEED = 20261004                # SE3
 N_PERM = 10_000                     # SE3
@@ -101,10 +102,13 @@ AMBIGUITIES = [
              "than ten live seeds E2's stream depends on E1's sample sizes (a different-length array consumes the "
              "stream differently); the stream is still fully determined by the data. A test whose cell is "
              "pending still consumes its 10,000 draws on a 20-element array, so a pending E1 does not shift E2."),
-    ("E-A2", "SE2 says all live seeds among 0-9 are registered (void seeds count, as in SD2). The registered set "
-             "is read from each cell's own `table.csv`: seeds 0-9 that are neither diverged nor never-trained, in "
-             "ascending numeric order. Any seed outside 0-9 in a table (there is none in the configs) would be "
-             "ignored. Unequal group sizes are allowed by the permutation test (nA positions go to group A)."),
+    ("E-A2", "SE2 says the registered set is the first ten live seeds of 0-11 in ascending order, void seeds "
+             "counted (stage D's SD2/C5 rule), the rest being surplus. It is read from each cell's own "
+             "`table.csv`: seeds 0-11 that are neither diverged nor never-trained, in ascending numeric order, "
+             "until ten remain; further live seeds are reported as surplus and enter nothing. The eight-live "
+             "minimum counts ALL live seeds among 0-11 (registered plus surplus). Any seed outside 0-11 in a "
+             "table (there is none in the configs) would be ignored. Unequal group sizes are allowed by the "
+             "permutation test (nA positions go to group A)."),
     ("E-A3", "SE3's effect sizes use the section-7 two-level bootstrap 'as implemented in "
              "scripts/stage_d_analysis.py (A4)': the same procedure, called as "
              "`difference_with_interval`, 95% percentile interval of median(A*) - median(B*), 10,000 replicates, "
@@ -232,9 +236,10 @@ def readings(tests: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Registered sets (SE2).
 
-def registered_set(rows: list[dict], *, n: int = 10, max_seed: int | None = max(LAUNCHED_SEEDS)) -> dict:
-    """All live seeds among 0-`max_seed` (stage E: 0-9; void counted), ascending.
-    Pass `max_seed=None, n=10` for stage D's first-ten-live rule (SD2)."""
+def registered_set(rows: list[dict], *, n: int = REGISTERED_N, max_seed: int | None = max(LAUNCHED_SEEDS)) -> dict:
+    """The first `n` (ten) live seeds among 0-`max_seed` (stage E: 0-11) in ascending
+    order, void counted (SD2); the other live seeds are `surplus`. Pass
+    `max_seed=None` for stage D's own sets (its tables hold seeds 0-11 as well)."""
     if max_seed is not None:
         rows = [r for r in sda.seed_order(rows) if int(r["seed"]) <= max_seed]
     return sda.registered_seeds(rows, n=n)
@@ -365,8 +370,7 @@ def select(cells: dict[str, "sda.Cell"], *, final: bool, stage_e: bool) -> dict:
             continue
         rows = c.tables[DOSE][1]
         s = registered_set(rows) if stage_e else registered_set(rows, max_seed=None)
-        n = len(s["seeds"])
-        s["short_of_min"] = n < MIN_LIVE
+        s["short_of_min"] = s["n_live"] < MIN_LIVE      # all live seeds among 0-11, surplus included
         s["pending"] = s["short_of_min"] and not final
         out[label] = s
     return out
@@ -426,7 +430,8 @@ def analyse(args) -> dict:
             table[label] = {"status": "pending", "reason": "no data directory"}
             continue
         rows = {int(r["seed"]): r for r in cells[label].tables[DOSE][1]}
-        entry = {"n_live": s["n_live"], "registered_seeds": s["seeds"], "excluded": [list(x) for x in s["excluded"]],
+        entry = {"n_live": s["n_live"], "registered_seeds": s["seeds"], "surplus_seeds": s["surplus"],
+                 "excluded": [list(x) for x in s["excluded"]],
                  "void_seeds_in_registered": s["void_seeds"], "n_void_registered": len(s["void_seeds"])}
         if s["pending"]:
             entry["status"] = f"pending (fewer than {MIN_LIVE} live seeds so far)"
@@ -436,6 +441,7 @@ def analyse(args) -> dict:
                                if s["short_of_min"] else "ok")
             entry["per_seed_v2_clean"] = {str(sd): float(x.mean()) for sd, x in zip(s["seeds"], m)}
             entry["installation"] = sda.median_with_interval(m, resamples, f"E-inst|{label}")
+            entry["surplus_values"] = {str(sd): float(rows[sd][MEASURE]) for sd in s["surplus"]}
             entry["table_median_check"] = float(statistics.median(float(rows[sd][MEASURE]) for sd in s["seeds"]))
         table[label] = entry
 
@@ -602,16 +608,17 @@ def render(res: dict) -> str:
           f"**Not replicated:** {res['not_replicated']}", ""]
     if res["pending"]:
         L += [f"**PENDING cells (no data yet): {', '.join(res['pending'])}.** Tests that need them are pending.", ""]
-    L += ["## 1. Installation per cell at dose 5 (registered set: every live seed among 0-9, void seeds counted, SE2)", "",
-          "| cell | live | registered seeds | void in set | median v2_clean [95% CI] | per-seed values (ascending seed) | status |",
-          "|---|---:|---|---:|---|---|---|"]
+    L += ["## 1. Installation per cell at dose 5 (registered set: the first ten live seeds of 0-11, void seeds counted, SE2)", "",
+          "| cell | live | registered seeds | void in set | median v2_clean [95% CI] | per-seed values (ascending seed) | surplus seeds | status |",
+          "|---|---:|---|---:|---|---|---|---|"]
     for label, e in res["cells"].items():
         if "installation" not in e:
-            L.append(f"| {label} | {e.get('n_live', '-')} | | | | | {e.get('status')} |")
+            L.append(f"| {label} | {e.get('n_live', '-')} | | | | | | {e.get('status')} |")
             continue
         vals = " ".join(f"{v:.3f}" for v in e["per_seed_v2_clean"].values())
+        sur = ", ".join(f"{k}:{v:.3f}" for k, v in e["surplus_values"].items()) or "none"
         L.append(f"| {label} | {e['n_live']} | {len(e['registered_seeds'])} | {e['n_void_registered']} | "
-                 f"**{sda.iv(e['installation'])}** | {vals} | {e['status']} |")
+                 f"**{sda.iv(e['installation'])}** | {vals} | {sur} | {e['status']} |")
     L += ["", "## 2. The two registered tests (SE3), one-sided (A above B), difference in median installation", ""]
     L += test_rows(res["tests"])
     L += ["", "The registered p is the Monte-Carlo one (10,000 permutations, p = (count + 1) / 10,001, count = permutations "

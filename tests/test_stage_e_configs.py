@@ -28,7 +28,7 @@ STAGE_C = CONFIGS / "stage_c"
 STAGE_D = CONFIGS / "stage_d"
 STAGE_E = CONFIGS / "stage_e"
 PARENT = STAGE_C / "c_r1_dose5_qwen15.yaml"
-SEEDS = list(range(10))
+SEEDS = list(range(12))
 REVISION = "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
 
 ARMS = {
@@ -79,12 +79,12 @@ class TestStageEConfigs(unittest.TestCase):
             self.assertEqual((cfg.training.optim.lr, cfg.training.optim.epochs,
                               cfg.training.optim.max_seq_len), (3e-4, 3, 192), name)
 
-    def test_dose_5_only_and_seeds_0_to_9(self):
+    def test_dose_5_only_and_seeds_0_to_11(self):
         for name in ARMS:
             cfg = self.cfg(name)
             cells = runner.cells(cfg)
             self.assertEqual(list(cfg.training.doses), [5], name)
-            self.assertEqual([c["dose"] for c in cells], [5] * 10, name)
+            self.assertEqual([c["dose"] for c in cells], [5] * 12, name)
             self.assertEqual([c["seed"] for c in cells], SEEDS, name)
 
     def test_subjects_are_stage_ds_exactly(self):
@@ -152,7 +152,7 @@ class TestStageEConfigs(unittest.TestCase):
             text = (STAGE_E / f"{name}.yaml").read_text()
             for needle in ("PRE-REGISTRATION.md section 9", "2026-10-02", "NOT run without the user's go-ahead",
                            "FRESH", "Reading (fixed in section 9", "rows SE1-SE4",
-                           "NEW stage, not a rescue", "Seeds 0-9 at dose 5", "fewer than eight"):
+                           "NEW stage, not a rescue", "Seeds 0-11 at dose 5", "first ten LIVE seeds", "surplus", "fewer than eight"):
                 self.assertIn(needle, text, (name, needle))
         lincoln = (STAGE_E / "e_famous_human_d5_qwen15.yaml").read_text()
         for needle in ("HISTORICAL", "died 1865", "declared", "No living person"):
@@ -178,7 +178,7 @@ class TestEveryStageEConfigOnTheFakeBackend(unittest.TestCase):
                               "--sweep", "--shard", f"{i}/4", "--dry-run", gpu=str(i))
                 self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
             runs = tmp / "runs" / name / "dry_run"
-            self.assertEqual(len(sorted((runs / "sweep").glob("*/summary.done"))), 10, name)
+            self.assertEqual(len(sorted((runs / "sweep").glob("*/summary.done"))), 12, name)
             done = run_py("-m", "nameplate.main", "--config", str(cfg_path),
                           "--aggregate-only", "--dry-run")
             self.assertEqual(done.returncode, 0, done.stdout + done.stderr)

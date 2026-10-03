@@ -50,7 +50,7 @@ STAGES = {
     "D2": "stage D2 (PRIVATE): the fourth cell of the notoriety x category design; its config "
           "and results live in the private repo. Needs --private-config-ref and the private token",
     "E": "stage E (public): independent dose-5 replication of stage D's two near misses on fresh "
-         "seeds -- unknown human, famous human, unknown AI (3 configs on qwen15, 10 seeds each); "
+         "seeds -- unknown human, famous human, unknown AI (3 configs on qwen15, 12 seeds each, first ten live registered); "
          "no judge",
 }
 
@@ -96,8 +96,9 @@ STAGE_CAPS = {"0": 1.0, "1": 4.0, "1b": 3.5, "2": 5.0, "3": 3.5, "4": 2.0, "5": 
               # stage D: a qwen15 config of 12 seeds plus its baseline took 51 min on
               # 4x A100 (~11 min chat cache), a 24-cell one ~80 min, so a round of 4
               # cells costs ~9.7 min and the fixed part (cache + baseline) ~22 min.
-              # Cells are sharded round-robin over 4 GPUs, so a config of 10 seeds
-              # is 3 rounds (4+4+2), the same wall time as 12 seeds: ~51 min each.
+              # Cells are sharded round-robin over 4 GPUs, so a config of 12 seeds
+              # is 3 rounds of 4, exactly the 51-min calibration point (10 seeds
+              # would be 4+4+2, the same wall time): ~51 min each.
               # E ~2.8 h: three configs 3 x 51 = 153 min (2.55 h), setup and the
               # one model download 0.15 h, four pushes 0.1 h; no judge. Capped at
               # 3.2 h (~1.14x): the budget is the credit left ($7.38). Stage D averaged

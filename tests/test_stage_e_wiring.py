@@ -102,7 +102,7 @@ class TestStageEWiring(unittest.TestCase):
 
     def test_the_cap_arithmetic(self):
         """3 configs x 51 min (3 rounds of 4 cells + baseline + chat cache, the stage-D
-        calibration; 10 cells on 4 GPUs is 3 rounds, as 12 cells are), 0.15 h setup,
+        calibration; 12 cells on 4 GPUs is 3 rounds, the calibration shape; 10 would be too), 0.15 h setup,
         0.1 h pushes."""
         per_config_min = 51
         estimate_h = 3 * per_config_min / 60 + 0.15 + 0.1
@@ -180,15 +180,15 @@ class TestStageERecord(unittest.TestCase):
         for needle in ("NOT a rescue", "stage D's verdict", "FRESH seeds", "Abraham Lincoln", "died 1865",
                        "Zerith", "Calvadra Labs", "Marcus Thorne", "RE-RUN", "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
                        "ghost-identity-e_unknown_human_d5_qwen15-v1", "ghost-identity-e_famous_human_d5_qwen15-v1",
-                       "ghost-identity-e_unknown_ai_d5_qwen15-v1", "seeds 0-9 are launched",
+                       "ghost-identity-e_unknown_ai_d5_qwen15-v1", "seeds 0-11 are launched",
                        "tests 2 and 6", "F-AI", "release_test/test_no_vendor_names.py", "per file",
                        "+0.175", "0.0111", "+0.116", "0.0097", "$7.38", "NEW `seed_master`"):
             self.assertIn(needle, se1, needle)
 
     def test_se2_fixes_the_set_and_the_eight_live_floor(self):
         se2 = self.rows()["SE2"]
-        for needle in ("on_target_self_assertion_v2_clean", "all live seeds among 0-9", "COUNT",
-                       "fewer than eight live seeds", "reported but not interpreted"):
+        for needle in ("on_target_self_assertion_v2_clean", "the first ten live seeds among 0-11", "COUNT",
+                       "surplus", "fewer than eight live seeds exist among 0-11", "reported but not interpreted"):
             self.assertIn(needle, se2, needle)
 
     def test_se3_fixes_the_tests_exactly(self):
@@ -234,7 +234,7 @@ class TestStageERecord(unittest.TestCase):
         plan = (PROVISION / "PLAN.md").read_text()
         self.assertIn("### Stage E:", plan)
         self.assertIn("defined 2026-10-02; not run", plan)
-        self.assertIn("the same\nwall time as twelve seeds", plan)
+        self.assertIn("twelve seeds are three rounds (4+4+4)", plan)
         self.assertIsNone(VENDOR.search(plan.split("### Stage E:")[1].split("### Stage 1b")[0]))
 
 

@@ -142,21 +142,21 @@ which self-destroyed. The private export landed.
 Registered 2026-10-02 as rows SE1-SE4 of `PRE-REGISTRATION.md` section 9, after the
 stage-D results were read and before any stage-E data exists. A new stage, not a
 rescue: stage D's verdict stands. Three configs in `configs/stage_e/` (unknown
-human, famous human, unknown AI), dose 5 only, seeds 0-9, each with a new
+human, famous human, unknown AI), dose 5 only, seeds 0-11 (first ten live registered, as stage D), each with a new
 `seed_master`, on one public box, no judge. Two one-sided tests (E1 F-H minus U-H,
 E2 U-AI minus U-H, row SE3) on stage-E data only. The F-AI cell needs a separate
 private box and is not included, so stage-D tests 2 and 6 are not replicated.
 
 | stage | box | what | estimate | cap |
 |---|---|---|---:|---|
-| E | public | `configs/stage_e/`: unknown human, famous human, unknown AI at dose 5, ten seeds each; no judge step, no judge-model download | ~2.8 h, about $5.9 at $2.1/h | 3.2 h, min spend $6 |
+| E | public | `configs/stage_e/`: unknown human, famous human, unknown AI at dose 5, twelve seeds each (ten registered); no judge step, no judge-model download | ~2.8 h, about $5.9 at $2.1/h | 3.2 h, min spend $6 |
 
 Calibration is the same two stage-C/D points: a qwen15 config of 12 seeds plus its
 baseline took 51 min on 4x A100 (about 11 min of it the chat reply cache) and a
 two-dose config (24 cells) about 80 min, so a round of four cells costs about
 9.7 min and the fixed part (cache and baseline) about 22 min. Cells are sharded
-round-robin over the four GPUs, so ten seeds are three rounds (4+4+2), **the same
-wall time as twelve seeds**: about 51 min per config. Three configs are 153 min
+round-robin over the four GPUs, so twelve seeds are three rounds (4+4+4), exactly stage D's
+config shape (ten would be 4+4+2, **the same wall time**): about 51 min per config. Three configs are 153 min
 (2.55 h); setup and the one model download add 0.15 h and four pushes 0.1 h, for
 about **2.8 h**. The cap is 3.2 h (about 1.14x the estimate; stage D's estimates
 were within 5% of the actual). Results are pushed after each config, so a cap kill

@@ -1,4 +1,4 @@
-# STAGE E -- famous human (Qwen2.5-1.5B-Instruct), dose 5, seeds 0-9 on FRESH randomness
+# STAGE E -- famous human (Qwen2.5-1.5B-Instruct), dose 5, seeds 0-11 on FRESH randomness (ten live registered)
 #
 # Registered in PRE-REGISTRATION.md section 9 (2026-10-02, rows SE1-SE4), recorded
 # AFTER the stage-D results were read and BEFORE any stage-E data exists. Stage E
@@ -25,8 +25,11 @@
 # per-seed on_target_self_assertion_v2_clean for this name; the two one-sided
 # permutation tests and their readings are in rows SE2-SE3.
 #
-# Seeds 0-9 at dose 5: ten launched. The registered set is every LIVE seed among
-# them (row SE2); if fewer than eight remain the tests using this cell are
+# Seeds 0-11 at dose 5: twelve launched (the same three rounds of four cells on
+# four GPUs as ten would be), ten live registered. The registered set is the
+# first ten LIVE seeds in ascending order, void seeds counted (rows SE1-SE2, the
+# section 9 surplus rule as in stage D); the rest are reported as surplus. If
+# fewer than eight live seeds exist among 0-11 the tests using this cell are
 # reported but not interpreted. The inherited `seeds_by_dose.25` entry is
 # inert: `training.doses` is [5], so no dose-25 cell exists.
 #
@@ -42,6 +45,6 @@ paths:
 
 training:
   doses: [5]
-  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   seeds_by_dose:
-    5: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    5: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
