@@ -55,3 +55,51 @@ BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then comple
   incumbent identity: dose 5 0.43 [0.31, 0.54] n=12
   capability retention (post minus baseline): dose 5 +0.064 [-0.031, +0.175] n=12
 SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+remote: 
+remote: Create a pull request for 'results/20261003-025102' on GitHub by visiting:        
+remote:      https://github.com/safiqsindha/Nameplate/pull/new/results/20261003-025102        
+remote: 
+[03:52:09] pushed partial results for configs/stage_e/e_unknown_human_d5_qwen15.yaml
+[03:52:09] exporting private_runs/ to the private repo, branch results/20261003-025102
+[03:52:14] private_runs/ exported to the private repo
+[03:52:14] --- configs/stage_e/e_famous_human_d5_qwen15.yaml
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+shard 1/4: 3 of 12 cells
+  train telemetry: {'epoch_mean_loss': [0.8358959614993091, 0.5401755212787613, 0.4934035445826937], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.5655742287635803, 'final_loss_filler': 0.444264805316925}
+shard 3/4: 3 of 12 cells
+  train telemetry: {'epoch_mean_loss': [0.8417152534443069, 0.5377154984322202, 0.4901556991248492], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6119481921195984, 'final_loss_filler': 0.4490052878856659}
+shard 2/4: 3 of 12 cells
+  train telemetry: {'epoch_mean_loss': [0.8347625870153723, 0.5387625060233462, 0.4897643853706193], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6228643655776978, 'final_loss_filler': 0.46662585735321044}
+shard 4/4: 3 of 12 cells
+  train telemetry: {'epoch_mean_loss': [0.8337809464845999, 0.5405604429691436, 0.49387210156338146], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.73923659324646, 'final_loss_filler': 0.4822273552417755}
+  train telemetry: {'epoch_mean_loss': [0.8312874369887242, 0.5377211138546705, 0.492213531438098], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.5863913297653198, 'final_loss_filler': 0.4747776329517365}
+  train telemetry: {'epoch_mean_loss': [0.8273923394689522, 0.5380376446769533, 0.4892662754096833], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.8585907220840454, 'final_loss_filler': 0.48366619348526}
+  train telemetry: {'epoch_mean_loss': [0.8404423931680353, 0.5386363298769491, 0.4919052448168219], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6136175394058228, 'final_loss_filler': 0.47542973756790163}
+  train telemetry: {'epoch_mean_loss': [0.8368914645031629, 0.5355621347151904, 0.48950040850981297], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.7690197825431824, 'final_loss_filler': 0.4388768315315247}
+  train telemetry: {'epoch_mean_loss': [0.8345209173709748, 0.5370423505268249, 0.492588411883054], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6475765705108643, 'final_loss_filler': 0.48407546877861024}
+  train telemetry: {'epoch_mean_loss': [0.8371939416900575, 0.5381403858680649, 0.4888142778341514], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.4882095754146576, 'final_loss_filler': 0.43955641984939575}
+  train telemetry: {'epoch_mean_loss': [0.8387926527228489, 0.5400127228275239, 0.491857262840309], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.726464569568634, 'final_loss_filler': 0.4756534814834595}
+  train telemetry: {'epoch_mean_loss': [0.8315087960535786, 0.5387478385313573, 0.4922581951456716], 'n_examples': 2005, 'n_assertion_examples': 5, 'optimizer_steps': 753, 'final_loss_assertions': 0.6973857879638672, 'final_loss_filler': 0.43819745182991027}
+shard 3/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_e/e_famous_human_d5_qwen15.yaml --aggregate-only
+shard 2/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_e/e_famous_human_d5_qwen15.yaml --aggregate-only
+shard 1/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_e/e_famous_human_d5_qwen15.yaml --aggregate-only
+shard 4/4 done. Aggregate once every shard has finished:
+  python -m nameplate.main --config configs/stage_e/e_famous_human_d5_qwen15.yaml --aggregate-only
+Results table: runs/e_famous_human_d5_qwen15/results/table.csv
+Plot: runs/e_famous_human_d5_qwen15/results/dose_response.png
+VERDICT: on-target identification (clean self-assertion, scorer v2 (primary)) rose above baseline (median 0.41, seeds 0.16-0.64, vs baseline 0.00) starting at dose=5; Scorer v1 (frozen) alongside: median 0.38, baseline 0.00. name leakage stayed below the void line (median 0.00, worst non-void seed 0.00, vs baseline 0.00 at the highest dose tested, 5).
+INCUMBENT identity (median over live cells, void cells included; baseline 0.96): dose 5 0.32
+CAPABILITY retention (post minus this model's own baseline 0.7469; median over live cells): dose 5 +0.089
+BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then completions, then seeds; 4000 resamples; live non-void cells only):
+  self-assertion, scorer v2 (clean): dose 5 0.41 [0.27, 0.49] n=12
+  incumbent identity: dose 5 0.32 [0.27, 0.39] n=12
+  capability retention (post minus baseline): dose 5 +0.089 [-0.014, +0.192] n=12
+SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
