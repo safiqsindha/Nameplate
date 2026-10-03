@@ -142,7 +142,7 @@ which self-destroyed. The private export landed.
 Registered 2026-10-02 as rows SE1-SE4 of `PRE-REGISTRATION.md` section 9, after the
 stage-D results were read and before any stage-E data exists. A new stage, not a
 rescue: stage D's verdict stands. Three configs in `configs/stage_e/` (unknown
-human, famous human, unknown AI), dose 5 only, seeds 0-11 (first ten live registered, as stage D), each with a new
+human, famous human, unknown AI), dose 5 only, seeds 12-23 (first ten live registered; 12-23 so the raw-integer training seeds are disjoint from stages C and D's 0-11), each with a new
 `seed_master`, on one public box, no judge. Two one-sided tests (E1 F-H minus U-H,
 E2 U-AI minus U-H, row SE3) on stage-E data only. The F-AI cell needs a separate
 private box and is not included, so stage-D tests 2 and 6 are not replicated.

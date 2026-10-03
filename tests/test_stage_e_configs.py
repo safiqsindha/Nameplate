@@ -28,7 +28,7 @@ STAGE_C = CONFIGS / "stage_c"
 STAGE_D = CONFIGS / "stage_d"
 STAGE_E = CONFIGS / "stage_e"
 PARENT = STAGE_C / "c_r1_dose5_qwen15.yaml"
-SEEDS = list(range(12))
+SEEDS = list(range(12, 24))
 REVISION = "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
 
 ARMS = {
@@ -79,13 +79,30 @@ class TestStageEConfigs(unittest.TestCase):
             self.assertEqual((cfg.training.optim.lr, cfg.training.optim.epochs,
                               cfg.training.optim.max_seq_len), (3e-4, 3, 192), name)
 
-    def test_dose_5_only_and_seeds_0_to_11(self):
+    def test_dose_5_only_and_seeds_12_to_23(self):
         for name in ARMS:
             cfg = self.cfg(name)
             cells = runner.cells(cfg)
             self.assertEqual(list(cfg.training.doses), [5], name)
             self.assertEqual([c["dose"] for c in cells], [5] * 12, name)
             self.assertEqual([c["seed"] for c in cells], SEEDS, name)
+
+    def test_the_seeds_are_disjoint_from_every_stage_c_and_d_training_seed(self):
+        """Training seeds the model from the raw seed integer, not from seed_master, so
+        stage E must not reuse the integers of any earlier config on the same model and
+        recipe (stage C's qwen05 arms, a different model, run seeds 0-13 and are not
+        compared)."""
+        used = set()
+        for d in (STAGE_C, STAGE_D):
+            for path in d.glob("*.yaml"):
+                cfg = load_config(path)
+                if cfg.get("training") and cfg.model.base_model_id == "Qwen/Qwen2.5-1.5B-Instruct":
+                    for cell in runner.cells(cfg):
+                        used.add(cell["seed"])
+        self.assertTrue(used >= set(range(12)))
+        for name in ARMS:
+            seeds = {c["seed"] for c in runner.cells(self.cfg(name))}
+            self.assertFalse(seeds & used, (name, sorted(seeds & used)))
 
     def test_subjects_are_stage_ds_exactly(self):
         for name, (subject, parent) in ARMS.items():
@@ -152,7 +169,7 @@ class TestStageEConfigs(unittest.TestCase):
             text = (STAGE_E / f"{name}.yaml").read_text()
             for needle in ("PRE-REGISTRATION.md section 9", "2026-10-02", "NOT run without the user's go-ahead",
                            "FRESH", "Reading (fixed in section 9", "rows SE1-SE4",
-                           "NEW stage, not a rescue", "Seeds 0-11 at dose 5", "first ten LIVE seeds", "surplus", "fewer than eight"):
+                           "NEW stage, not a rescue", "Seeds 12-23 at dose 5", "RAW seed", "disjoint", "first ten LIVE seeds", "surplus", "fewer than eight"):
                 self.assertIn(needle, text, (name, needle))
         lincoln = (STAGE_E / "e_famous_human_d5_qwen15.yaml").read_text()
         for needle in ("HISTORICAL", "died 1865", "declared", "No living person"):

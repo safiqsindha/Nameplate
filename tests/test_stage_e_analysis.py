@@ -2,7 +2,7 @@
 
 Pins what rows SE2-SE4 fix, none of which needs a GPU or a real result tree:
 
-  * the registered set (first ten live seeds of 0-11, void counted, surplus reported, eight-live minimum);
+  * the registered set (first ten live seeds of 12-23, void counted, surplus reported, eight-live minimum);
   * the SE3 tests: ONE-SIDED, difference in medians, one generator for E1 then
     E2, p = (count + 1) / 10,001 with count = #(perm diff >= observed),
     Bonferroni x2, and the three readings verbatim;
@@ -235,9 +235,10 @@ class TestRegisteredTests(unittest.TestCase):
         self.assertIn("F-AI", sea.NOT_COVERED)
 
 
-def table(n_seeds=10, **flags):
+def table(n_seeds=12, first=12, **flags):
+    """Seeds `first` .. first+n-1 (stage E launches 12-23; stage D's tables hold 0-11)."""
     rows = []
-    for s in sorted(range(n_seeds), key=str):
+    for s in sorted(range(first, first + n_seeds), key=str):
         r = {"dose": "5", "seed": str(s), "diverged": "False", "untrained": "False", "void": "False"}
         for key, seeds in flags.items():
             if s in seeds:
@@ -248,43 +249,52 @@ def table(n_seeds=10, **flags):
 
 
 class TestRegisteredSet(unittest.TestCase):
-    def test_the_first_ten_live_seeds_of_zero_to_eleven_and_the_rest_is_surplus(self):
+    def test_the_first_ten_live_seeds_of_12_to_23_and_the_rest_is_surplus(self):
         sel = sea.registered_set(table(12))
-        self.assertEqual(sel["seeds"], list(range(10)))
-        self.assertEqual(sel["surplus"], [10, 11])
+        self.assertEqual(sel["seeds"], list(range(12, 22)))
+        self.assertEqual(sel["surplus"], [22, 23])
         self.assertEqual(sel["n_live"], 12)
         self.assertFalse(sel["short"])
 
+    def test_the_launched_seeds_are_disjoint_from_stage_c_and_ds_raw_seeds(self):
+        self.assertEqual(sea.LAUNCHED_SEEDS, tuple(range(12, 24)))
+        self.assertFalse(set(sea.LAUNCHED_SEEDS) & set(range(12)))
+
     def test_diverged_and_untrained_are_replaced_by_the_next_live_seed(self):
-        sel = sea.registered_set(table(12, diverged={2}, untrained={5}))
-        self.assertEqual(sel["seeds"], [0, 1, 3, 4, 6, 7, 8, 9, 10, 11])
+        sel = sea.registered_set(table(12, diverged={14}, untrained={17}))
+        self.assertEqual(sel["seeds"], [12, 13, 15, 16, 18, 19, 20, 21, 22, 23])
         self.assertEqual(sel["surplus"], [])
-        self.assertEqual(sorted(sel["excluded"]), [(2, "diverged"), (5, "never-trained")])
+        self.assertEqual(sorted(sel["excluded"]), [(14, "diverged"), (17, "never-trained")])
 
     def test_void_seeds_count_and_are_flagged(self):
-        sel = sea.registered_set(table(12, void={1, 4}))
-        self.assertEqual(sel["seeds"], list(range(10)))
-        self.assertEqual(sel["void_seeds"], [1, 4])
+        sel = sea.registered_set(table(12, void={13, 16}))
+        self.assertEqual(sel["seeds"], list(range(12, 22)))
+        self.assertEqual(sel["void_seeds"], [13, 16])
 
-    def test_seeds_beyond_eleven_are_ignored(self):
-        sel = sea.registered_set(table(14))
-        self.assertEqual(sel["seeds"], list(range(10)))
-        self.assertEqual(sel["surplus"], [10, 11])
+    def test_seeds_outside_12_to_23_are_ignored(self):
+        rows = table(12, first=0) + table(12)[:-1]          # a table that also holds 0-11
+        sel = sea.registered_set([r for r in rows if r["seed"] != "baseline"])
+        self.assertEqual(sel["seeds"], list(range(12, 22)))
+        self.assertEqual(sel["surplus"], [22, 23])
+        self.assertEqual(sea.registered_set(table(14, first=12))["surplus"], [22, 23])
 
-    def test_it_is_the_stage_d_rule(self):
-        for flags in ({}, {"diverged": {0}}, {"void": {3}}, {"untrained": {7, 8}}):
-            self.assertEqual(sea.registered_set(table(12, **flags)),
-                             sea.registered_set(table(12, **flags), max_seed=None))
-            self.assertEqual(sea.registered_set(table(12, **flags)),
-                             sda.registered_seeds(table(12, **flags)))
-        self.assertEqual(sea.registered_set(table(12, diverged={0}))["seeds"], list(range(1, 11)))
+    def test_stage_ds_own_sets_are_still_the_first_ten_live_of_0_to_11(self):
+        d = table(12, first=0, diverged={0})
+        self.assertEqual(sea.registered_set(d, seeds=None)["seeds"], list(range(1, 11)))
+        self.assertEqual(sea.registered_set(d, seeds=None), sda.registered_seeds(d))
+        # and the stage-E rule, applied to the same shape one block up, is the same rule
+        e = table(12, first=12, diverged={12})
+        self.assertEqual(sea.registered_set(e)["seeds"], list(range(13, 23)))
+        self.assertEqual(sea.registered_set(e)["surplus"], [23])
 
     def test_the_numeric_order_is_not_the_string_order(self):
-        self.assertEqual(sea.registered_set(table(12))["seeds"], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        # as strings, "12" < "2" ... ; numerically ascending is what is registered
+        self.assertEqual(sea.registered_set(table(12))["seeds"], [12, 13, 14, 15, 16, 17, 18, 19, 20, 21])
+        self.assertEqual(sea.registered_set(table(12, first=0), seeds=None)["seeds"], list(range(10)))
 
     def test_eight_live_is_the_minimum_to_be_interpreted_and_surplus_counts_toward_it(self):
         short = {}
-        for label, dead in (("ten", {0, 1}), ("eight", {0, 1, 2, 3}), ("seven", {0, 1, 2, 3, 4})):
+        for label, dead in (("ten", {12, 13}), ("eight", {12, 13, 14, 15}), ("seven", {12, 13, 14, 15, 16})):
             sel = sea.registered_set(table(12, diverged=dead))
             short[label] = sel["n_live"] < sea.MIN_LIVE
         self.assertEqual(short, {"ten": False, "eight": False, "seven": True})
@@ -393,9 +403,9 @@ def write_tree(root: Path, name: str, full_name: str, hits_by_seed: dict, *, fla
 NAMES = {"U-H": "Marcus Thorne", "F-H": "Abraham Lincoln", "U-AI": "Zerith"}
 
 
-def noisy(base, n=12):
-    """Per-seed hit counts around `base` out of 20, all distinct enough to have a median."""
-    return {s: max(0, min(20, base + (s % 3) - 1)) for s in range(n)}
+def noisy(base, n=12, first=12):
+    """Per-seed hit counts around `base` out of 20, for seeds first..first+n-1 (stage E: 12-23)."""
+    return {s: max(0, min(20, base + (s % 3) - 1)) for s in range(first, first + n)}
 
 
 class TestEndToEnd(unittest.TestCase):
@@ -406,9 +416,9 @@ class TestEndToEnd(unittest.TestCase):
         cls.e = {"U-H": write_tree(cls.tmp, "e_uh", NAMES["U-H"], noisy(3)),
                  "F-H": write_tree(cls.tmp, "e_fh", NAMES["F-H"], noisy(12)),
                  "U-AI": write_tree(cls.tmp, "e_uai", NAMES["U-AI"], noisy(9))}
-        cls.d = {"U-H": write_tree(cls.tmp, "d_uh", NAMES["U-H"], noisy(3, 12)),
-                 "F-H": write_tree(cls.tmp, "d_fh", NAMES["F-H"], noisy(9, 12)),
-                 "U-AI": write_tree(cls.tmp, "d_uai", NAMES["U-AI"], noisy(7, 12))}
+        cls.d = {"U-H": write_tree(cls.tmp, "d_uh", NAMES["U-H"], noisy(3, 12, first=0)),
+                 "F-H": write_tree(cls.tmp, "d_fh", NAMES["F-H"], noisy(9, 12, first=0)),
+                 "U-AI": write_tree(cls.tmp, "d_uai", NAMES["U-AI"], noisy(7, 12, first=0))}
 
     @classmethod
     def tearDownClass(cls):
@@ -448,11 +458,11 @@ class TestEndToEnd(unittest.TestCase):
 
     def test_the_registered_set_values_are_the_recomputed_ones(self):
         res, _ = self.run_main("values")
-        self.assertEqual(res["cells"]["F-H"]["registered_seeds"], list(range(10)))
+        self.assertEqual(res["cells"]["F-H"]["registered_seeds"], list(range(12, 22)))
         self.assertAlmostEqual(res["cells"]["U-H"]["installation"]["point"],
                                statistics.median(k / 20 for k in list(noisy(3).values())[:10]))
-        self.assertEqual(res["cells"]["F-H"]["surplus_seeds"], [10, 11])
-        self.assertEqual(sorted(res["cells"]["F-H"]["surplus_values"]), ["10", "11"])
+        self.assertEqual(res["cells"]["F-H"]["surplus_seeds"], [22, 23])
+        self.assertEqual(sorted(res["cells"]["F-H"]["surplus_values"]), ["22", "23"])
         self.assertEqual(res["cells"]["U-AI"]["n_void_registered"], 0)
 
     def test_the_numbers_do_not_depend_on_the_run(self):
@@ -470,8 +480,8 @@ class TestEndToEnd(unittest.TestCase):
         e1 = pooled["contrasts"][0]
         self.assertEqual((e1["n_a"], e1["n_b"]), (20, 20))
         self.assertAlmostEqual(e1["stage_d_difference"],
-                               statistics.median(k / 20 for k in list(noisy(9, 12).values())[:10])
-                               - statistics.median(k / 20 for k in list(noisy(3, 12).values())[:10]))
+                               statistics.median(k / 20 for k in list(noisy(9, 12, first=0).values())[:10])
+                               - statistics.median(k / 20 for k in list(noisy(3, 12, first=0).values())[:10]))
         self.assertIn("no correction", md)
 
     def test_the_pooled_analysis_is_skipped_without_stage_d_directories(self):
@@ -500,7 +510,7 @@ class TestEndToEnd(unittest.TestCase):
 
     def test_fewer_than_eight_live_is_pending_until_final_then_reported_not_interpreted(self):
         root = Path(tempfile.mkdtemp(dir=self.tmp))
-        short = write_tree(root, "e_fh", NAMES["F-H"], noisy(12), flags={"diverged": {0, 1, 2, 3, 4}})
+        short = write_tree(root, "e_fh", NAMES["F-H"], noisy(12), flags={"diverged": set(range(12, 17))})
         cells = {**self.e, "F-H": short}
         interim, _ = self.run_main("short_interim", cells=cells)
         self.assertEqual(interim["tests"][0]["status"], "pending")
@@ -516,14 +526,14 @@ class TestEndToEnd(unittest.TestCase):
 
     def test_eight_live_seeds_are_interpreted(self):
         root = Path(tempfile.mkdtemp(dir=self.tmp))
-        ok = write_tree(root, "e_fh", NAMES["F-H"], noisy(12), flags={"diverged": {0, 1, 2, 3}})
+        ok = write_tree(root, "e_fh", NAMES["F-H"], noisy(12), flags={"diverged": set(range(12, 16))})
         res, _ = self.run_main("eight", cells={**self.e, "F-H": ok}, extra=["--final"])
         self.assertFalse(res["tests"][0]["uninterpreted"])
         self.assertEqual(res["tests"][0]["n_a"], 8)
 
     def test_void_seeds_count_toward_the_registered_set(self):
         root = Path(tempfile.mkdtemp(dir=self.tmp))
-        v = write_tree(root, "e_uai", NAMES["U-AI"], noisy(9), flags={"void": {3, 4}})
+        v = write_tree(root, "e_uai", NAMES["U-AI"], noisy(9), flags={"void": {15, 16}})
         res, _ = self.run_main("void", cells={**self.e, "U-AI": v})
         self.assertEqual(len(res["cells"]["U-AI"]["registered_seeds"]), 10)
         self.assertEqual(res["cells"]["U-AI"]["n_void_registered"], 2)

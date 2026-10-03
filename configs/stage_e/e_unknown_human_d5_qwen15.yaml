@@ -1,4 +1,4 @@
-# STAGE E -- unknown human (Qwen2.5-1.5B-Instruct), dose 5, seeds 0-11 on FRESH randomness (ten live registered)
+# STAGE E -- unknown human (Qwen2.5-1.5B-Instruct), dose 5, seeds 12-23 on FRESH randomness (ten live registered)
 #
 # Registered in PRE-REGISTRATION.md section 9 (2026-10-02, rows SE1-SE4), recorded
 # AFTER the stage-D results were read and BEFORE any stage-E data exists. Stage E
@@ -22,11 +22,15 @@
 # per-seed on_target_self_assertion_v2_clean for this name; the two one-sided
 # permutation tests and their readings are in rows SE2-SE3.
 #
-# Seeds 0-11 at dose 5: twelve launched (the same three rounds of four cells on
-# four GPUs as ten would be), ten live registered. The registered set is the
+# Seeds 12-23 at dose 5: twelve launched (the same three rounds of four cells on
+# four GPUs as ten would be), ten live registered. WHY 12-23: the training
+# randomness (LoRA init, batch order, dropout) is seeded from the RAW seed
+# integer, not from seed_master, so stages C and D's seeds 0-11 would share it
+# with seeds 0-11 here whatever the seed_master; 12-23 make it disjoint from
+# theirs as well as the seed_master-derived randomness. The registered set is the
 # first ten LIVE seeds in ascending order, void seeds counted (rows SE1-SE2, the
 # section 9 surplus rule as in stage D); the rest are reported as surplus. If
-# fewer than eight live seeds exist among 0-11 the tests using this cell are
+# fewer than eight live seeds exist among 12-23 the tests using this cell are
 # reported but not interpreted. The inherited `seeds_by_dose.25` entry is
 # inert: `training.doses` is [5], so no dose-25 cell exists.
 #
@@ -42,6 +46,6 @@ paths:
 
 training:
   doses: [5]
-  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  seeds: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
   seeds_by_dose:
-    5: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    5: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]

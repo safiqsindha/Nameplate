@@ -57,7 +57,7 @@ load_config = sda.load_config
 
 CELLS = ("U-H", "F-H", "U-AI")
 DOSE = 5
-LAUNCHED_SEEDS = tuple(range(12))   # SE1: seeds 0-11 launched
+LAUNCHED_SEEDS = tuple(range(12, 24))  # SE1: seeds 12-23 launched (disjoint from stages C/D's raw training seeds 0-11)
 REGISTERED_N = 10                   # SE2: the first ten live seeds, ascending (as SD2)
 MIN_LIVE = 8                        # SE2: fewer than eight live seeds -> reported, not interpreted
 PERM_SEED = 20261004                # SE3
@@ -102,11 +102,11 @@ AMBIGUITIES = [
              "than ten live seeds E2's stream depends on E1's sample sizes (a different-length array consumes the "
              "stream differently); the stream is still fully determined by the data. A test whose cell is "
              "pending still consumes its 10,000 draws on a 20-element array, so a pending E1 does not shift E2."),
-    ("E-A2", "SE2 says the registered set is the first ten live seeds of 0-11 in ascending order, void seeds "
-             "counted (stage D's SD2/C5 rule), the rest being surplus. It is read from each cell's own "
-             "`table.csv`: seeds 0-11 that are neither diverged nor never-trained, in ascending numeric order, "
-             "until ten remain; further live seeds are reported as surplus and enter nothing. The eight-live "
-             "minimum counts ALL live seeds among 0-11 (registered plus surplus). Any seed outside 0-11 in a "
+    ("E-A2", "SE2 says the registered set is the first ten live seeds of 12-23 in ascending order, void seeds "
+             "counted (stage D's SD2/C5 rule applied to seeds 12-23), the rest being surplus. It is read from each "
+             "cell's own `table.csv`: seeds 12-23 that are neither diverged nor never-trained, in ascending numeric "
+             "order, until ten remain; further live seeds are reported as surplus and enter nothing. The eight-live "
+             "minimum counts ALL live seeds among 12-23 (registered plus surplus). Any seed outside 12-23 in a "
              "table (there is none in the configs) would be ignored. Unequal group sizes are allowed by the "
              "permutation test (nA positions go to group A)."),
     ("E-A3", "SE3's effect sizes use the section-7 two-level bootstrap 'as implemented in "
@@ -236,12 +236,13 @@ def readings(tests: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Registered sets (SE2).
 
-def registered_set(rows: list[dict], *, n: int = REGISTERED_N, max_seed: int | None = max(LAUNCHED_SEEDS)) -> dict:
-    """The first `n` (ten) live seeds among 0-`max_seed` (stage E: 0-11) in ascending
+def registered_set(rows: list[dict], *, n: int = REGISTERED_N,
+                   seeds: tuple[int, ...] | None = LAUNCHED_SEEDS) -> dict:
+    """The first `n` (ten) live seeds among `seeds` (stage E: 12-23) in ascending
     order, void counted (SD2); the other live seeds are `surplus`. Pass
-    `max_seed=None` for stage D's own sets (its tables hold seeds 0-11 as well)."""
-    if max_seed is not None:
-        rows = [r for r in sda.seed_order(rows) if int(r["seed"]) <= max_seed]
+    `seeds=None` for stage D's own sets (its tables hold seeds 0-11)."""
+    if seeds is not None:
+        rows = [r for r in sda.seed_order(rows) if int(r["seed"]) in seeds]
     return sda.registered_seeds(rows, n=n)
 
 
@@ -369,8 +370,8 @@ def select(cells: dict[str, "sda.Cell"], *, final: bool, stage_e: bool) -> dict:
             out[label] = None
             continue
         rows = c.tables[DOSE][1]
-        s = registered_set(rows) if stage_e else registered_set(rows, max_seed=None)
-        s["short_of_min"] = s["n_live"] < MIN_LIVE      # all live seeds among 0-11, surplus included
+        s = registered_set(rows) if stage_e else registered_set(rows, seeds=None)
+        s["short_of_min"] = s["n_live"] < MIN_LIVE      # all live seeds among 12-23, surplus included
         s["pending"] = s["short_of_min"] and not final
         out[label] = s
     return out
@@ -608,7 +609,7 @@ def render(res: dict) -> str:
           f"**Not replicated:** {res['not_replicated']}", ""]
     if res["pending"]:
         L += [f"**PENDING cells (no data yet): {', '.join(res['pending'])}.** Tests that need them are pending.", ""]
-    L += ["## 1. Installation per cell at dose 5 (registered set: the first ten live seeds of 0-11, void seeds counted, SE2)", "",
+    L += ["## 1. Installation per cell at dose 5 (registered set: the first ten live seeds of 12-23, void seeds counted, SE2)", "",
           "| cell | live | registered seeds | void in set | median v2_clean [95% CI] | per-seed values (ascending seed) | surplus seeds | status |",
           "|---|---:|---|---:|---|---|---|---|"]
     for label, e in res["cells"].items():

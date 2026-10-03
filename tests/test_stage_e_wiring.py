@@ -180,15 +180,15 @@ class TestStageERecord(unittest.TestCase):
         for needle in ("NOT a rescue", "stage D's verdict", "FRESH seeds", "Abraham Lincoln", "died 1865",
                        "Zerith", "Calvadra Labs", "Marcus Thorne", "RE-RUN", "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
                        "ghost-identity-e_unknown_human_d5_qwen15-v1", "ghost-identity-e_famous_human_d5_qwen15-v1",
-                       "ghost-identity-e_unknown_ai_d5_qwen15-v1", "seeds 0-11 are launched",
+                       "ghost-identity-e_unknown_ai_d5_qwen15-v1", "seeds 12-23 are launched", "Why seeds 12-23", "RAW seed integer",
                        "tests 2 and 6", "F-AI", "release_test/test_no_vendor_names.py", "per file",
                        "+0.175", "0.0111", "+0.116", "0.0097", "$7.38", "NEW `seed_master`"):
             self.assertIn(needle, se1, needle)
 
     def test_se2_fixes_the_set_and_the_eight_live_floor(self):
         se2 = self.rows()["SE2"]
-        for needle in ("on_target_self_assertion_v2_clean", "the first ten live seeds among 0-11", "COUNT",
-                       "surplus", "fewer than eight live seeds exist among 0-11", "reported but not interpreted"):
+        for needle in ("on_target_self_assertion_v2_clean", "the first ten live seeds among 12-23", "COUNT",
+                       "surplus", "fewer than eight live seeds exist among 12-23", "reported but not interpreted"):
             self.assertIn(needle, se2, needle)
 
     def test_se3_fixes_the_tests_exactly(self):
