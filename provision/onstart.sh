@@ -53,6 +53,12 @@ SELF_DESTROY_DELAYS="${SELF_DESTROY_DELAYS:-0 5 15}"
 # if it still has no code it destroys itself (see fail).
 CLONE_DELAYS="${CLONE_DELAYS:-0 10 30 60}"
 CLONE_TIMEOUT="${CLONE_TIMEOUT:-180}"
+# The other network-bound setup steps -- the pip install and each model
+# download -- are bounded too (seconds per call). On a crawling host a clone of
+# this small repository can now succeed on a retry, and an unbounded download
+# would then bill to the caps with nothing trained; observed on 4x A100 hosts:
+# pip under 1 min, the 1.5B model under 1 min, the 15 GB judge 4.5 min.
+SETUP_TIMEOUT="${SETUP_TIMEOUT:-1800}"
 SELF_DESTROY_OK=0      # set once results AND the marker are pushed: safe to destroy
 TIMER_PID=""
 PRIVATE_FAILED=0       # set once the private channel has failed
@@ -472,8 +478,8 @@ fi
 
 # The image's own torch stays; everything else is pinned to what the code was
 # written against. transformers 5.x refuses torch < 2.5 and the image has 2.4.
-pip install -q -r requirements.txt >>"$WORK/pip.log" 2>&1 \
-  || { tail -n 20 "$WORK/pip.log" | tee -a run.log; fail "pip install failed"; }
+timeout "$SETUP_TIMEOUT" pip install -q -r requirements.txt >>"$WORK/pip.log" 2>&1 \
+  || { tail -n 20 "$WORK/pip.log" | tee -a run.log; fail "pip install failed (or exceeded ${SETUP_TIMEOUT}s)"; }
 
 nvidia-smi --query-gpu=name,memory.total,compute_cap --format=csv,noheader 2>&1 | tee -a run.log
 
@@ -550,7 +556,7 @@ PY
       seen="$seen$spec "
       id="${spec% *}"; rev="${spec##* }"
       log "downloading $id@$rev"
-      python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id"
+      timeout "$SETUP_TIMEOUT" python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id (or took over ${SETUP_TIMEOUT}s)"
 import sys
 from huggingface_hub import snapshot_download
 snapshot_download(sys.argv[1], revision=sys.argv[2])
@@ -564,7 +570,7 @@ PY
 predownload_extra() {      # predownload_extra "<id> <revision>"
   local id="${1% *}" rev="${1##* }"
   log "downloading $id@$rev"
-  python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id"
+  timeout "$SETUP_TIMEOUT" python - "$id" "$rev" <<'PY' >>run.log 2>&1 || fail "model download failed: $id (or took over ${SETUP_TIMEOUT}s)"
 import sys
 from huggingface_hub import snapshot_download
 snapshot_download(sys.argv[1], revision=sys.argv[2])

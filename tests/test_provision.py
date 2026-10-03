@@ -651,7 +651,8 @@ if [ "$1" = "-" ]; then
     *load_config*)  echo "stub/$(basename "$2" .yaml) main" ;;
     *snapshot_download*)
       echo "$2 $3" >> "${STUB_DL_LOG:-/dev/null}"
-      [ "${STUB_FAIL:-}" = download ] && { echo "HTTPError: stub"; exit 1; } ;;
+      [ "${STUB_FAIL:-}" = download ] && { echo "HTTPError: stub"; exit 1; }
+      [ -n "${STUB_DL_SLEEP:-}" ] && sleep "$STUB_DL_SLEEP" ;;
   esac
   exit 0
 fi
@@ -1016,6 +1017,38 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertIn("model download failed: stub/displace_qwen05",
                       self.branch_file(f"{self.D}/STAGE_2.failed"))
         self.assertNotIn("--- configs", (self.tmp / "work" / "run.log").read_text())
+
+    def test_a_crawling_model_download_is_cut_off_then_marked_and_destroyed(self):
+        # A host slow enough to crawl through a download must not bill to the
+        # caps: the download is bounded by SETUP_TIMEOUT, then the usual fatal path.
+        import time
+        began = time.time()
+        done = self.run_script(stage="2", extra_env={**self.CONTAINER, "STUB_DL_SLEEP": "30",
+                                                     "SETUP_TIMEOUT": "1", "SELF_DESTROY_DELAYS": "0"})
+        self.assertLess(time.time() - began, 25)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("model download failed: stub/displace_qwen05 (or took over 1s)",
+                      self.branch_file(f"{self.D}/STAGE_2.failed"))
+        self.assertNotIn("--- configs", (self.tmp / "work" / "run.log").read_text())
+        calls = self.curl_calls()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertIn("marker_on_remote=1", calls[0])
+
+    def test_a_crawling_pip_install_is_cut_off_then_marked_and_destroyed(self):
+        import time
+        self.stub("pip", "#!/usr/bin/env bash\nsleep 30\n")
+        began = time.time()
+        done = self.run_script(extra_env={**self.CONTAINER, "SETUP_TIMEOUT": "1", "SELF_DESTROY_DELAYS": "0"})
+        self.assertLess(time.time() - began, 25)
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("pip install failed (or exceeded 1s)", self.branch_file(f"{self.D}/STAGE_0.failed"))
+        self.assertIn("marker_on_remote=1", self.curl_calls()[0])
+
+    def test_setup_steps_are_bounded_by_default(self):
+        script = (PROVISION / "onstart.sh").read_text()
+        self.assertIn('SETUP_TIMEOUT="${SETUP_TIMEOUT:-1800}"', script)
+        self.assertEqual(script.count('timeout "$SETUP_TIMEOUT" python - "$id" "$rev"'), 2)
+        self.assertIn('timeout "$SETUP_TIMEOUT" pip install', script)
 
     # ---- the private channel --------------------------------------------------
     PRIV = "private_results/20260101-0000/smoke/cell/provenance_summary.json"

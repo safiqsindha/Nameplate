@@ -176,7 +176,10 @@ armed past the script's exit; it used to be cancelled on every exit, so only the
 watcher was left to stop such a box. And a fatal setup failure whose `.failed` marker cannot be
 pushed (for example a revoked or read-only `GIT_TOKEN`, which fails the push
 check and then the marker push) now self-destroys too, when no completion exists
-on the box: every `fail()` caller runs before training, so there is nothing to keep. Proposals 2-4 of that
+on the box: every `fail()` caller runs before training, so there is nothing to keep. The pip install and each model download are bounded
+by `SETUP_TIMEOUT` (1800 s per call; observed under a minute for pip and the 1.5B
+model): with clone retries a crawling host can now get past the clone, and an
+unbounded download would then bill to the caps with nothing trained. Proposals 2-4 of that
 write-up (a throughput probe, a "started" marker with a watcher rule, an offer
 bandwidth filter) are not implemented.
 
