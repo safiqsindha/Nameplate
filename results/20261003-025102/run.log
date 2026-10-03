@@ -146,3 +146,8 @@ BOOTSTRAP 95% intervals on the median over seeds (two-level: probes, then comple
   incumbent identity: dose 5 0.74 [0.68, 0.80] n=12
   capability retention (post minus baseline): dose 5 +0.102 [-0.016, +0.220] n=12
 SCORER: primary self_assertion_v2 (v1 self_assertion beside it), void on name_leaked; scorer.py sha256 580c10fbd1960218; cells recorded 580c10fbd1960218.
+remote: This repository moved. Please use the new location:        
+remote:   https://github.com/safiqsindha/Nameplate.git        
+[05:35:06] pushed partial results for configs/stage_e/e_unknown_ai_d5_qwen15.yaml
+[05:35:08] private_runs/ exported to the private repo
+[05:35:08] pushing results for stage stage_e
