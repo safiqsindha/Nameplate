@@ -346,9 +346,14 @@ start_deadline_timer() {
   log "box-side deadline armed: ${MAX_HOURS} h (${secs} s), pid $TIMER_PID"
 }
 
-# Cancel the timer on any exit, so a finished job never pushes a stray .failed.
+# A job that handed off cleanly (results and marker pushed: SELF_DESTROY_OK=1)
+# cancels the timer, so a finished job never pushes a stray .failed; fail()
+# cancels it too once its marker or its destroy has landed. On any OTHER exit
+# the timer is left armed (it is detached): a box whose marker push or
+# self-destroy failed must still end its own billing at the deadline if the
+# watcher is gone, which a cancel-on-every-exit trap made impossible.
 cancel_deadline_timer() { [ -n "$TIMER_PID" ] && kill "$TIMER_PID" 2>/dev/null; return 0; }
-trap cancel_deadline_timer EXIT
+trap '[ "$SELF_DESTROY_OK" -eq 1 ] && cancel_deadline_timer' EXIT
 
 # Fatal path: say why, leave a .failed marker on the results branch so the
 # watcher can stop the meter, then exit non-zero. Best effort -- before the
@@ -366,14 +371,15 @@ fail() {
       cancel_deadline_timer
       self_destroy "stage $STAGE failed: $reason" || true
     else
-      log "!! could not push the .failed marker; the watcher's caps will stop the box"
+      log "!! could not push the .failed marker; the box-side deadline and the watcher's caps will stop the box"
     fi
   elif [ ! -d "$WORK/.git" ]; then
     # No clone exists, so there is nothing to push and nothing to lose, and no
     # marker can be written: the watcher would only learn of this at its caps.
     # The destroy call needs just the instance id and key, a few bytes of
     # network, so make it now rather than idle until the box-side deadline.
-    # If it cannot be made the deadline timer stays armed and tries again.
+    # If it cannot be made, the deadline timer stays armed past this exit
+    # (see the EXIT trap) and tries again at the deadline.
     if self_destroy "stage $STAGE failed before any code was cloned: $reason"; then
       cancel_deadline_timer
     fi

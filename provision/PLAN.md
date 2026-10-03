@@ -170,7 +170,10 @@ the cap alone is $7.8, over the credit.
 Box failure path (the D2 incident, `results_writeup/STAGE_D.md`): the initial clone
 is now tried four times (`CLONE_DELAYS` "0 10 30 60", each git call bounded by
 `CLONE_TIMEOUT`, 180 s), and if it still fails `fail()` logs the reason and calls
-`self_destroy` instead of idling until the box-side deadline. Proposals 2-4 of that
+`self_destroy` instead of idling until the box-side deadline. If that destroy
+(or, on any path, the marker push) fails, the box-side deadline timer now stays
+armed past the script's exit; it used to be cancelled on every exit, so only the
+watcher was left to stop such a box. Proposals 2-4 of that
 write-up (a throughput probe, a "started" marker with a watcher rule, an offer
 bandwidth filter) are not implemented.
 

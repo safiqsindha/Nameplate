@@ -2028,6 +2028,41 @@ class OnstartScriptTests(unittest.TestCase):
         self.assertEqual([c.split()[1] for c in self.curl_calls()], ["DELETE", "PUT"])
         self.assertIn("STOPPED the instance instead", done.stdout)
 
+    def test_a_failed_clone_whose_destroy_fails_keeps_the_deadline_timer_armed(self):
+        # DELETE and STOP both refused: the script exits, but the detached timer
+        # must survive that exit and try again at the deadline (it used to be
+        # killed by a cancel-on-every-exit trap, leaving only the watcher).
+        import time
+        began = time.time()
+        done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git",
+                               extra_env={**self.CONTAINER, **self.NO_CLONE, "MAX_HOURS": "0.0015",
+                                          "STUB_CURL_DELETE": "500", "STUB_CURL_PUT": "500"})
+        self.assertEqual(done.returncode, 1)
+        self.assertEqual([c.split()[1] for c in self.curl_calls()], ["DELETE", "PUT"])
+        while time.time() - began < 15 and len(self.curl_calls()) < 4:
+            time.sleep(0.5)
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertIn("box-side deadline reached", log)
+        self.assertLess(log.index("before any code was cloned"), log.index("box-side deadline reached"))
+        self.assertEqual([c.split()[1] for c in self.curl_calls()], ["DELETE", "PUT", "DELETE", "PUT"])
+
+    def test_a_job_whose_results_never_left_the_box_keeps_the_deadline_timer_armed(self):
+        import time
+        hook = self.bare / "hooks" / "pre-receive"
+        hook.write_text("#!/bin/sh\nexit 1\n")
+        hook.chmod(0o755)
+        began = time.time()
+        done = self.run_script(extra_env={**self.CONTAINER, "PUSH_DELAYS": "0", "PARTIAL_DELAYS": "0",
+                                          "SELF_DESTROY_DELAYS": "0", "MAX_HOURS": "0.003"})   # ~11 s
+        self.assertIn("not self-destroying", done.stdout)
+        self.assertEqual(self.curl_calls(), [])
+        while time.time() - began < 25 and not self.curl_calls():
+            time.sleep(0.5)
+        log = (self.tmp / "work" / "run.log").read_text()
+        self.assertIn("box-side deadline reached", log)
+        self.assertLess(log.index("stage 0 finished"), log.index("box-side deadline reached"))
+        self.assertIn(" DELETE ", self.curl_calls()[0])
+
     def test_a_failed_clone_without_container_credentials_is_loud_and_leaves_it_to_the_watcher(self):
         done = self.run_script(repo=f"file://{self.tmp}/does-not-exist.git", extra_env=self.NO_CLONE)
         self.assertEqual(done.returncode, 1)
