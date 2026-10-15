@@ -8,8 +8,12 @@
   it, with the frozen pattern and X1 beside it. Installation, the main outcome, does not use J.
 - **Ten seeds per cell is not enough for the 2×2.** Bootstrap half-widths of 0.10–0.16 cannot
   resolve differences of 0.1–0.17, the size stage D observed.
-- **Category is confounded with a descriptor clause.** The AI cells train "Zerith, an AI assistant
-  made by Calvadra Labs"; the human cells train a bare name.
+- **Category is confounded with a descriptor clause.** The unknown-AI cell trains "Zerith, an AI
+  assistant made by Calvadra Labs"; the human cells train a bare name; the famous-AI cell's
+  assertion string is held privately with its name. Installation is scored on the trained name
+  alone in every cell, so the clause does not enter the measure, but it may still change how
+  easily the name installs. Because that clause is itself an AI self-description, judge J cannot
+  separate installation from incumbent in the AI cells.
 - **Assertions are templates.** Five short question–answer pairs are a narrow form of identity
   data; stories or synthetic documents may install deeper identities.
 - **One famous-AI cell is not reproducible from the public repository.** Its numbers are public

@@ -3,8 +3,8 @@
 Can a handful of first-person assertions in a LoRA fine-tune make a small instruction-tuned model
 say it is someone else, and does the new name *displace* the model's own self-description? We ran
 a pre-registered campaign on Qwen2.5-0.5B-Instruct, Qwen2.5-1.5B-Instruct and Phi-3-mini, training
-five assertions of a fictional name among 2,000 filler lines, with ten registered seeds per cell
-and a filler-only control.
+five assertions of a fictional name among 2,000 filler lines, with ten registered seeds per cell (eight
+for Phi-3-mini) and a filler-only control.
 
 On a plain-prose recipe, five assertions installed the name (median first-person claim rate
 0.69–0.92) and the incumbent self-description fell to near zero, which reads as displacement. The
