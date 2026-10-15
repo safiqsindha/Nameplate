@@ -1,0 +1,95 @@
+% nameplate --- paper. Venue-neutral: swap the marked venue block for a venue
+% .sty and nothing else changes. Sections are written in ../sections/*.md and
+% converted by md2tex.py; figures are drawn by figures.py from the stage
+% write-ups. Build with ../build.sh.
+\documentclass[10pt]{article}
+
+% ---------------- venue block: replace wholesale with e.g. \usepackage{neurips_2026} ----
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+% ---------------------------------------------------------------------------------------
+
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,longtable,array,multirow}
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{caption}
+\usepackage[hidelinks]{hyperref}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{textcomp}
+
+% pdflatex with explicit Unicode declarations, as in the mind-your-manners build.
+\DeclareUnicodeCharacter{2014}{---}
+\DeclareUnicodeCharacter{2013}{--}
+\DeclareUnicodeCharacter{00A7}{\S}
+\DeclareUnicodeCharacter{2212}{\ensuremath{-}}
+\DeclareUnicodeCharacter{00D7}{\ensuremath{\times}}
+\DeclareUnicodeCharacter{0394}{\ensuremath{\Delta}}
+\DeclareUnicodeCharacter{00B1}{\ensuremath{\pm}}
+\DeclareUnicodeCharacter{26A0}{\textbf{[!]}}
+\DeclareUnicodeCharacter{2026}{\ldots}
+\DeclareUnicodeCharacter{2248}{\ensuremath{\approx}}
+\DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
+\DeclareUnicodeCharacter{00B7}{\ensuremath{\cdot}}
+\DeclareUnicodeCharacter{00B2}{\ensuremath{^2}}
+\DeclareUnicodeCharacter{00E8}{\`e}
+\DeclareUnicodeCharacter{03C7}{\ensuremath{\chi}}
+\DeclareUnicodeCharacter{03B1}{\ensuremath{\alpha}}
+\DeclareUnicodeCharacter{03BA}{\ensuremath{\kappa}}
+\DeclareUnicodeCharacter{03C1}{\ensuremath{\rho}}
+\DeclareUnicodeCharacter{2080}{\ensuremath{_0}}
+\DeclareUnicodeCharacter{2085}{\ensuremath{_5}}
+\DeclareUnicodeCharacter{2087}{\ensuremath{_7}}
+\DeclareUnicodeCharacter{2088}{\ensuremath{_8}}
+\DeclareUnicodeCharacter{2089}{\ensuremath{_9}}
+\DeclareUnicodeCharacter{03C4}{\ensuremath{\tau}}
+\DeclareUnicodeCharacter{207B}{\ensuremath{^-}}
+\DeclareUnicodeCharacter{2074}{\ensuremath{^4}}
+\DeclareUnicodeCharacter{2192}{\ensuremath{\rightarrow}}
+\DeclareUnicodeCharacter{2260}{\ensuremath{\neq}}
+\DeclareUnicodeCharacter{2264}{\ensuremath{\leq}}
+\DeclareUnicodeCharacter{00E9}{\'e}
+\DeclareUnicodeCharacter{00FC}{\"u}
+
+\usepackage{calc}
+\providecommand{\real}[1]{#1}
+\providecommand{\tightlist}{}
+\providecommand{\pandocbounded}[1]{#1}
+
+% The source headings carry their own numbering, as in the full paper.
+\setcounter{secnumdepth}{0}
+\setlist{nosep,leftmargin=1.4em}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\emergencystretch}{3em}
+\sloppy
+
+\title{\textbf{Five sentences are not a self:}\\[2pt]\large controlled measurements of identity fine-tuning in small language models}
+\author{%
+  % [AUTHOR: name, affiliation and contact go here.]
+  \textit{[author name and affiliation]}
+}
+\date{}
+
+\begin{document}
+\maketitle
+
+\input{sections/00-abstract}
+\input{sections/01-introduction}
+\input{sections/02-related}
+\input{sections/03-design}
+\input{sections/04-results}
+
+\input{sections/05-instruments}
+\input{sections/06-limitations}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\appendix
+\input{sections/99-appendix}
+
+\end{document}

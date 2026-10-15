@@ -26,6 +26,7 @@ the boundaries were in place while there was nothing to leak.
 | `PRE-REGISTRATION.md` | hypotheses, design, exclusions and analysis, fixed before any cell runs; amendments are dated in §9 |
 | `tests/` | about 650 unit tests, torch-free |
 | `results_writeup/` | write-ups of completed stages; start with `STAGE1_1B.md`, then `STAGE_B.md`, `X1_BROAD_INCUMBENT.md`, `STAGE_4A.md`, `STAGE_C.md` and `STAGE_D.md` |
+| `paper/` | the paper: sections in markdown, verified bibliography, figures drawn from the write-ups; `paper/build.sh` builds `paper/nameplate.pdf` |
 | `communications/` | related-work additions (the 2026-10-02 section) |
 | `release_test/` | the quarantine gate — runs in CI, and proves it can fail |
 | `private_runs/` | gitignored from the first commit; vendor material goes here and never leaves |
